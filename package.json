@@ -1,0 +1,15 @@
+{
+  "name": "pds-root",
+  "scripts": {
+    "backend": "cd pds-backend && npm run dev",
+    "frontend": "cd pds-frontend && npm run dev",
+    "beneficiary": "cd pds-beneficiary && npx expo start",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0"
+  }
+}
