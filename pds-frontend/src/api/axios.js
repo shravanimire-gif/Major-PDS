@@ -2,10 +2,42 @@ import axios from "axios";
 
 const TOKEN_KEY = "pds_token";
 const LOGIN_PATH = "/login";
+const DEFAULT_LOCAL_API_PORT = "5055";
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
+const normalizeBaseURL = (url) => {
+  const trimmedUrl = url?.trim();
+
+  if (!trimmedUrl) {
+    return "";
+  }
+
+  return trimmedUrl.replace(/\/+$/, "");
+};
+
+const resolveBaseURL = () => {
+  const envBaseURL = normalizeBaseURL(import.meta.env.VITE_API_BASE_URL);
+
+  if (envBaseURL) {
+    return envBaseURL;
+  }
+
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const { hostname, protocol } = window.location;
+
+  if (LOCAL_HOSTNAMES.has(hostname)) {
+    return `${protocol}//${hostname}:${DEFAULT_LOCAL_API_PORT}`;
+  }
+
+  return "";
+};
+
+const baseURL = resolveBaseURL();
+
+const api = axios.create(baseURL ? { baseURL } : {});
 
 api.interceptors.request.use(
   (config) => {
@@ -35,5 +67,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export const resolvedApiBaseUrl = baseURL;
 
 export default api;

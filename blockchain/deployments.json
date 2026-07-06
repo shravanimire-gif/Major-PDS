@@ -1,0 +1,8 @@
+{
+  "network": "sepolia",
+  "contractAddress": "0xD3A989A423FDB3cF28024D1c67aaC04e4743e5B4",
+  "deployerAddress": "0x801161714e4d3c70fe1E15a002D31a4Ea5e0CF42",
+  "deployedAt": "2026-06-28T11:22:37.197Z",
+  "txHash": "0xe035446d7bb828bc088b035239021f6b970c93fc1a6496edf56af7bc2b946a96",
+  "etherscan": "https://sepolia.etherscan.io/address/0xD3A989A423FDB3cF28024D1c67aaC04e4743e5B4"
+}

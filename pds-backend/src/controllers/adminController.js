@@ -819,6 +819,114 @@ const createShopkeeper = async (req, res, next) => {
   }
 };
 
+const bulkCreateShopkeepers = async (req, res, next) => {
+  const { rows } = req.body;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ error: "No rows provided" });
+  }
+  if (rows.length > 500) {
+    return res.status(400).json({ error: "Maximum 500 rows per upload" });
+  }
+
+  const results = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 1;
+    const client = await pool.connect();
+
+    try {
+      const { name, email, mobile, password, status } = row;
+
+      if (!name?.trim()) throw new Error("name is required");
+      if (!email?.trim()) throw new Error("email is required");
+      if (!mobile?.trim()) throw new Error("mobile is required");
+      if (!password?.trim()) throw new Error("password is required");
+      if (password.trim().length < 6) throw new Error("password must be at least 6 characters");
+
+      const cleanName = name.trim();
+      const cleanEmail = email.trim().toLowerCase();
+      const normalizedMobile = normalizeIndianMobile(mobile);
+      if (!normalizedMobile) throw new Error("mobile must be a valid 10-digit Indian number");
+
+      const normalizedStatus = status?.trim().toLowerCase();
+      if (normalizedStatus && !["active", "inactive"].includes(normalizedStatus)) {
+        throw new Error("status must be active or inactive");
+      }
+      const isActive = normalizedStatus === "inactive" ? false : true;
+
+      await client.query("BEGIN");
+
+      const existingEmail = await client.query(
+        `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [cleanEmail],
+      );
+      if (existingEmail.rows.length > 0) {
+        throw new Error(`Email "${cleanEmail}" already exists`);
+      }
+
+      const existingMobile = await client.query(
+        `SELECT id FROM users WHERE mobile = $1 LIMIT 1`,
+        [normalizedMobile],
+      );
+      if (existingMobile.rows.length > 0) {
+        throw new Error(`Mobile "${normalizedMobile}" already exists`);
+      }
+
+      const passwordHash = await bcrypt.hash(password.trim(), 10);
+      const createdUser = await client.query(
+        `INSERT INTO users (role, name, email, mobile, password_hash, is_active)
+         VALUES ('shopkeeper', $1, $2, $3, $4, $5)
+         RETURNING id, name, email, mobile, is_active`,
+        [cleanName, cleanEmail, normalizedMobile, passwordHash, isActive],
+      );
+
+      await client.query("COMMIT");
+
+      const user = createdUser.rows[0];
+      results.push({
+        row: rowNum,
+        status: "success",
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+      });
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {}
+
+      results.push({
+        row: rowNum,
+        status: "error",
+        error: err.message,
+        name: row.name || "",
+        email: row.email || "",
+        mobile: row.mobile || "",
+      });
+    } finally {
+      client.release();
+    }
+  }
+
+  const succeeded = results.filter((result) => result.status === "success").length;
+  const failed = results.filter((result) => result.status === "error").length;
+
+  logger.info("Bulk shopkeeper upload", {
+    total: rows.length,
+    succeeded,
+    failed,
+  });
+
+  return res.status(200).json({
+    total: rows.length,
+    succeeded,
+    failed,
+    results,
+  });
+};
+
 const bulkCreateRationCards = async (req, res, next) => {
   const { rows } = req.body;
 
@@ -1209,6 +1317,7 @@ const getIntegrityChecks = async (req, res, next) => {
 module.exports = {
   createRationCard,
   getRationCards,
+  bulkCreateShopkeepers,
   bulkCreateRationCards,
   bulkCreateShops,
   bulkAddFamilyMembers,

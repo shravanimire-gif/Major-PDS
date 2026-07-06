@@ -11,6 +11,7 @@ const {
 } = require("../validators/admin");
 const {
   createRationCard,
+  bulkCreateShopkeepers,
   getRationCards,
   bulkCreateRationCards,
   bulkCreateShops,
@@ -36,6 +37,7 @@ const router = express.Router();
 
 router.use(verifyToken, requireRole("admin"));
 
+router.post("/shopkeepers/bulk", bulkCreateShopkeepers);
 router.post("/ration-cards/bulk", bulkCreateRationCards);
 router.post("/family-members/bulk", bulkAddFamilyMembers);
 router.post("/ration-cards", validate(createRationCardSchema), createRationCard);

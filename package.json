@@ -4,6 +4,9 @@
     "backend": "cd pds-backend && npm run dev",
     "frontend": "cd pds-frontend && npm run dev",
     "beneficiary": "cd pds-beneficiary && npx expo start",
+    "blockchain:test": "cd blockchain && npm test",
+    "blockchain:local": "cd blockchain && npm run deploy:local",
+    "blockchain:deploy": "cd blockchain && npm run deploy:sepolia",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
   "devDependencies": {

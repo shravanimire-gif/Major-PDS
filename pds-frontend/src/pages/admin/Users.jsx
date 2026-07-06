@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/axios';
 import AddShopkeeperModal from '../../components/admin/AddShopkeeperModal';
+import ShopkeeperBulkUploadModal from '../../components/admin/ShopkeeperBulkUploadModal';
 
 const getRoleBadgeClass = (role) => {
   if (role === 'admin') return 'bg-purple-900 text-purple-300';
@@ -15,6 +16,7 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -117,13 +119,22 @@ const Users = () => {
     <div className="p-8 bg-gray-950 min-h-screen text-white">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Users</h1>
-        <button
-          type="button"
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition"
-        >
-          + Add Shopkeeper
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm font-medium border border-gray-600 transition"
+          >
+            ↑ Bulk Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition"
+          >
+            + Add Shopkeeper
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -244,6 +255,12 @@ const Users = () => {
       <AddShopkeeperModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={fetchUsers}
+      />
+
+      <ShopkeeperBulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
         onSuccess={fetchUsers}
       />
 

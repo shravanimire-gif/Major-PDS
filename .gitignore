@@ -6,6 +6,12 @@
 !.env.example
 !**/.env.example
 
+### Blockchain — never commit secrets or build artifacts
+blockchain/.env
+blockchain/artifacts/
+blockchain/cache/
+blockchain/node_modules/
+
 ### Dependencies
 node_modules/
 **/node_modules/

@@ -16,6 +16,24 @@ const resolveRolePath = (role) => {
   return null;
 };
 
+const getLoginErrorMessage = (apiError) => {
+  const status = apiError.response?.status;
+
+  if (status === 400 || status === 401) {
+    return 'Invalid credentials';
+  }
+
+  if (!apiError.response) {
+    return 'Unable to reach the server. Check that the backend is running.';
+  }
+
+  if (status === 404) {
+    return 'Login service is unavailable. Check the API connection settings.';
+  }
+
+  return 'Unable to sign in right now. Please try again.';
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const { isReady, user, login, logout } = useAuth();
@@ -53,7 +71,7 @@ const Login = () => {
 
       navigate(nextPath, { replace: true });
     } catch (apiError) {
-      setError('Invalid credentials');
+      setError(getLoginErrorMessage(apiError));
     } finally {
       setLoading(false);
     }

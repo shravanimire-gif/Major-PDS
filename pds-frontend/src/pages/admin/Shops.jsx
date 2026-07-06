@@ -184,7 +184,6 @@ const Shops = () => {
               <th className="px-4 py-3 text-left">Code</th>
               <th className="px-4 py-3 text-left">Shop Name</th>
               <th className="px-4 py-3 text-left">Area</th>
-              <th className="px-4 py-3 text-left">Contact</th>
               <th className="px-4 py-3 text-left">Shopkeeper</th>
               <th className="px-4 py-3 text-left">Mobile</th>
               <th className="px-4 py-3 text-left">Beneficiaries</th>
@@ -195,13 +194,13 @@ const Shops = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="9" className="text-center py-12 text-gray-500">
+                <td colSpan="8" className="text-center py-12 text-gray-500">
                   Loading...
                 </td>
               </tr>
             ) : shops.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center py-12 text-gray-500">
+                <td colSpan="8" className="text-center py-12 text-gray-500">
                   No data found
                 </td>
               </tr>
@@ -218,9 +217,6 @@ const Shops = () => {
                       <td className="px-4 py-3 text-gray-200">{shop.shop_code}</td>
                       <td className="px-4 py-3 text-gray-200">{shop.shop_name}</td>
                       <td className="px-4 py-3 text-gray-200">{shop.area_name}</td>
-                      <td className="px-4 py-3 text-gray-200">
-                        {shop.contact_number || <span className="text-gray-500">—</span>}
-                      </td>
                       <td className="px-4 py-3 text-gray-200">
                         {shop.shopkeeper_name || <span className="text-gray-500">—</span>}
                       </td>
@@ -255,11 +251,10 @@ const Shops = () => {
                     </tr>
                     {isExpanded && (
                       <tr className="border-t border-gray-800">
-                        <td colSpan="9" className="bg-gray-800 px-6 py-4 text-sm text-gray-300">
+                        <td colSpan="8" className="bg-gray-800 px-6 py-4 text-sm text-gray-300">
                           <div className="grid md:grid-cols-3 gap-2">
                             <p><span className="text-gray-400">Shop Code:</span> {shop.shop_code}</p>
                             <p><span className="text-gray-400">Area:</span> {shop.area_name}</p>
-                            <p><span className="text-gray-400">Contact:</span> {shop.contact_number || '—'}</p>
                             <p><span className="text-gray-400">Shopkeeper:</span> {shop.shopkeeper_name || '—'}</p>
                             <p><span className="text-gray-400">Shopkeeper Mobile:</span> {shop.shopkeeper_mobile || '—'}</p>
                             <p><span className="text-gray-400">Beneficiaries:</span> {shop.beneficiary_count}</p>

@@ -1,7 +1,9 @@
+const path = require("path");
 const { Pool } = require("pg");
 const dotenv = require("dotenv");
 
-dotenv.config();
+// Resolve .env from project root (pds-backend/) regardless of cwd
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const isProduction = process.env.NODE_ENV === "production";
 const isTest = process.env.NODE_ENV === "test";

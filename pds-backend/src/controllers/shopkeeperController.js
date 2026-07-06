@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const logger = require("../config/logger");
+const { recordDispense } = require("../services/blockchainService");
 
 const toNumber = (value) => Number.parseFloat(value || 0);
 
@@ -320,7 +321,8 @@ const dispense = async (req, res, next) => {
           w.rice_balance_kg,
           w.wheat_balance_kg,
           w.sugar_balance_kg,
-          rc.shop_id
+          rc.shop_id,
+          rc.card_number
         FROM wallets w
         JOIN ration_cards rc ON rc.id = w.ration_card_id
         WHERE w.ration_card_id = $1
@@ -404,6 +406,40 @@ const dispense = async (req, res, next) => {
     await client.query("COMMIT");
 
     logger.info('Dispense success', { ration_card_id: rationCardId, rice_qty: riceQty, wheat_qty: wheatQty, sugar_qty: sugarQty });
+
+    // ── Blockchain recording (fire-and-forget after DB commit) ──────────────
+    // Runs asynchronously — blockchain failure NEVER rolls back the DB transaction
+    // and NEVER blocks the HTTP response.
+    const txRow = txResult.rows[0];
+    recordDispense({
+      transactionId: txRow.id,
+      cardNumber: wallet.card_number || rationCardId,
+      shopCode: shop.shop_code,
+      riceQtyKg: riceQty,
+      wheatQtyKg: wheatQty,
+      timestamp: Math.floor(new Date(txRow.created_at).getTime() / 1000),
+    }).then(({ success, txHash, error }) => {
+      if (success) {
+        // Persist the hash asynchronously — best effort
+        pool.query(
+          "UPDATE transactions SET blockchain_tx_hash = $1 WHERE id = $2",
+          [txHash, txRow.id]
+        ).catch((dbErr) =>
+          logger.error("[Blockchain] Failed to save tx hash to DB", {
+            error: dbErr.message, transactionId: txRow.id,
+          })
+        );
+        logger.info("[Blockchain] Hash stored", { txHash, transactionId: txRow.id });
+      } else {
+        logger.warn("[Blockchain] Recording failed — DB transaction unaffected", {
+          error, transactionId: txRow.id,
+        });
+      }
+    }).catch((err) =>
+      logger.error("[Blockchain] Unexpected error in recordDispense", {
+        error: err.message, transactionId: txRow.id,
+      })
+    );
 
     return res.status(200).json({
       message: "Dispensed successfully",
@@ -530,6 +566,37 @@ const createTransaction = async (req, res, next) => {
 
     const tx = txResult.rows[0];
     logger.info('[Transaction] Success', { ration_card_id: rationCardId, transaction_id: tx.id });
+
+    // ── Blockchain recording (fire-and-forget after DB commit) ──────────────
+    // Blockchain failure NEVER rolls back the DB transaction or blocks the response.
+    recordDispense({
+      transactionId: tx.id,
+      cardNumber: wallet.card_number || rationCardId,
+      shopCode: shop.shop_code,
+      riceQtyKg: riceQty,
+      wheatQtyKg: wheatQty,
+      timestamp: Math.floor(new Date(tx.created_at).getTime() / 1000),
+    }).then(({ success, txHash, error }) => {
+      if (success) {
+        pool.query(
+          "UPDATE transactions SET blockchain_tx_hash = $1 WHERE id = $2",
+          [txHash, tx.id]
+        ).catch((dbErr) =>
+          logger.error("[Blockchain] Failed to save tx hash to DB", {
+            error: dbErr.message, transactionId: tx.id,
+          })
+        );
+        logger.info("[Blockchain] Hash stored", { txHash, transactionId: tx.id });
+      } else {
+        logger.warn("[Blockchain] Recording failed — DB transaction unaffected", {
+          error, transactionId: tx.id,
+        });
+      }
+    }).catch((err) =>
+      logger.error("[Blockchain] Unexpected error in recordDispense", {
+        error: err.message, transactionId: tx.id,
+      })
+    );
 
     // Stable blockchain payload — field names and shape are final
     return res.status(200).json({
