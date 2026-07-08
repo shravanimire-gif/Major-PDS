@@ -26,6 +26,30 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 let _ethers = null;
 let _contract = null;
 let _initFailed = false;
+let _provider = null;
+let _signerAddress = null;
+
+// ─── Phase: blockchain health monitoring ─────────────────────────────────────
+// Minimal additive instrumentation for GET /api/admin/blockchain/health.
+// This does NOT change recordDispense's behavior, return values, or control
+// flow — it only appends an in-memory record of each outcome so the health
+// endpoint can compute a recent failure rate. No such tracking existed
+// before (blockchainService only logged via Winston, which isn't practical
+// to query for a live windowed percentage), so this is the "minimum new
+// logging" called out as acceptable when no reusable infrastructure exists.
+// It is in-memory only: it resets on backend restart and does not persist
+// history from before this change.
+let _recentOutcomes = [];
+const _OUTCOME_RETENTION_MS = 24 * 60 * 60 * 1000; // bound memory to the longest window ever queried
+
+function _recordOutcome(success) {
+    const now = Date.now();
+    _recentOutcomes.push({ ts: now, success });
+    const cutoff = now - _OUTCOME_RETENTION_MS;
+    while (_recentOutcomes.length && _recentOutcomes[0].ts < cutoff) {
+        _recentOutcomes.shift();
+    }
+}
 
 /**
  * Minimal ABI — only the functions this service needs.
@@ -85,6 +109,8 @@ async function _init() {
         const provider = new _ethers.JsonRpcProvider(rpcUrl);
         const signer = new _ethers.Wallet(privateKey, provider);
         _contract = new _ethers.Contract(contractAddress, PDSLEDGER_ABI, signer);
+        _provider = provider;
+        _signerAddress = signer.address;
 
         logger.info("[Blockchain] Service initialised", {
             contractAddress,
@@ -123,6 +149,7 @@ async function recordDispense({
 }) {
     const ready = await _init();
     if (!ready) {
+        _recordOutcome(false);
         return { success: false, error: "Blockchain service not configured" };
     }
 
@@ -157,6 +184,7 @@ async function recordDispense({
             transactionId,
         });
 
+        _recordOutcome(true);
         return { success: true, txHash: receipt.hash };
     } catch (err) {
         logger.error("[Blockchain] Transaction failed", {
@@ -164,6 +192,7 @@ async function recordDispense({
             transactionId,
             cardNumber,
         });
+        _recordOutcome(false);
         return { success: false, error: err.message };
     }
 }
@@ -186,4 +215,79 @@ async function healthCheck() {
     }
 }
 
-module.exports = { recordDispense, healthCheck };
+/**
+ * Detailed RPC/contract/wallet diagnostics for the admin health dashboard.
+ * Unlike healthCheck(), this returns the underlying facts (latency, balance,
+ * gas price, error messages) rather than a single boolean, and never throws
+ * — every section reports its own reachable/error state independently so a
+ * failure in one (e.g. wallet balance lookup) doesn't hide the others.
+ */
+async function getBlockchainDiagnostics() {
+    const ready = await _init();
+
+    if (!ready) {
+        const notConfigured = "Blockchain service not configured";
+        return {
+            rpc: { reachable: false, latencyMs: null, blockNumber: null, error: notConfigured },
+            contract: { reachable: false, totalRecords: null, address: process.env.BLOCKCHAIN_CONTRACT_ADDRESS || null, error: notConfigured },
+            wallet: { address: null, balanceEth: null, gasPriceGwei: null, error: notConfigured },
+        };
+    }
+
+    const contractAddress = process.env.BLOCKCHAIN_CONTRACT_ADDRESS;
+
+    const rpcStart = Date.now();
+    let rpc;
+    try {
+        const blockNumber = await _provider.getBlockNumber();
+        rpc = { reachable: true, latencyMs: Date.now() - rpcStart, blockNumber, error: null };
+    } catch (err) {
+        rpc = { reachable: false, latencyMs: Date.now() - rpcStart, blockNumber: null, error: err.message };
+    }
+
+    let contract;
+    try {
+        const total = await _contract.getTotalRecords();
+        contract = { reachable: true, totalRecords: total.toString(), address: contractAddress, error: null };
+    } catch (err) {
+        contract = { reachable: false, totalRecords: null, address: contractAddress, error: err.message };
+    }
+
+    let wallet;
+    try {
+        const [balanceWei, feeData] = await Promise.all([
+            _provider.getBalance(_signerAddress),
+            _provider.getFeeData(),
+        ]);
+        wallet = {
+            address: _signerAddress,
+            balanceEth: _ethers.formatEther(balanceWei),
+            balanceWei: balanceWei.toString(),
+            gasPriceGwei: feeData.gasPrice != null ? _ethers.formatUnits(feeData.gasPrice, "gwei") : null,
+            gasPriceWei: feeData.gasPrice != null ? feeData.gasPrice.toString() : null,
+            error: null,
+        };
+    } catch (err) {
+        wallet = { address: _signerAddress, balanceEth: null, gasPriceGwei: null, error: err.message };
+    }
+
+    return { rpc, contract, wallet };
+}
+
+/**
+ * Recent recordDispense() outcome counts from the in-memory ring buffer (see
+ * _recordOutcome above) over the given window.
+ */
+function getFailureRateStats(windowMs) {
+    const cutoff = Date.now() - windowMs;
+    const inWindow = _recentOutcomes.filter((o) => o.ts >= cutoff);
+    const attempts = inWindow.length;
+    const failures = inWindow.filter((o) => !o.success).length;
+    return {
+        attempts,
+        failures,
+        percentage: attempts > 0 ? (failures / attempts) * 100 : 0,
+    };
+}
+
+module.exports = { recordDispense, healthCheck, getBlockchainDiagnostics, getFailureRateStats };

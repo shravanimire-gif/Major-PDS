@@ -3,7 +3,7 @@ import TopBar from './TopBar';
 
 export default function ShopkeeperLayout() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-muted">
       <TopBar />
       <main className="container mx-auto px-4 py-6">
         <Outlet />

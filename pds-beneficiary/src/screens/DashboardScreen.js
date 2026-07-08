@@ -1,22 +1,34 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-    View,
-    Text,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    RefreshControl,
-    Alert,
-} from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
-import SkeletonCard from "../components/SkeletonCard";
+import { colors, typography, spacing, radius } from "../theme";
+import {
+    Card,
+    Button,
+    Badge,
+    ScreenHeader,
+    SkeletonCard,
+    Icon,
+    Avatar,
+    ProgressBar,
+    EmptyState,
+    useToast,
+} from "../components/primitives";
 
-const CATEGORY_COLOR = { APL: "#2196F3", BPL: "#FF9800", AAY: "#F44336" };
+// ASSUMPTION: the API only returns the *remaining* balance per grain
+// (wallet.*_balance_kg), not a monthly entitlement total, so "% used" can't
+// be derived from the response alone. Mocked here using the standard NFSA
+// per-card monthly foodgrain entitlement (5kg/person is the usual figure,
+// but per-member totals aren't available on this screen, so a flat
+// per-card figure is used as a placeholder). Flagging for follow-up: the
+// API should expose an actual entitlement total per card/category.
+const MOCK_MONTHLY_ENTITLEMENT_KG = { rice: 15, wheat: 10, sugar: 2 };
 
 export default function DashboardScreen({ navigation }) {
     const { logout } = useAuth();
+    const toast = useToast();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -39,17 +51,27 @@ export default function DashboardScreen({ navigation }) {
             if (err.response?.status === 401) {
                 logout();
             } else {
-                Alert.alert("Error", "Failed to load data. Pull to refresh.");
+                toast.show("Failed to load data. Pull to refresh.", { variant: "error" });
             }
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [logout]);
+    }, [logout, toast]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     const onRefresh = () => { setRefreshing(true); fetchAll(); };
+
+    const handleLogout = () => {
+        // The one deliberately-kept native dialog: logging out is
+        // destructive to the current session and irreversible from this
+        // screen, so a system confirm is more appropriate than a toast.
+        Alert.alert("Logout", "Are you sure you want to log out?", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Logout", style: "destructive", onPress: logout },
+        ]);
+    };
 
     if (loading) {
         return (
@@ -65,7 +87,7 @@ export default function DashboardScreen({ navigation }) {
     }
 
     const { beneficiary, wallet, family, transactions } = data || {};
-    const catColor = CATEGORY_COLOR[beneficiary?.category] || "#666";
+    const catColor = colors.category[beneficiary?.category?.toLowerCase()] || colors.textSecondary;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -74,165 +96,225 @@ export default function DashboardScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
             >
                 {/* Header */}
-                <View style={styles.header}>
+                <ScreenHeader align="flex-start" style={styles.header}>
                     <View>
-                        <Text style={styles.greeting}>Welcome back 👋</Text>
+                        <View style={styles.greetingRow}>
+                            <Icon name="greeting" size={typography.size.xs} color={colors.onPrimary} />
+                            <Text style={styles.greeting}>Welcome back</Text>
+                        </View>
                         <Text style={styles.name}>{beneficiary?.head_name}</Text>
                         <Text style={styles.cardNum}>Card: {beneficiary?.card_number}</Text>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: catColor }]}>
-                        <Text style={styles.badgeText}>{beneficiary?.category}</Text>
-                    </View>
-                </View>
+                    <Badge
+                        label={beneficiary?.category}
+                        color={catColor}
+                        accessibilityLabel={`Ration card category: ${beneficiary?.category}`}
+                    />
+                </ScreenHeader>
 
                 {/* Wallet */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>🌾 Monthly Wallet</Text>
+                <Card title="Monthly Wallet" icon="wallet" style={styles.card}>
                     <View style={styles.grainRow}>
-                        <GrainItem label="Rice" value={wallet?.rice_balance_kg} unit="kg" color="#4CAF50" />
-                        <GrainItem label="Wheat" value={wallet?.wheat_balance_kg} unit="kg" color="#FF9800" />
-                        <GrainItem label="Sugar" value={wallet?.sugar_balance_kg} unit="kg" color="#9C27B0" />
+                        <GrainItem
+                            label="Rice"
+                            icon="grainRice"
+                            value={wallet?.rice_balance_kg}
+                            entitlement={MOCK_MONTHLY_ENTITLEMENT_KG.rice}
+                            unit="kg"
+                            color={colors.grain.rice}
+                        />
+                        <GrainItem
+                            label="Wheat"
+                            icon="grainWheat"
+                            value={wallet?.wheat_balance_kg}
+                            entitlement={MOCK_MONTHLY_ENTITLEMENT_KG.wheat}
+                            unit="kg"
+                            color={colors.grain.wheat}
+                        />
+                        <GrainItem
+                            label="Sugar"
+                            icon="grainSugar"
+                            value={wallet?.sugar_balance_kg}
+                            entitlement={MOCK_MONTHLY_ENTITLEMENT_KG.sugar}
+                            unit="kg"
+                            color={colors.grain.sugar}
+                        />
                     </View>
-                </View>
+                </Card>
 
                 {/* QR Button */}
-                <TouchableOpacity
-                    style={styles.qrBtn}
+                <Button
+                    title="Generate QR Code"
+                    icon="qrCode"
                     onPress={() => navigation.navigate("QR")}
-                >
-                    <Text style={styles.qrBtnText}>📱 Generate QR Code</Text>
-                </TouchableOpacity>
+                    style={styles.qrBtn}
+                />
 
                 {/* Family */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>👨‍👩‍👧 Family Members ({family?.length})</Text>
+                <Card title={`Family Members (${family?.length})`} icon="family" style={styles.card}>
                     {family?.map((m, i) => (
                         <View key={i} style={styles.memberRow}>
-                            <Text style={styles.memberName}>{m.name} {m.is_head ? "⭐" : ""}</Text>
-                            <Text style={styles.memberAge}>{m.age} yrs</Text>
+                            <Avatar name={m.name} size={typography.size.xxl} />
+                            <View style={styles.memberTextCol}>
+                                <View style={styles.memberNameRow}>
+                                    <Text style={styles.memberName}>{m.name}</Text>
+                                    {m.is_head && (
+                                        <Icon
+                                            name="headOfFamily"
+                                            size={typography.size.xs}
+                                            color={colors.warning}
+                                            style={styles.headIcon}
+                                            accessibilityLabel="Head of family"
+                                        />
+                                    )}
+                                </View>
+                                <Text style={styles.memberAge}>{m.age} yrs</Text>
+                            </View>
                         </View>
                     ))}
-                </View>
+                </Card>
 
                 {/* Transactions */}
-                <View style={[styles.card, { marginBottom: 32 }]}>
-                    <Text style={styles.cardTitle}>📋 Recent Transactions</Text>
-                    {transactions?.length === 0 && (
-                        <Text style={styles.emptyText}>No transactions yet</Text>
+                <Card title="Recent Transactions" icon="transactions" style={[styles.card, styles.lastCard]}>
+                    {transactions?.length === 0 ? (
+                        <EmptyState
+                            icon="emptyTransactions"
+                            message="No transactions yet — your purchase history will show up here."
+                        />
+                    ) : (
+                        transactions?.map((t) => (
+                            <View key={t.id} style={styles.txRow}>
+                                <View>
+                                    <Text style={styles.txShop}>{t.shop_name}</Text>
+                                    <Text style={styles.txDate}>
+                                        {new Date(t.created_at).toLocaleDateString("en-IN", {
+                                            day: "numeric", month: "short", year: "numeric",
+                                        })}
+                                    </Text>
+                                </View>
+                                <View style={styles.txQtys}>
+                                    {t.rice_qty_kg > 0 && (
+                                        <TxQty icon="grainRice" value={t.rice_qty_kg} color={colors.grain.rice} />
+                                    )}
+                                    {t.wheat_qty_kg > 0 && (
+                                        <TxQty icon="grainWheat" value={t.wheat_qty_kg} color={colors.grain.wheat} />
+                                    )}
+                                    {t.sugar_qty_kg > 0 && (
+                                        <TxQty icon="grainSugar" value={t.sugar_qty_kg} color={colors.grain.sugar} />
+                                    )}
+                                </View>
+                            </View>
+                        ))
                     )}
-                    {transactions?.map((t) => (
-                        <View key={t.id} style={styles.txRow}>
-                            <View>
-                                <Text style={styles.txShop}>{t.shop_name}</Text>
-                                <Text style={styles.txDate}>
-                                    {new Date(t.created_at).toLocaleDateString("en-IN", {
-                                        day: "numeric", month: "short", year: "numeric",
-                                    })}
-                                </Text>
-                            </View>
-                            <View style={styles.txQtys}>
-                                {t.rice_qty_kg > 0 && <Text style={styles.txQty}>🌾 {t.rice_qty_kg}kg</Text>}
-                                {t.wheat_qty_kg > 0 && <Text style={styles.txQty}>🌿 {t.wheat_qty_kg}kg</Text>}
-                                {t.sugar_qty_kg > 0 && <Text style={styles.txQty}>🍬 {t.sugar_qty_kg}kg</Text>}
-                            </View>
-                        </View>
-                    ))}
-                </View>
+                </Card>
             </ScrollView>
 
             {/* Logout */}
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-                <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            <Button title="Logout" variant="dangerOutline" onPress={handleLogout} style={styles.logoutBtn} />
         </SafeAreaView>
     );
 }
 
-function GrainItem({ label, value, unit, color }) {
+function GrainItem({ label, icon, value, entitlement, unit, color }) {
+    const balance = value ?? 0;
+    const usedPct = entitlement > 0 ? Math.max(0, Math.min(100, Math.round(((entitlement - balance) / entitlement) * 100))) : 0;
+
     return (
         <View style={styles.grainItem}>
-            <Text style={[styles.grainValue, { color }]}>{value ?? 0}</Text>
-            <Text style={styles.grainUnit}>{unit}</Text>
+            <Icon name={icon} size={typography.size.base} color={color} />
+            <Text style={[styles.grainValue, { color }]}>{balance}</Text>
+            <Text style={styles.grainUnit}>{unit} left</Text>
             <Text style={styles.grainLabel}>{label}</Text>
+            <ProgressBar
+                value={usedPct}
+                max={100}
+                color={color}
+                label={`${label} entitlement: ${usedPct}% used this month`}
+                style={styles.grainProgress}
+            />
+        </View>
+    );
+}
+
+function TxQty({ icon, value, color }) {
+    return (
+        <View style={styles.txQtyRow}>
+            <Icon name={icon} size={typography.size.xs} color={color} />
+            <Text style={[styles.txQty, { color }]}>{value}kg</Text>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#f0f4ff" },
-    padding: { padding: 16 },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        backgroundColor: "#1a73e8",
-        padding: 20,
-        paddingTop: 16,
+    container: { flex: 1, backgroundColor: colors.background },
+    padding: { padding: spacing.base },
+    // ScreenHeader already supplies flexDirection/justifyContent/background;
+    // only the padding differs from its default here.
+    header: { padding: spacing.lg, paddingTop: spacing.base },
+    greetingRow: { flexDirection: "row", alignItems: "center" },
+    greeting: {
+        color: colors.onPrimary,
+        fontSize: typography.size.sm, // was 13 -> rounds to 14
+        marginLeft: spacing.xs,
     },
-    greeting: { color: "rgba(255,255,255,0.8)", fontSize: 13 },
-    name: { color: "#fff", fontSize: 22, fontWeight: "700", marginTop: 2 },
-    cardNum: { color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 4 },
-    badge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+    name: {
+        color: colors.onPrimary,
+        fontSize: typography.size.lg,
+        fontWeight: typography.weight.bold,
+        marginTop: spacing.xs, // was 2 -> rounds to 4
     },
-    badgeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-    card: {
-        backgroundColor: "#fff",
-        margin: 16,
-        marginBottom: 0,
-        borderRadius: 14,
-        padding: 16,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: "#1a1a2e", marginBottom: 12 },
+    cardNum: { color: colors.onPrimary, fontSize: typography.size.xs, marginTop: spacing.xs },
+    // Card primitive already supplies background/radius/padding/elevation;
+    // only the outer margin differs per screen.
+    card: { margin: spacing.base, marginBottom: 0 },
+    lastCard: { marginBottom: spacing.xxl },
     grainRow: { flexDirection: "row", justifyContent: "space-around" },
-    grainItem: { alignItems: "center" },
-    grainValue: { fontSize: 28, fontWeight: "800" },
-    grainUnit: { fontSize: 12, color: "#888", marginTop: -2 },
-    grainLabel: { fontSize: 13, color: "#444", marginTop: 4 },
-    qrBtn: {
-        backgroundColor: "#1a73e8",
-        margin: 16,
-        marginBottom: 0,
-        borderRadius: 14,
-        padding: 18,
-        alignItems: "center",
+    grainItem: { alignItems: "center", width: "30%" },
+    grainValue: { fontSize: typography.size.xl, fontWeight: typography.weight.bold, marginTop: spacing.xs },
+    grainUnit: {
+        fontSize: typography.size.xs,
+        color: colors.textMuted,
+        marginTop: -spacing.xs,
     },
-    qrBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+    grainLabel: {
+        fontSize: typography.size.sm, // was 13 -> rounds to 14
+        color: colors.textSecondary, // was #444 -> textSecondary
+        marginTop: spacing.xs,
+    },
+    grainProgress: { width: "100%", marginTop: spacing.sm },
+    qrBtn: {
+        margin: spacing.base,
+        marginBottom: 0,
+        padding: spacing.lg, // was 18 -> rounds to 20
+        borderRadius: radius.md, // was 14 -> merged onto the shared card radius (16)
+    },
     memberRow: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        paddingVertical: 8,
+        alignItems: "center",
+        paddingVertical: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        borderBottomColor: colors.border, // was #f0f0f0 -> shared border token
     },
-    memberName: { fontSize: 15, color: "#1a1a2e" },
-    memberAge: { fontSize: 14, color: "#888" },
+    memberTextCol: { flex: 1, marginLeft: spacing.sm },
+    memberNameRow: { flexDirection: "row", alignItems: "center" },
+    memberName: { fontSize: typography.size.base, color: colors.textPrimary }, // was 15 -> rounds to 16
+    headIcon: { marginLeft: spacing.xs },
+    memberAge: { fontSize: typography.size.sm, color: colors.textMuted }, // was #888 -> textMuted
     txRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 10,
+        paddingVertical: spacing.md, // was 10 -> rounds to 12
         borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        borderBottomColor: colors.border, // was #f0f0f0 -> shared border token
     },
-    txShop: { fontSize: 14, fontWeight: "600", color: "#1a1a2e" },
-    txDate: { fontSize: 12, color: "#888", marginTop: 2 },
+    txShop: { fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: colors.textPrimary },
+    txDate: { fontSize: typography.size.xs, color: colors.textMuted, marginTop: spacing.xs }, // was 2/#888
     txQtys: { alignItems: "flex-end" },
-    txQty: { fontSize: 12, color: "#555" },
-    emptyText: { color: "#aaa", textAlign: "center", paddingVertical: 12 },
-    logoutBtn: {
-        margin: 16,
-        padding: 14,
-        borderRadius: 10,
-        borderWidth: 1.5,
-        borderColor: "#e53935",
-        alignItems: "center",
+    txQtyRow: { flexDirection: "row", alignItems: "center" },
+    txQty: {
+        fontSize: typography.size.xs,
+        marginLeft: spacing.xs,
     },
-    logoutText: { color: "#e53935", fontWeight: "600", fontSize: 15 },
+    logoutBtn: { margin: spacing.base },
 });

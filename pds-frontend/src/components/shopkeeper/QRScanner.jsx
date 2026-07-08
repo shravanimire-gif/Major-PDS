@@ -50,16 +50,16 @@ const QRScanner = ({ onScan, onError }) => {
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 w-full">
-      <div className="relative w-full max-w-sm aspect-square rounded-2xl bg-black overflow-hidden border border-gray-800 shadow-2xl">
+      <div className="relative aspect-square w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-border-strong bg-black shadow-[var(--shadow-lg)]">
         <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
 
-        <span className="pointer-events-none absolute left-3 top-3 h-12 w-12 border-l-4 border-t-4 border-blue-500 rounded-tl-lg" />
-        <span className="pointer-events-none absolute right-3 top-3 h-12 w-12 border-r-4 border-t-4 border-blue-500 rounded-tr-lg" />
-        <span className="pointer-events-none absolute bottom-3 left-3 h-12 w-12 border-l-4 border-b-4 border-blue-500 rounded-bl-lg" />
-        <span className="pointer-events-none absolute bottom-3 right-3 h-12 w-12 border-r-4 border-b-4 border-blue-500 rounded-br-lg" />
+        <span className="pointer-events-none absolute left-3 top-3 h-12 w-12 rounded-tl-lg border-l-4 border-t-4 border-brand-500" />
+        <span className="pointer-events-none absolute right-3 top-3 h-12 w-12 rounded-tr-lg border-r-4 border-t-4 border-brand-500" />
+        <span className="pointer-events-none absolute bottom-3 left-3 h-12 w-12 rounded-bl-lg border-b-4 border-l-4 border-brand-500" />
+        <span className="pointer-events-none absolute bottom-3 right-3 h-12 w-12 rounded-br-lg border-b-4 border-r-4 border-brand-500" />
       </div>
 
-      <p className="text-sm text-gray-400">Point camera at QR code</p>
+      <p className="text-sm text-text-secondary">Point camera at QR code</p>
     </div>
   );
 };

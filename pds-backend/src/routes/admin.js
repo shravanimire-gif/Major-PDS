@@ -31,6 +31,7 @@ const {
   createShopkeeper,
   getDbHealth,
   getIntegrityChecks,
+  getBlockchainHealth,
 } = require("../controllers/adminController");
 
 const router = express.Router();
@@ -58,5 +59,6 @@ router.patch("/shops/:id/assign-shopkeeper", assignShopkeeper);
 router.post("/shopkeepers", validate(createShopkeeperSchema), createShopkeeper);
 router.get("/health", getDbHealth);
 router.get("/validation/integrity", getIntegrityChecks);
+router.get("/blockchain/health", getBlockchainHealth);
 
 module.exports = router;

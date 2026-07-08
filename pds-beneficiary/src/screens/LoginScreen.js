@@ -1,17 +1,13 @@
 import React, { useState } from "react";
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import api, { resolvedApiBaseUrl } from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { colors, typography, spacing, radius } from "../theme";
+import { Card, Button, Input, Icon, StepIndicator, SegmentedOTPInput, useToast } from "../components/primitives";
+
+const STEPS = ["Mobile Number", "Verify OTP"];
 
 const normalizeIndianMobile = (value) => {
     const digits = (value || "").replace(/\D/g, "");
@@ -29,10 +25,13 @@ const normalizeIndianMobile = (value) => {
 
 export default function LoginScreen() {
     const { login } = useAuth();
+    const toast = useToast();
     const [mobile, setMobile] = useState("");
     const [otp, setOtp] = useState("");
     const [step, setStep] = useState(1); // 1 = enter mobile, 2 = enter OTP
     const [loading, setLoading] = useState(false);
+    const [mobileError, setMobileError] = useState(null);
+    const [otpError, setOtpError] = useState(null);
 
     const logAxiosError = (label, err) => {
         const cfg = err?.config;
@@ -77,12 +76,15 @@ export default function LoginScreen() {
     };
 
     const handleSendOtp = async () => {
+        setMobileError(null);
         const normalizedMobile = normalizeIndianMobile(mobile);
 
         if (!normalizedMobile) {
-            return Alert.alert("Error", "Enter a valid mobile number (10 digits or +91XXXXXXXXXX)");
+            setMobileError("Enter a valid mobile number (10 digits or +91XXXXXXXXXX)");
+            return;
         }
 
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setLoading(true);
         try {
             const sendPath = "/auth/otp/send";
@@ -97,22 +99,32 @@ export default function LoginScreen() {
             await api.post(sendPath, body);
             setMobile(normalizedMobile);
             setStep(2);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            toast.show(`OTP sent to ${normalizedMobile}`, { variant: "success" });
         } catch (err) {
             logAxiosError("Send OTP", err);
-            Alert.alert("Error", getRequestErrorMessage(err, "Failed to send OTP"));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setMobileError(getRequestErrorMessage(err, "Failed to send OTP"));
         } finally {
             setLoading(false);
         }
     };
 
     const handleVerifyOtp = async () => {
-        if (!otp.trim()) return Alert.alert("Error", "Enter the OTP");
+        setOtpError(null);
+        if (!otp.trim() || otp.trim().length < 6) {
+            setOtpError("Enter the 6-digit OTP");
+            return;
+        }
 
         const normalizedMobile = normalizeIndianMobile(mobile);
         if (!normalizedMobile) {
-            return Alert.alert("Error", "Invalid mobile number. Please re-enter.");
+            setOtpError("Invalid mobile number. Please re-enter.");
+            setStep(1);
+            return;
         }
 
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setLoading(true);
         try {
             const verifyPath = "/auth/otp/verify";
@@ -124,10 +136,12 @@ export default function LoginScreen() {
                 body: { ...body, otp: "[redacted]" },
             });
             const res = await api.post(verifyPath, body);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             await login(res.data.token);
         } catch (err) {
             logAxiosError("Verify OTP", err);
-            Alert.alert("Error", getRequestErrorMessage(err, "Invalid OTP"));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setOtpError(getRequestErrorMessage(err, "Invalid OTP"));
         } finally {
             setLoading(false);
         }
@@ -138,8 +152,19 @@ export default function LoginScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-            <View style={styles.card}>
-                <Text style={styles.logo}>🌾 PDS</Text>
+            <Card padding={spacing.xxl} elevation="medium">
+                <LinearGradient
+                    colors={[colors.primary, colors.primaryDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.brandBanner}
+                >
+                    <Icon name="brand" size={typography.size.xl} color={colors.onPrimary} />
+                    <Text style={styles.logo}>PDS</Text>
+                </LinearGradient>
+
+                <StepIndicator steps={STEPS} step={step} style={styles.stepIndicator} />
+
                 <Text style={styles.title}>Beneficiary Login</Text>
                 <Text style={styles.subtitle}>
                     {step === 1 ? "Enter your registered mobile number" : `OTP sent to ${mobile}`}
@@ -147,54 +172,42 @@ export default function LoginScreen() {
 
                 {step === 1 ? (
                     <>
-                        <TextInput
-                            style={styles.input}
+                        <Input
                             placeholder="+91XXXXXXXXXX"
                             keyboardType="phone-pad"
                             value={mobile}
-                            onChangeText={setMobile}
+                            onChangeText={(text) => { setMobile(text); setMobileError(null); }}
+                            error={mobileError}
                             autoFocus
                         />
-                        <TouchableOpacity
-                            style={styles.btn}
-                            onPress={handleSendOtp}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.btnText}>Send OTP</Text>
-                            )}
-                        </TouchableOpacity>
+                        <Button title="Send OTP" onPress={handleSendOtp} loading={loading} />
                     </>
                 ) : (
                     <>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Enter 6-digit OTP"
-                            keyboardType="number-pad"
+                        <SegmentedOTPInput
                             value={otp}
-                            onChangeText={setOtp}
-                            maxLength={6}
-                            autoFocus
+                            onChangeText={(text) => { setOtp(text); setOtpError(null); }}
+                            error={!!otpError}
+                            style={styles.otpInput}
                         />
+                        {!!otpError && (
+                            <Text style={styles.otpErrorText} accessibilityRole="alert">
+                                {otpError}
+                            </Text>
+                        )}
+                        <Button title="Verify OTP" onPress={handleVerifyOtp} loading={loading} style={styles.verifyBtn} />
                         <TouchableOpacity
-                            style={styles.btn}
-                            onPress={handleVerifyOtp}
-                            disabled={loading}
+                            onPress={() => { setStep(1); setOtpError(null); }}
+                            style={styles.back}
+                            accessibilityRole="button"
+                            accessibilityLabel="Change mobile number"
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.btnText}>Verify OTP</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setStep(1)} style={styles.back}>
-                            <Text style={styles.backText}>← Change number</Text>
+                            <Icon name="back" size={typography.size.sm} color={colors.primary} />
+                            <Text style={styles.backText}>Change number</Text>
                         </TouchableOpacity>
                     </>
                 )}
-            </View>
+            </Card>
         </KeyboardAvoidingView>
     );
 }
@@ -202,49 +215,51 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f0f4ff",
+        backgroundColor: colors.background,
         justifyContent: "center",
-        padding: 24,
+        padding: spacing.xl,
     },
-    card: {
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 28,
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
+    brandBanner: {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: radius.md,
+        paddingVertical: spacing.base,
+        marginBottom: spacing.lg,
     },
-    logo: { fontSize: 40, textAlign: "center", marginBottom: 8 },
+    logo: {
+        fontSize: typography.size.xl,
+        fontWeight: typography.weight.bold,
+        color: colors.onPrimary,
+        marginLeft: spacing.xs,
+    },
+    stepIndicator: { marginBottom: spacing.lg },
     title: {
-        fontSize: 22,
-        fontWeight: "700",
+        fontSize: typography.size.lg,
+        fontWeight: typography.weight.bold,
         textAlign: "center",
-        color: "#1a1a2e",
-        marginBottom: 6,
+        color: colors.textPrimary,
+        marginBottom: spacing.sm, // was 6 -> rounds to 8
     },
     subtitle: {
-        fontSize: 14,
-        color: "#666",
+        fontSize: typography.size.sm,
+        color: colors.textSecondary,
         textAlign: "center",
-        marginBottom: 24,
+        marginBottom: spacing.xl,
     },
-    input: {
-        borderWidth: 1.5,
-        borderColor: "#dde3f0",
-        borderRadius: 10,
-        padding: 14,
-        fontSize: 16,
-        marginBottom: 16,
-        backgroundColor: "#f8f9ff",
+    otpInput: { marginBottom: spacing.xs },
+    otpErrorText: {
+        color: colors.danger,
+        fontSize: typography.size.xs,
+        textAlign: "center",
+        marginBottom: spacing.base,
     },
-    btn: {
-        backgroundColor: "#1a73e8",
-        borderRadius: 10,
-        padding: 15,
+    verifyBtn: { marginTop: spacing.xs },
+    back: {
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
+        marginTop: spacing.base,
     },
-    btnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-    back: { marginTop: 16, alignItems: "center" },
-    backText: { color: "#1a73e8", fontSize: 14 },
+    backText: { color: colors.primary, fontSize: typography.size.sm, marginLeft: spacing.xs },
 });

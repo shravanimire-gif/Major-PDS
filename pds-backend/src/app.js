@@ -9,6 +9,7 @@ const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const shopkeeperRoutes = require("./routes/shopkeeper");
 const entitlementRoutes = require("./routes/entitlement");
+const analyticsRoutes = require("./routes/analytics");
 const beneficiaryRoutes = require("./routes/beneficiary");
 const { verifyToken, requireRole } = require("./middleware/auth");
 const { getCorsDebugInfo } = require("./config/cors");
@@ -100,6 +101,7 @@ app.use("/auth", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", entitlementRoutes);
+app.use("/api/admin", analyticsRoutes);
 app.use("/api/shopkeeper", shopkeeperRoutes);
 app.use("/api/beneficiary", beneficiaryRoutes);
 

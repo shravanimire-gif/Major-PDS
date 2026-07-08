@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { AdminHeaderProvider } from './context/AdminHeaderContext';
+import ToastProvider from './components/ui/Toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Unauthorized from './pages/Unauthorized';
@@ -14,6 +17,7 @@ import Areas from './pages/admin/Areas';
 import Shops from './pages/admin/Shops';
 import Entitlements from './pages/admin/Entitlements';
 import AdminSidebar from './components/admin/Sidebar';
+import AdminTopBar from './components/admin/AdminTopBar';
 
 // Shopkeeper imports
 import ShopkeeperDashboard from './pages/shopkeeper/Dashboard';
@@ -22,17 +26,24 @@ import ShopkeeperLayout from './components/shopkeeper/Layout';
 
 function AdminLayout() {
   return (
-    <div className="flex min-h-screen bg-gray-900">
-      <AdminSidebar />
-      <div className="flex-1">
-        <Outlet />
+    <AdminHeaderProvider>
+      <div className="flex h-screen bg-surface-muted">
+        <AdminSidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <AdminTopBar />
+          <main className="flex-1 overflow-y-auto p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminHeaderProvider>
   );
 }
 
 function App() {
   return (
+    <ThemeProvider>
+    <ToastProvider>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
@@ -65,6 +76,8 @@ function App() {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </ToastProvider>
+    </ThemeProvider>
   );
 }
 

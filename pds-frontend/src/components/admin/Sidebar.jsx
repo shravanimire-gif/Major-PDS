@@ -1,91 +1,55 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, CreditCard, Users as UsersIcon, UserCog, Map, Store, Zap } from 'lucide-react';
+import Logo from '../ui/Logo';
+import cx from '../ui/cx';
+
+const NAV_ITEMS = [
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/ration-cards', label: 'Ration Cards', icon: CreditCard },
+  { to: '/admin/beneficiaries', label: 'Beneficiaries', icon: UsersIcon },
+  { to: '/admin/users', label: 'Users', icon: UserCog },
+  { to: '/admin/areas', label: 'Areas', icon: Map },
+  { to: '/admin/shops', label: 'Shops', icon: Store },
+  { to: '/admin/entitlements', label: 'Entitlements', icon: Zap },
+];
 
 const Sidebar = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    localStorage.removeItem('pds_token');
-    logout();
-    navigate('/login');
-  };
-
   return (
-    <aside className="w-56 min-h-screen bg-gray-900 text-white flex flex-col">
-      <div className="p-4">
-        <h1 className="text-lg font-semibold">PDS Admin</h1>
+    <aside className="flex h-screen w-60 shrink-0 flex-col bg-chrome-bg text-chrome-text">
+      <div className="flex h-16 items-center px-5">
+        <Logo variant="dark" />
       </div>
 
-      <nav className="p-4 flex flex-col gap-2 text-sm font-medium">
-        <NavLink
-          to="/admin/dashboard"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/admin/ration-cards"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Ration Cards
-        </NavLink>
-        <NavLink
-          to="/admin/beneficiaries"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Beneficiaries
-        </NavLink>
-        <NavLink
-          to="/admin/users"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Users
-        </NavLink>
-        <NavLink
-          to="/admin/areas"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Areas
-        </NavLink>
-        <NavLink
-          to="/admin/shops"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          Shops
-        </NavLink>
-        <NavLink
-          to="/admin/entitlements"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-          }
-        >
-          ⚡ Entitlements
-        </NavLink>
+      <nav className="flex flex-col gap-1 px-3 py-2 text-sm font-medium">
+        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              cx(
+                'relative flex items-center gap-3 rounded-sm px-3 py-2.5 transition-colors',
+                isActive
+                  ? 'bg-chrome-active text-chrome-text'
+                  : 'text-chrome-text-muted hover:bg-chrome-hover hover:text-chrome-text'
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cx(
+                    'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-sm bg-brand-500 transition-opacity',
+                    isActive ? 'opacity-100' : 'opacity-0'
+                  )}
+                  aria-hidden="true"
+                />
+                <Icon size={18} className="shrink-0" />
+                <span>{label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
-
-      <div className="mt-auto p-4 border-t border-gray-800">
-        <p className="text-xs text-gray-400 truncate">{user?.email || 'admin@pds.gov'}</p>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-3 w-full rounded-lg bg-red-600 px-3 py-2 text-sm font-medium hover:bg-red-700"
-        >
-          Logout
-        </button>
-      </div>
     </aside>
   );
 };

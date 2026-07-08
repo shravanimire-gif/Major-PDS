@@ -2,7 +2,8 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { colors } from "../theme";
 
 import LoginScreen from "../screens/LoginScreen";
 import DashboardScreen from "../screens/DashboardScreen";
@@ -15,8 +16,8 @@ export default function AppNavigator() {
 
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <ActivityIndicator size="large" color="#1a73e8" />
+            <View style={styles.loading}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -36,3 +37,7 @@ export default function AppNavigator() {
         </NavigationContainer>
     );
 }
+
+const styles = StyleSheet.create({
+    loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+});

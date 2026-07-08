@@ -8,6 +8,7 @@ const logger = require("./config/logger");
 const pool = require("./config/db");
 const { startEntitlementCron } = require("./jobs/entitlementCron");
 const { startOtpCleanupCron } = require("./jobs/otpCleanup");
+const { startAnomalyDetectionCron } = require("./jobs/anomalyDetectionCron");
 
 const VALID_NODE_ENVS = ["development", "production", "test"];
 const REQUIRED_ENV_VARS = [
@@ -187,6 +188,7 @@ const startServer = async () => {
     await ensureDatabaseGuards();
     startEntitlementCron();
     startOtpCleanupCron();
+    startAnomalyDetectionCron();
 
     // Enhanced startup diagnostics
     logger.info("===== BACKEND STARTUP DIAGNOSTICS =====");

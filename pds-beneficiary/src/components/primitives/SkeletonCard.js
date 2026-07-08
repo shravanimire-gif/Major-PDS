@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet } from "react-native";
+import { colors, radius, spacing } from "../../theme";
 
 export default function SkeletonCard({ height = 80, style }) {
     const opacity = useRef(new Animated.Value(0.3)).current;
@@ -13,15 +14,13 @@ export default function SkeletonCard({ height = 80, style }) {
         ).start();
     }, [opacity]);
 
-    return (
-        <Animated.View style={[styles.skeleton, { height, opacity }, style]} />
-    );
+    return <Animated.View style={[styles.skeleton, { height, opacity }, style]} />;
 }
 
 const styles = StyleSheet.create({
     skeleton: {
-        backgroundColor: "#dde3f0",
-        borderRadius: 12,
-        marginBottom: 12,
+        backgroundColor: colors.border,
+        borderRadius: radius.md, // was 12 -> merged onto the shared card radius (16)
+        marginBottom: spacing.md,
     },
 });

@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const pool = require("../config/db");
 const logger = require("../config/logger");
+const blockchainHealthService = require("../services/blockchainHealthService");
 
 const ALLOWED_CATEGORIES = ["APL", "BPL", "AAY"];
 
@@ -1314,6 +1315,19 @@ const getIntegrityChecks = async (req, res, next) => {
   }
 };
 
+// GET /api/admin/blockchain/health — read-only monitoring of the Sepolia
+// integration (RPC/contract/wallet/sync-lag/failure-rate). Cached briefly by
+// blockchainHealthService; pass ?refresh=true to bypass the cache.
+const getBlockchainHealth = async (req, res, next) => {
+  try {
+    const forceRefresh = req.query.refresh === "true";
+    const health = await blockchainHealthService.getHealth({ forceRefresh });
+    return res.status(200).json(health);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   createRationCard,
   getRationCards,
@@ -1336,4 +1350,5 @@ module.exports = {
   assignShopkeeper,
   createShopkeeper,
   getIntegrityChecks,
+  getBlockchainHealth,
 };
