@@ -221,14 +221,14 @@ const Shops = () => {
                         {!shop.shopkeeper_name && (
                           <button
                             onClick={(e) => openAssignModal(shop, e)}
-                            className="text-xs font-medium text-success-text transition hover:opacity-80"
+                            className="rounded-sm text-xs font-medium text-success-text transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                           >
                             Assign
                           </button>
                         )}
                         <button
                           onClick={(e) => handleDeleteShop(shop, e)}
-                          className="text-xs font-medium text-danger-text transition hover:opacity-80"
+                          className="rounded-sm text-xs font-medium text-danger-text transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                         >
                           Delete
                         </button>

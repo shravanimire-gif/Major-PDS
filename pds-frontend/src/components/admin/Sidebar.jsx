@@ -27,7 +27,7 @@ const Sidebar = () => {
             to={to}
             className={({ isActive }) =>
               cx(
-                'relative flex items-center gap-3 rounded-sm px-3 py-2.5 transition-colors',
+                'relative flex items-center gap-3 rounded-sm px-3 py-2.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
                 isActive
                   ? 'bg-chrome-active text-chrome-text'
                   : 'text-chrome-text-muted hover:bg-chrome-hover hover:text-chrome-text'

@@ -26,6 +26,5 @@ export const usePageHeader = (title, actions = []) => {
   useEffect(() => {
     setHeader({ title, actions });
     return () => setHeader({ title: '', actions: [] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, actions, setHeader]);
 };

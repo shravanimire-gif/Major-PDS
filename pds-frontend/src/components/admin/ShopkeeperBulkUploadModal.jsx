@@ -1,5 +1,11 @@
 import { useRef, useState } from 'react';
+import { Download, FileUp } from 'lucide-react';
 import api from '../../api/axios';
+import useToast from '../ui/useToast';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
+import cx from '../ui/cx';
 
 const COLS = ['name', 'mobile', 'email', 'password', 'status'];
 const REQUIRED = ['name', 'mobile', 'email', 'password'];
@@ -136,6 +142,7 @@ function downloadTemplate() {
 }
 
 const ShopkeeperBulkUploadModal = ({ isOpen, onClose, onSuccess }) => {
+  const toast = useToast();
   const fileRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [rowErrors, setRowErrors] = useState({});
@@ -212,219 +219,176 @@ const ShopkeeperBulkUploadModal = ({ isOpen, onClose, onSuccess }) => {
       const response = await api.post('/api/admin/shopkeepers/bulk', { rows });
       setResults(response.data);
       if (response.data.succeeded > 0) {
+        toast.success(`${response.data.succeeded} shopkeeper(s) uploaded successfully.`);
         onSuccess?.();
       }
+      if (response.data.failed > 0) {
+        toast.warning(`${response.data.failed} row(s) failed — see details below.`);
+      }
     } catch (error) {
-      setParseError(error.response?.data?.error || 'Upload failed. Please try again.');
+      const message = error.response?.data?.error || 'Upload failed. Please try again.';
+      setParseError(message);
+      toast.danger(message);
     } finally {
       setUploading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   const clientErrorCount = Object.keys(rowErrors).length;
   const canUpload = rows.length > 0 && clientErrorCount === 0 && !results;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="absolute inset-0" onClick={handleClose} aria-hidden="true" />
-      <div className="relative w-full max-w-3xl bg-gray-900 rounded-2xl border border-gray-800 shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Bulk Upload — Shopkeepers</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Upload CSV files to create shopkeeper user accounts in bulk
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white transition text-xl leading-none"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-            <p className="text-sm font-medium text-gray-200 mb-1">Step 1 — Download template</p>
-            <p className="text-xs text-gray-400 mb-3">
-              Required: <span className="text-blue-400">full_name, mobile_number, email, password</span>
-              {' '}· Optional: status (active/inactive, default active)
-            </p>
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg px-4 py-2 transition"
-            >
-              ↓ Download Template
-            </button>
-          </div>
-
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-            <p className="text-sm font-medium text-gray-200 mb-3">Step 2 — Upload your filled CSV</p>
-            <div className="flex items-center gap-3">
-              <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg px-4 py-2 transition">
-                <span>📂 Choose CSV file</span>
-                <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
-              </label>
-              {fileName && <span className="text-xs text-gray-400">{fileName}</span>}
-              {(rows.length > 0 || results) && (
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="text-gray-500 hover:text-gray-300 text-xs underline ml-auto"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {parseError && (
-            <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">
-              {parseError}
-            </div>
-          )}
-
-          {unmapped.length > 0 && (
-            <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-3 text-yellow-300 text-xs">
-              Unknown columns ignored: {unmapped.join(', ')}
-            </div>
-          )}
-
-          {rows.length > 0 && !results && (
-            <div>
-              <p className="text-sm font-medium text-gray-200 mb-2">
-                Preview — {rows.length} row{rows.length !== 1 ? 's' : ''}
-                {clientErrorCount > 0 && (
-                  <span className="ml-2 text-red-400">({clientErrorCount} with errors)</span>
-                )}
-              </p>
-              <div className="overflow-x-auto rounded-xl border border-gray-700 max-h-60 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-800 text-gray-400 uppercase tracking-wider sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left">#</th>
-                      {COLS.map((column) => (
-                        <th key={column} className="px-3 py-2 text-left whitespace-nowrap">
-                          {column.replace(/_/g, ' ')}
-                        </th>
-                      ))}
-                      <th className="px-3 py-2 text-left">Issues</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, index) => {
-                      const issues = rowErrors[index] || [];
-                      return (
-                        <tr
-                          key={index}
-                          className={`border-t border-gray-800 ${issues.length ? 'bg-red-900/20' : ''}`}
-                        >
-                          <td className="px-3 py-2 text-gray-500">{index + 1}</td>
-                          {COLS.map((column) => (
-                            <td
-                              key={column}
-                              className="px-3 py-2 text-gray-300 whitespace-nowrap max-w-[160px] truncate"
-                            >
-                              {row[column] || <span className="text-gray-600">—</span>}
-                            </td>
-                          ))}
-                          <td className="px-3 py-2 text-red-400">{issues.join('; ') || ''}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {results && (
-            <div>
-              <div className="flex gap-3 mb-3">
-                <div className="bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-center flex-1">
-                  <p className="text-2xl font-bold text-green-400">{results.succeeded}</p>
-                  <p className="text-xs text-green-300 mt-0.5">Created</p>
-                </div>
-                <div className="bg-red-900/30 border border-red-700 rounded-xl px-4 py-3 text-center flex-1">
-                  <p className="text-2xl font-bold text-red-400">{results.failed}</p>
-                  <p className="text-xs text-red-300 mt-0.5">Failed</p>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center flex-1">
-                  <p className="text-2xl font-bold text-white">{results.total}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Total</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-700 max-h-56 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-800 text-gray-400 uppercase tracking-wider sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Row</th>
-                      <th className="px-3 py-2 text-left">Full Name</th>
-                      <th className="px-3 py-2 text-left">Mobile</th>
-                      <th className="px-3 py-2 text-left">Email</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                      <th className="px-3 py-2 text-left">Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.results.map((result) => (
-                      <tr key={result.row} className="border-t border-gray-800">
-                        <td className="px-3 py-2 text-gray-500">{result.row}</td>
-                        <td className="px-3 py-2 text-gray-300">{result.name || '—'}</td>
-                        <td className="px-3 py-2 text-gray-300">{result.mobile || '—'}</td>
-                        <td className="px-3 py-2 text-gray-300">{result.email || '—'}</td>
-                        <td className="px-3 py-2">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                              result.status === 'success'
-                                ? 'bg-green-900 text-green-300'
-                                : 'bg-red-900 text-red-300'
-                            }`}
-                          >
-                            {result.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-red-400 text-xs max-w-[220px] truncate">
-                          {result.error || ''}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-800 shrink-0 space-y-2">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Bulk Upload — Shopkeepers"
+      className="max-w-3xl"
+      footer={
+        <>
           {!results && (
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={!canUpload || uploading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg px-5 py-2.5 transition w-full font-medium"
-            >
-              {uploading
-                ? 'Uploading…'
-                : rows.length > 0
-                ? `Upload ${rows.length} row${rows.length !== 1 ? 's' : ''}`
-                : 'Upload'}
-            </button>
+            <Button variant="primary" onClick={handleUpload} disabled={!canUpload || uploading} className="w-full justify-center">
+              {uploading ? 'Uploading…' : rows.length > 0 ? `Upload ${rows.length} row${rows.length !== 1 ? 's' : ''}` : 'Upload'}
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg px-5 py-2 transition w-full"
-          >
-            Close
-          </button>
+        </>
+      }
+    >
+      <p className="-mt-2 mb-4 text-xs text-text-secondary">Upload CSV files to create shopkeeper user accounts in bulk</p>
+
+      <div className="space-y-5">
+        <div className="rounded-md border border-border bg-surface-muted p-4">
+          <p className="mb-1 text-sm font-medium text-text-primary">Step 1 — Download template</p>
+          <p className="mb-3 text-xs text-text-secondary">
+            Required: <span className="text-brand-500">full_name, mobile_number, email, password</span>
+            {' '}· Optional: status (active/inactive, default active)
+          </p>
+          <Button variant="secondary" size="sm" onClick={downloadTemplate}>
+            <Download size={14} />
+            Download Template
+          </Button>
         </div>
+
+        <div className="rounded-md border border-border bg-surface-muted p-4">
+          <p className="mb-3 text-sm font-medium text-text-primary">Step 2 — Upload your filled CSV</p>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-border bg-surface px-4 py-2 text-sm text-text-primary transition hover:bg-surface-muted">
+              <FileUp size={14} />
+              Choose CSV file
+              <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
+            </label>
+            {fileName && <span className="text-xs text-text-secondary">{fileName}</span>}
+            {(rows.length > 0 || results) && (
+              <button
+                type="button"
+                onClick={reset}
+                className="ml-auto rounded-sm text-xs text-text-secondary underline hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {parseError && (
+          <div className="rounded-sm border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-text">
+            {parseError}
+          </div>
+        )}
+
+        {unmapped.length > 0 && (
+          <div className="rounded-sm border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning-text">
+            Unknown columns ignored: {unmapped.join(', ')}
+          </div>
+        )}
+
+        {rows.length > 0 && !results && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-text-primary">
+              Preview — {rows.length} row{rows.length !== 1 ? 's' : ''}
+              {clientErrorCount > 0 && <span className="ml-2 text-danger-text">({clientErrorCount} with errors)</span>}
+            </p>
+            <div className="max-h-60 overflow-x-auto overflow-y-auto rounded-md border border-border">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-surface-muted uppercase tracking-wider text-text-secondary">
+                  <tr>
+                    <th className="px-3 py-2 text-left">#</th>
+                    {COLS.map((column) => (
+                      <th key={column} className="whitespace-nowrap px-3 py-2 text-left">
+                        {column.replace(/_/g, ' ')}
+                      </th>
+                    ))}
+                    <th className="px-3 py-2 text-left">Issues</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => {
+                    const issues = rowErrors[index] || [];
+                    return (
+                      <tr key={index} className={cx('border-t border-border', issues.length && 'bg-danger-bg')}>
+                        <td className="px-3 py-2 text-text-disabled">{index + 1}</td>
+                        {COLS.map((column) => (
+                          <td key={column} className="max-w-[160px] truncate whitespace-nowrap px-3 py-2 text-text-secondary">
+                            {row[column] || <span className="text-text-disabled">—</span>}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-danger-text">{issues.join('; ') || ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {results && (
+          <div>
+            <div className="mb-3 flex gap-3">
+              <div className="flex-1 rounded-md border border-success-border bg-success-bg px-4 py-3 text-center">
+                <p className="text-2xl font-bold tabular-nums text-success-text">{results.succeeded}</p>
+                <p className="mt-0.5 text-xs text-success-text">Created</p>
+              </div>
+              <div className="flex-1 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-center">
+                <p className="text-2xl font-bold tabular-nums text-danger-text">{results.failed}</p>
+                <p className="mt-0.5 text-xs text-danger-text">Failed</p>
+              </div>
+              <div className="flex-1 rounded-md border border-border bg-surface-muted px-4 py-3 text-center">
+                <p className="text-2xl font-bold tabular-nums text-text-primary">{results.total}</p>
+                <p className="mt-0.5 text-xs text-text-secondary">Total</p>
+              </div>
+            </div>
+            <div className="max-h-56 overflow-x-auto overflow-y-auto rounded-md border border-border">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-surface-muted uppercase tracking-wider text-text-secondary">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Row</th>
+                    <th className="px-3 py-2 text-left">Full Name</th>
+                    <th className="px-3 py-2 text-left">Mobile</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-left">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.results.map((result) => (
+                    <tr key={result.row} className="border-t border-border">
+                      <td className="px-3 py-2 text-text-disabled">{result.row}</td>
+                      <td className="px-3 py-2 text-text-secondary">{result.name || '—'}</td>
+                      <td className="px-3 py-2 text-text-secondary">{result.mobile || '—'}</td>
+                      <td className="px-3 py-2 text-text-secondary">{result.email || '—'}</td>
+                      <td className="px-3 py-2">
+                        <Badge status={result.status === 'success' ? 'success' : 'danger'}>{result.status}</Badge>
+                      </td>
+                      <td className="max-w-[220px] truncate px-3 py-2 text-xs text-danger-text">{result.error || ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };
 

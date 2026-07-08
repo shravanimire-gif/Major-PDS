@@ -71,7 +71,7 @@ const ToastProvider = ({ children }) => {
                 type="button"
                 onClick={() => dismiss(toast.id)}
                 aria-label="Dismiss notification"
-                className="shrink-0 text-current opacity-70 hover:opacity-100"
+                className="shrink-0 rounded-sm text-current opacity-70 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               >
                 <X size={14} />
               </button>

@@ -90,7 +90,7 @@ const AdminTopBar = () => {
                 type="button"
                 role="menuitem"
                 onClick={handleLogout}
-                className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm font-medium text-danger-text transition hover:bg-danger-bg"
+                className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm font-medium text-danger-text transition hover:bg-danger-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               >
                 <LogOut size={16} />
                 Logout

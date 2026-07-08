@@ -181,7 +181,7 @@ const ScanAndDispense = () => {
         <button
           type="button"
           onClick={() => navigate('/shopkeeper/dashboard')}
-          className="text-sm text-text-secondary hover:text-text-primary"
+          className="rounded-sm text-sm text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           Back
         </button>

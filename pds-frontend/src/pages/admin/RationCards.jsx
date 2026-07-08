@@ -4,6 +4,7 @@ import { CreditCard, Plus, Upload } from 'lucide-react';
 import api from '../../api/axios';
 import BulkUploadModal from '../../components/admin/BulkUploadModal';
 import { usePageHeader } from '../../context/AdminHeaderContext';
+import useToast from '../../components/ui/useToast';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
@@ -31,6 +32,7 @@ const getCategoryBadgeStatus = (category) => {
 
 const RationCards = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [rationCards, setRationCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -42,7 +44,8 @@ const RationCards = () => {
       const response = await api.get('/api/admin/ration-cards');
       setRationCards(response.data?.ration_cards || response.data?.data || []);
       setPage(1);
-    } catch {
+    } catch (fetchError) {
+      toast.danger(fetchError.response?.data?.error || 'Failed to load ration cards');
       setRationCards([]);
     } finally {
       setLoading(false);

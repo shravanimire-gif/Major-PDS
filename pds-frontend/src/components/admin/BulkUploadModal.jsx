@@ -209,7 +209,11 @@ const UploadPane = ({
           </label>
           {fileName && <span className="text-xs text-text-secondary">{fileName}</span>}
           {(rows.length > 0 || results) && (
-            <button type="button" onClick={resetPane} className="ml-auto text-xs text-text-secondary underline hover:text-text-primary">
+            <button
+              type="button"
+              onClick={resetPane}
+              className="ml-auto rounded-sm text-xs text-text-secondary underline hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
               Clear
             </button>
           )}
@@ -354,7 +358,7 @@ const BulkUploadModal = ({ isOpen, onClose, onSuccess }) => {
           type="button"
           onClick={() => setTab('heads')}
           className={cx(
-            'border-b-2 px-4 py-2.5 text-sm font-medium transition',
+            'border-b-2 px-4 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
             tab === 'heads' ? 'border-brand-500 text-brand-500' : 'border-transparent text-text-secondary hover:text-text-primary'
           )}
         >
@@ -364,7 +368,7 @@ const BulkUploadModal = ({ isOpen, onClose, onSuccess }) => {
           type="button"
           onClick={() => setTab('members')}
           className={cx(
-            'border-b-2 px-4 py-2.5 text-sm font-medium transition',
+            'border-b-2 px-4 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
             tab === 'members' ? 'border-brand-500 text-brand-500' : 'border-transparent text-text-secondary hover:text-text-primary'
           )}
         >

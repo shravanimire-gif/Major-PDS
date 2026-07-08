@@ -1,21 +1,21 @@
 import { useNavigate } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
+import Button from '../components/ui/Button';
 
 const Unauthorized = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center shadow-2xl">
-        <p className="text-4xl">⛔</p>
-        <h1 className="mt-4 text-3xl font-bold">Unauthorized</h1>
-        <p className="mt-3 text-sm text-gray-400">You don&apos;t have permission to view this page.</p>
-        <button
-          type="button"
-          onClick={() => navigate('/login', { replace: true })}
-          className="mt-6 rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white transition hover:bg-blue-700"
-        >
+    <div className="flex min-h-screen items-center justify-center bg-surface-sunken px-4">
+      <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-border bg-surface p-8 text-center shadow-[var(--shadow-lg)]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-danger-border bg-danger-bg text-danger-text">
+          <ShieldAlert size={24} />
+        </div>
+        <h1 className="mt-4 text-2xl font-semibold text-text-primary">Unauthorized</h1>
+        <p className="mt-3 text-sm text-text-secondary">You don&apos;t have permission to view this page.</p>
+        <Button variant="primary" className="mt-6" onClick={() => navigate('/login', { replace: true })}>
           Go to Login
-        </button>
+        </Button>
       </div>
     </div>
   );

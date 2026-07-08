@@ -182,7 +182,7 @@ const Areas = () => {
                 <Table.Cell>
                   <button
                     onClick={() => openEditModal(area)}
-                    className="text-xs font-medium text-brand-500 transition hover:text-brand-600"
+                    className="rounded-sm text-xs font-medium text-brand-500 transition hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                   >
                     Edit
                   </button>

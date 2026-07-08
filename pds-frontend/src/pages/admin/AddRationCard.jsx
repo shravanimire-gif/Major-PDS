@@ -166,7 +166,7 @@ const AddRationCard = () => {
       <button
         type="button"
         onClick={() => navigate('/admin/ration-cards')}
-        className="mb-6 flex items-center gap-2 text-sm text-text-secondary transition hover:text-text-primary"
+        className="mb-6 flex items-center gap-2 rounded-sm text-sm text-text-secondary transition hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         <ArrowLeft size={16} />
         Back
@@ -296,7 +296,7 @@ const AddRationCard = () => {
                     type="button"
                     onClick={() => removeMember(index)}
                     aria-label={`Remove member ${index + 1}`}
-                    className="shrink-0 rounded-sm p-2 text-danger-text transition hover:bg-danger-bg"
+                    className="shrink-0 rounded-sm p-2 text-danger-text transition hover:bg-danger-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                   >
                     <X size={16} />
                   </button>

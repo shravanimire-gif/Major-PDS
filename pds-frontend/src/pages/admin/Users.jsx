@@ -196,14 +196,14 @@ const Users = () => {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => openEdit(user)}
-                      className="text-xs font-medium text-brand-500 transition hover:text-brand-600"
+                      className="rounded-sm text-xs font-medium text-brand-500 transition hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     >
                       Edit
                     </button>
                     {user.role !== 'admin' && (
                       <button
                         onClick={() => handleDelete(user)}
-                        className="text-xs font-medium text-danger-text transition hover:opacity-80"
+                        className="rounded-sm text-xs font-medium text-danger-text transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                       >
                         Delete
                       </button>
