@@ -211,7 +211,7 @@ const ScanAndDispense = () => {
             <p className="text-sm text-text-secondary">Shop: {beneficiary.shop_name}</p>
           </Card>
 
-          <Card className="space-y-4">
+          <Card bodyClassName="space-y-4">
             <h3 className="font-semibold text-text-primary">Wallet Balance</h3>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div className="rounded-sm bg-surface-muted p-3 text-center">
@@ -243,7 +243,7 @@ const ScanAndDispense = () => {
                   value={quantities[field.key]}
                   onChange={(event) => handleQtyChange(field.key, event.target.value)}
                   error={hasExceeded(field.key) ? `Cannot exceed ${maxes[field.key]} kg` : undefined}
-                  className="h-11"
+                  inputClassName="h-11"
                 />
               ))}
             </div>
