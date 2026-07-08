@@ -3,6 +3,9 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import Logo from '../components/ui/Logo';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
 
 const resolveRolePath = (role) => {
   if (role === 'admin') {
@@ -39,7 +42,11 @@ const Login = () => {
   const { isReady, user, login, logout } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit } = useForm({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       email: '',
       password: '',
@@ -78,54 +85,48 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
+    <div className="flex min-h-screen items-center justify-center bg-surface-sunken px-4">
       <form
-        className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-2xl"
+        className="w-full max-w-md rounded-[var(--radius-lg)] border border-border bg-surface p-8 shadow-[var(--shadow-lg)]"
         onSubmit={handleSubmit(onSubmit)}
       >
-        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-blue-400">PDS Login</p>
-        <h1 className="mt-3 text-3xl font-bold">Public Distribution System</h1>
-        <p className="mt-2 text-sm text-gray-400">Sign in with your assigned admin or shopkeeper credentials.</p>
+        <div className="flex justify-center">
+          <Logo size={36} />
+        </div>
+        <h1 className="mt-4 text-center text-2xl font-semibold text-text-primary">Public Distribution System</h1>
+        <p className="mt-2 text-center text-sm text-text-secondary">
+          Sign in with your assigned admin or shopkeeper credentials.
+        </p>
 
-        <div className="mt-6">
-          <label htmlFor="email" className="mb-2 block text-sm text-gray-300">
-            Email
-          </label>
-          <input
+        <div className="mt-6 space-y-4">
+          <Input
+            label="Email"
             id="email"
             type="email"
-            {...register('email', { required: true })}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
             required
+            error={errors.email}
+            {...register('email', { required: 'Email is required' })}
           />
-        </div>
 
-        <div className="mt-4">
-          <label htmlFor="password" className="mb-2 block text-sm text-gray-300">
-            Password
-          </label>
-          <input
+          <Input
+            label="Password"
             id="password"
             type="password"
-            {...register('password', { required: true })}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
             required
+            error={errors.password}
+            {...register('password', { required: 'Password is required' })}
           />
         </div>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-700 bg-red-900/40 px-4 py-3 text-sm text-red-300">
+          <div className="mt-4 rounded-sm border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-text">
             {error}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
+        <Button type="submit" variant="primary" disabled={loading} className="mt-6 w-full justify-center">
           {loading ? 'Signing in...' : 'Login'}
-        </button>
+        </Button>
       </form>
     </div>
   );

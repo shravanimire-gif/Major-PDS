@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 import api from '../../api/axios';
-
-const inputClassName =
-  'bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white w-full text-sm focus:outline-none focus:border-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed';
+import { usePageHeader } from '../../context/AdminHeaderContext';
+import useToast from '../../components/ui/useToast';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 
 const defaultValues = {
   card_number: '',
@@ -18,14 +22,16 @@ const defaultValues = {
 
 const AddRationCard = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const timeoutRef = useRef(null);
   const [areas, setAreas] = useState([]);
   const [shops, setShops] = useState([]);
   const [loadingAreas, setLoadingAreas] = useState(true);
   const [loadingShops, setLoadingShops] = useState(false);
   const [members, setMembers] = useState([]);
-  const [successBanner, setSuccessBanner] = useState('');
   const [errorBanner, setErrorBanner] = useState('');
+
+  usePageHeader('Add Ration Card');
 
   const {
     register,
@@ -105,15 +111,12 @@ const AddRationCard = () => {
 
   const updateMember = (index, field, value) => {
     setMembers((prev) =>
-      prev.map((member, memberIndex) =>
-        memberIndex === index ? { ...member, [field]: value } : member
-      )
+      prev.map((member, memberIndex) => (memberIndex === index ? { ...member, [field]: value } : member))
     );
   };
 
   const onSubmit = async (values) => {
     setErrorBanner('');
-    setSuccessBanner('');
 
     const hasIncompleteMember = members.some((member) => {
       return !member.name.trim() || member.age === '' || member.age === null;
@@ -143,8 +146,8 @@ const AddRationCard = () => {
       const data = response.data || {};
       const wallet = data.wallet || {};
 
-      setSuccessBanner(
-        `✓ Ration card created! ${data.members_created} members added. Wallet: Rice ${wallet.rice_balance_kg}kg, Wheat ${wallet.wheat_balance_kg}kg, Sugar ${wallet.sugar_balance_kg}kg`
+      toast.success(
+        `Ration card created! ${data.members_created} members added. Wallet: Rice ${wallet.rice_balance_kg}kg, Wheat ${wallet.wheat_balance_kg}kg, Sugar ${wallet.sugar_balance_kg}kg`
       );
 
       if (timeoutRef.current) {
@@ -152,203 +155,160 @@ const AddRationCard = () => {
       }
       timeoutRef.current = setTimeout(() => {
         navigate('/admin/ration-cards');
-      }, 3000);
+      }, 1500);
     } catch (error) {
       setErrorBanner(error.response?.data?.error || 'Failed to create ration card');
     }
   };
 
   return (
-    <div className="p-8 bg-gray-950 min-h-screen text-white max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl">
       <button
         type="button"
         onClick={() => navigate('/admin/ration-cards')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-6 transition"
+        className="mb-6 flex items-center gap-2 text-sm text-text-secondary transition hover:text-text-primary"
       >
-        <span>←</span>
-        <span>Back</span>
+        <ArrowLeft size={16} />
+        Back
       </button>
 
-      <h1 className="text-2xl font-bold mb-6">Add Ration Card</h1>
-
-      {successBanner && (
-        <div className="bg-green-900/40 border border-green-700 rounded-xl p-4 text-green-300 text-sm mb-6">
-          {successBanner}
-        </div>
-      )}
-
       {errorBanner && (
-        <div className="bg-red-900/40 border border-red-700 rounded-xl p-4 text-red-300 text-sm mb-6">
+        <div className="mb-6 rounded-sm border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-text">
           {errorBanner}
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <section className="bg-gray-900 rounded-2xl p-6 mb-4 border border-gray-800">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-            Card Info
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Card Number</label>
-              <input
-                type="text"
-                className={inputClassName}
-                {...register('card_number', { required: 'Card number is required' })}
-              />
-              {errors.card_number && (
-                <p className="text-red-400 text-xs mt-1">{errors.card_number.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Category</label>
-              <select className={inputClassName} {...register('category', { required: true })}>
-                <option value="APL">APL</option>
-                <option value="BPL">BPL</option>
-                <option value="AAY">AAY</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Area</label>
-              <select
-                className={inputClassName}
-                disabled={loadingAreas}
-                {...register('area_id', { required: 'Area is required' })}
-              >
-                <option value="">{loadingAreas ? 'Loading areas...' : 'Select Area'}</option>
-                {areas.map((area) => (
-                  <option key={area.id} value={area.id}>
-                    {area.name}
-                  </option>
-                ))}
-              </select>
-              {errors.area_id && <p className="text-red-400 text-xs mt-1">{errors.area_id.message}</p>}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-gray-900 rounded-2xl p-6 mb-4 border border-gray-800">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-            Shop
-          </h2>
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Shop</label>
-            <select
-              className={inputClassName}
-              disabled={!selectedAreaId || loadingShops}
-              {...register('shop_id', { required: 'Shop is required' })}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Card header="Card Info">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="Card Number"
+              required
+              error={errors.card_number}
+              {...register('card_number', { required: 'Card number is required' })}
+            />
+            <Select label="Category" required {...register('category', { required: true })}>
+              <option value="APL">APL</option>
+              <option value="BPL">BPL</option>
+              <option value="AAY">AAY</option>
+            </Select>
+            <Select
+              label="Area"
+              required
+              disabled={loadingAreas}
+              error={errors.area_id}
+              {...register('area_id', { required: 'Area is required' })}
             >
-              {!selectedAreaId ? (
-                <option value="">Select Area first</option>
-              ) : (
-                <option value="">{loadingShops ? 'Loading shops...' : 'Select Shop'}</option>
-              )}
-              {shops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                  {shop.shop_name}
+              <option value="">{loadingAreas ? 'Loading areas...' : 'Select Area'}</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.name}
                 </option>
               ))}
-            </select>
-            {errors.shop_id && <p className="text-red-400 text-xs mt-1">{errors.shop_id.message}</p>}
+            </Select>
           </div>
-        </section>
+        </Card>
 
-        <section className="bg-gray-900 rounded-2xl p-6 mb-4 border border-gray-800">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-            Family Head
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Name</label>
-              <input
-                type="text"
-                className={inputClassName}
-                {...register('head_name', { required: 'Head name is required' })}
-              />
-              {errors.head_name && (
-                <p className="text-red-400 text-xs mt-1">{errors.head_name.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Age</label>
-              <input
-                type="number"
-                className={inputClassName}
-                {...register('head_age', {
-                  required: 'Head age is required',
-                  min: { value: 18, message: 'Minimum age is 18' },
-                  max: { value: 100, message: 'Maximum age is 100' },
-                })}
-              />
-              {errors.head_age && (
-                <p className="text-red-400 text-xs mt-1">{errors.head_age.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Mobile</label>
-              <input
-                type="text"
-                placeholder="Mobile number"
-                className={inputClassName}
-                {...register('head_mobile', { required: 'Head mobile is required' })}
-              />
-              {errors.head_mobile && (
-                <p className="text-red-400 text-xs mt-1">{errors.head_mobile.message}</p>
-              )}
-            </div>
+        <Card header="Shop">
+          <Select
+            label="Shop"
+            required
+            disabled={!selectedAreaId || loadingShops}
+            error={errors.shop_id}
+            {...register('shop_id', { required: 'Shop is required' })}
+          >
+            {!selectedAreaId ? (
+              <option value="">Select Area first</option>
+            ) : (
+              <option value="">{loadingShops ? 'Loading shops...' : 'Select Shop'}</option>
+            )}
+            {shops.map((shop) => (
+              <option key={shop.id} value={shop.id}>
+                {shop.shop_name}
+              </option>
+            ))}
+          </Select>
+        </Card>
+
+        <Card header="Family Head">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="Name"
+              required
+              error={errors.head_name}
+              {...register('head_name', { required: 'Head name is required' })}
+            />
+            <Input
+              label="Age"
+              type="number"
+              required
+              error={errors.head_age}
+              {...register('head_age', {
+                required: 'Head age is required',
+                min: { value: 18, message: 'Minimum age is 18' },
+                max: { value: 100, message: 'Maximum age is 100' },
+              })}
+            />
+            <Input
+              label="Mobile"
+              type="text"
+              placeholder="Mobile number"
+              required
+              error={errors.head_mobile}
+              {...register('head_mobile', { required: 'Head mobile is required' })}
+            />
           </div>
-        </section>
+        </Card>
 
-        <section className="bg-gray-900 rounded-2xl p-6 mb-4 border border-gray-800">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Additional Members
-            </h2>
-            <button
-              type="button"
-              onClick={addMember}
-              className="border border-dashed border-gray-600 text-gray-400 text-sm hover:border-blue-500 hover:text-blue-400 rounded-lg px-4 py-2 transition w-auto"
-            >
-              Add Member
-            </button>
-          </div>
-
-          {members.map((member, index) => (
-            <div key={index} className="flex gap-3 items-center mb-3">
-              <input
-                type="text"
-                placeholder="Member name"
-                className={inputClassName}
-                value={member.name}
-                onChange={(event) => updateMember(index, 'name', event.target.value)}
-              />
-              <input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="Age"
-                className={inputClassName}
-                value={member.age}
-                onChange={(event) => updateMember(index, 'age', event.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => removeMember(index)}
-                className="text-red-400 hover:text-red-300 text-sm"
-              >
-                Remove ✕
-              </button>
+        <Card
+          header={
+            <div className="flex items-center justify-between gap-4">
+              <span>Additional Members</span>
+              <Button type="button" variant="secondary" size="sm" onClick={addMember}>
+                <Plus size={14} />
+                Add Member
+              </Button>
             </div>
-          ))}
-        </section>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="bg-blue-600 hover:bg-blue-700 rounded-lg px-6 py-3 w-full font-medium transition disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          }
         >
+          {members.length === 0 ? (
+            <p className="text-sm text-text-secondary">No additional members added.</p>
+          ) : (
+            <div className="space-y-3">
+              {members.map((member, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <Input
+                    placeholder="Member name"
+                    value={member.name}
+                    onChange={(event) => updateMember(index, 'name', event.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Age"
+                    value={member.age}
+                    onChange={(event) => updateMember(index, 'age', event.target.value)}
+                    className="w-28"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeMember(index)}
+                    aria-label={`Remove member ${index + 1}`}
+                    className="shrink-0 rounded-sm p-2 text-danger-text transition hover:bg-danger-bg"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Button type="submit" variant="primary" disabled={isSubmitting} className="w-full justify-center">
           {isSubmitting ? 'Creating...' : 'Create Ration Card'}
-        </button>
+        </Button>
       </form>
     </div>
   );

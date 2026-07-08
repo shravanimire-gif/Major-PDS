@@ -1,5 +1,11 @@
 import { useRef, useState } from 'react';
+import { Download, FileUp } from 'lucide-react';
 import api from '../../api/axios';
+import useToast from '../ui/useToast';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
+import cx from '../ui/cx';
 
 // ─── CSV parser ────────────────────────────────────────────────────────────────
 function parseCSV(text) {
@@ -113,9 +119,10 @@ function downloadTemplate(headers, sample, filename) {
 
 // ─── Reusable UploadPane ────────────────────────────────────────────────────────
 const UploadPane = ({
-  label, description, templateHeaders, templateSample, templateFile,
+  templateHeaders, templateSample, templateFile,
   cols, required, aliasMap, validateRow, apiEndpoint, onSuccess,
 }) => {
+  const toast = useToast();
   const fileRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [rowErrors, setRowErrors] = useState({});
@@ -157,9 +164,17 @@ const UploadPane = ({
     try {
       const res = await api.post(apiEndpoint, { rows });
       setResults(res.data);
-      if (res.data.succeeded > 0) onSuccess?.();
+      if (res.data.succeeded > 0) {
+        toast.success(`${res.data.succeeded} row(s) uploaded successfully.`);
+        onSuccess?.();
+      }
+      if (res.data.failed > 0) {
+        toast.warning(`${res.data.failed} row(s) failed — see details below.`);
+      }
     } catch (err) {
-      setParseError(err.response?.data?.error || 'Upload failed. Please try again.');
+      const message = err.response?.data?.error || 'Upload failed. Please try again.';
+      setParseError(message);
+      toast.danger(message);
     } finally {
       setUploading(false);
     }
@@ -171,36 +186,30 @@ const UploadPane = ({
   return (
     <div className="space-y-5">
       {/* Step 1 – Template */}
-      <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-        <p className="text-sm font-medium text-gray-200 mb-1">Step 1 — Download the CSV template</p>
-        <p className="text-xs text-gray-400 mb-3">
+      <div className="rounded-md border border-border bg-surface-muted p-4">
+        <p className="mb-1 text-sm font-medium text-text-primary">Step 1 — Download the CSV template</p>
+        <p className="mb-3 text-xs text-text-secondary">
           Required columns:&nbsp;
-          <span className="text-blue-400">{required.join(', ')}</span>
+          <span className="text-brand-500">{required.join(', ')}</span>
         </p>
-        <button
-          type="button"
-          onClick={() => downloadTemplate(templateHeaders, templateSample, templateFile)}
-          className="bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg px-4 py-2 transition"
-        >
-          ↓ Download Template
-        </button>
+        <Button variant="secondary" size="sm" onClick={() => downloadTemplate(templateHeaders, templateSample, templateFile)}>
+          <Download size={14} />
+          Download Template
+        </Button>
       </div>
 
       {/* Step 2 – Upload */}
-      <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-        <p className="text-sm font-medium text-gray-200 mb-3">Step 2 — Upload your filled CSV</p>
+      <div className="rounded-md border border-border bg-surface-muted p-4">
+        <p className="mb-3 text-sm font-medium text-text-primary">Step 2 — Upload your filled CSV</p>
         <div className="flex items-center gap-3">
-          <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg px-4 py-2 transition">
-            <span>📂 Choose CSV file</span>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm bg-surface border border-border px-4 py-2 text-sm text-text-primary transition hover:bg-surface-muted">
+            <FileUp size={14} />
+            Choose CSV file
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
           </label>
-          {fileName && <span className="text-xs text-gray-400">{fileName}</span>}
+          {fileName && <span className="text-xs text-text-secondary">{fileName}</span>}
           {(rows.length > 0 || results) && (
-            <button
-              type="button"
-              onClick={resetPane}
-              className="text-gray-500 hover:text-gray-300 text-xs underline ml-auto"
-            >
+            <button type="button" onClick={resetPane} className="ml-auto text-xs text-text-secondary underline hover:text-text-primary">
               Clear
             </button>
           )}
@@ -208,13 +217,13 @@ const UploadPane = ({
       </div>
 
       {parseError && (
-        <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">
+        <div className="rounded-sm border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-text">
           {parseError}
         </div>
       )}
 
       {unmapped.length > 0 && (
-        <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-3 text-yellow-300 text-xs">
+        <div className="rounded-sm border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning-text">
           Unknown columns ignored: {unmapped.join(', ')}
         </div>
       )}
@@ -222,21 +231,21 @@ const UploadPane = ({
       {/* Preview */}
       {rows.length > 0 && !results && (
         <div>
-          <p className="text-sm font-medium text-gray-200 mb-2">
+          <p className="mb-2 text-sm font-medium text-text-primary">
             Preview — {rows.length} row{rows.length !== 1 ? 's' : ''}
             {clientErrorCount > 0 && (
-              <span className="ml-2 text-red-400">
+              <span className="ml-2 text-danger-text">
                 ({clientErrorCount} with errors — fix in CSV and re-upload)
               </span>
             )}
           </p>
-          <div className="overflow-x-auto rounded-xl border border-gray-700 max-h-60 overflow-y-auto">
+          <div className="max-h-60 overflow-x-auto overflow-y-auto rounded-md border border-border">
             <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-gray-400 uppercase tracking-wider sticky top-0">
+              <thead className="sticky top-0 bg-surface-muted uppercase tracking-wider text-text-secondary">
                 <tr>
                   <th className="px-3 py-2 text-left">#</th>
                   {cols.map((c) => (
-                    <th key={c} className="px-3 py-2 text-left whitespace-nowrap">{c.replace(/_/g, ' ')}</th>
+                    <th key={c} className="whitespace-nowrap px-3 py-2 text-left">{c.replace(/_/g, ' ')}</th>
                   ))}
                   <th className="px-3 py-2 text-left">Issues</th>
                 </tr>
@@ -245,14 +254,14 @@ const UploadPane = ({
                 {rows.map((row, i) => {
                   const errs = rowErrors[i] || [];
                   return (
-                    <tr key={i} className={`border-t border-gray-800 ${errs.length ? 'bg-red-900/20' : ''}`}>
-                      <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                    <tr key={i} className={cx('border-t border-border', errs.length && 'bg-danger-bg')}>
+                      <td className="px-3 py-2 text-text-disabled">{i + 1}</td>
                       {cols.map((col) => (
-                        <td key={col} className="px-3 py-2 text-gray-300 whitespace-nowrap max-w-[140px] truncate">
-                          {row[col] || <span className="text-gray-600">—</span>}
+                        <td key={col} className="max-w-[140px] truncate whitespace-nowrap px-3 py-2 text-text-secondary">
+                          {row[col] || <span className="text-text-disabled">—</span>}
                         </td>
                       ))}
-                      <td className="px-3 py-2 text-red-400 whitespace-nowrap">{errs.join('; ') || ''}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-danger-text">{errs.join('; ') || ''}</td>
                     </tr>
                   );
                 })}
@@ -265,23 +274,23 @@ const UploadPane = ({
       {/* Results */}
       {results && (
         <div>
-          <div className="flex gap-3 mb-3">
-            <div className="bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-center flex-1">
-              <p className="text-2xl font-bold text-green-400">{results.succeeded}</p>
-              <p className="text-xs text-green-300 mt-0.5">Created</p>
+          <div className="mb-3 flex gap-3">
+            <div className="flex-1 rounded-md border border-success-border bg-success-bg px-4 py-3 text-center">
+              <p className="text-2xl font-bold tabular-nums text-success-text">{results.succeeded}</p>
+              <p className="mt-0.5 text-xs text-success-text">Created</p>
             </div>
-            <div className="bg-red-900/30 border border-red-700 rounded-xl px-4 py-3 text-center flex-1">
-              <p className="text-2xl font-bold text-red-400">{results.failed}</p>
-              <p className="text-xs text-red-300 mt-0.5">Failed</p>
+            <div className="flex-1 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-center">
+              <p className="text-2xl font-bold tabular-nums text-danger-text">{results.failed}</p>
+              <p className="mt-0.5 text-xs text-danger-text">Failed</p>
             </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center flex-1">
-              <p className="text-2xl font-bold text-white">{results.total}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Total</p>
+            <div className="flex-1 rounded-md border border-border bg-surface-muted px-4 py-3 text-center">
+              <p className="text-2xl font-bold tabular-nums text-text-primary">{results.total}</p>
+              <p className="mt-0.5 text-xs text-text-secondary">Total</p>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-gray-700 max-h-56 overflow-y-auto">
+          <div className="max-h-56 overflow-x-auto overflow-y-auto rounded-md border border-border">
             <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-gray-400 uppercase tracking-wider sticky top-0">
+              <thead className="sticky top-0 bg-surface-muted uppercase tracking-wider text-text-secondary">
                 <tr>
                   <th className="px-3 py-2 text-left">Row</th>
                   <th className="px-3 py-2 text-left">Name</th>
@@ -297,21 +306,19 @@ const UploadPane = ({
               </thead>
               <tbody>
                 {results.results.map((r) => (
-                  <tr key={r.row} className="border-t border-gray-800">
-                    <td className="px-3 py-2 text-gray-500">{r.row}</td>
-                    <td className="px-3 py-2 text-gray-300">{r.name}</td>
+                  <tr key={r.row} className="border-t border-border">
+                    <td className="px-3 py-2 text-text-disabled">{r.row}</td>
+                    <td className="px-3 py-2 text-text-secondary">{r.name}</td>
                     {r.card_number !== undefined && (
-                      <td className="px-3 py-2 text-gray-300 font-mono">{r.card_number || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-text-secondary">{r.card_number || '—'}</td>
                     )}
                     {r.head_mobile !== undefined && (
-                      <td className="px-3 py-2 text-gray-300">{r.head_mobile}</td>
+                      <td className="px-3 py-2 text-text-secondary">{r.head_mobile}</td>
                     )}
                     <td className="px-3 py-2">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.status === 'success' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
-                        {r.status}
-                      </span>
+                      <Badge status={r.status === 'success' ? 'success' : 'danger'}>{r.status}</Badge>
                     </td>
-                    <td className="px-3 py-2 text-red-400 text-xs max-w-[200px] truncate">{r.error || ''}</td>
+                    <td className="max-w-[200px] truncate px-3 py-2 text-xs text-danger-text">{r.error || ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -322,18 +329,13 @@ const UploadPane = ({
 
       {/* Upload button */}
       {!results && (
-        <button
-          type="button"
-          onClick={handleUpload}
-          disabled={!canUpload || uploading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg px-5 py-2.5 transition w-full font-medium"
-        >
+        <Button variant="primary" onClick={handleUpload} disabled={!canUpload || uploading} className="w-full justify-center">
           {uploading
             ? 'Uploading…'
             : rows.length > 0
             ? `Upload ${rows.length} row${rows.length !== 1 ? 's' : ''}`
             : 'Upload'}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -343,95 +345,61 @@ const UploadPane = ({
 const BulkUploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [tab, setTab] = useState('heads');
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full max-w-4xl bg-gray-900 rounded-2xl border border-gray-800 shadow-2xl flex flex-col max-h-[92vh]">
+    <Modal isOpen={isOpen} onClose={onClose} title="Bulk Upload" className="max-w-4xl">
+      <p className="-mt-2 mb-4 text-xs text-text-secondary">Upload CSV files to register beneficiaries in bulk</p>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Bulk Upload</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Upload CSV files to register beneficiaries in bulk</p>
-          </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white transition text-xl leading-none">✕</button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => setTab('heads')}
-            className={`px-6 py-3 text-sm font-medium transition border-b-2 ${
-              tab === 'heads'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            Head of Family
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('members')}
-            className={`px-6 py-3 text-sm font-medium transition border-b-2 ${
-              tab === 'members'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            Family Members
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'heads' ? (
-            <UploadPane
-              key="heads"
-              label="Head of Family"
-              description="Creates ration card + wallet for each head"
-              templateHeaders={HEAD_TEMPLATE_HEADERS}
-              templateSample={HEAD_TEMPLATE_SAMPLE}
-              templateFile="head_bulk_upload_template.csv"
-              cols={HEAD_COLS}
-              required={HEAD_REQUIRED}
-              aliasMap={HEAD_ALIASES}
-              validateRow={validateHeadRow}
-              apiEndpoint="/api/admin/ration-cards/bulk"
-              onSuccess={onSuccess}
-            />
-          ) : (
-            <UploadPane
-              key="members"
-              label="Family Members"
-              description="Adds members to an existing ration card identified by head's mobile. Wallet is updated automatically."
-              templateHeaders={MEMBER_TEMPLATE_HEADERS}
-              templateSample={MEMBER_TEMPLATE_SAMPLE}
-              templateFile="members_bulk_upload_template.csv"
-              cols={MEMBER_COLS}
-              required={MEMBER_REQUIRED}
-              aliasMap={MEMBER_ALIASES}
-              validateRow={validateMemberRow}
-              apiEndpoint="/api/admin/family-members/bulk"
-              onSuccess={onSuccess}
-            />
+      <div className="mb-5 flex border-b border-border">
+        <button
+          type="button"
+          onClick={() => setTab('heads')}
+          className={cx(
+            'border-b-2 px-4 py-2.5 text-sm font-medium transition',
+            tab === 'heads' ? 'border-brand-500 text-brand-500' : 'border-transparent text-text-secondary hover:text-text-primary'
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end px-6 py-4 border-t border-gray-800 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg px-5 py-2 transition"
-          >
-            Close
-          </button>
-        </div>
+        >
+          Head of Family
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('members')}
+          className={cx(
+            'border-b-2 px-4 py-2.5 text-sm font-medium transition',
+            tab === 'members' ? 'border-brand-500 text-brand-500' : 'border-transparent text-text-secondary hover:text-text-primary'
+          )}
+        >
+          Family Members
+        </button>
       </div>
-    </div>
+
+      {tab === 'heads' ? (
+        <UploadPane
+          key="heads"
+          templateHeaders={HEAD_TEMPLATE_HEADERS}
+          templateSample={HEAD_TEMPLATE_SAMPLE}
+          templateFile="head_bulk_upload_template.csv"
+          cols={HEAD_COLS}
+          required={HEAD_REQUIRED}
+          aliasMap={HEAD_ALIASES}
+          validateRow={validateHeadRow}
+          apiEndpoint="/api/admin/ration-cards/bulk"
+          onSuccess={onSuccess}
+        />
+      ) : (
+        <UploadPane
+          key="members"
+          templateHeaders={MEMBER_TEMPLATE_HEADERS}
+          templateSample={MEMBER_TEMPLATE_SAMPLE}
+          templateFile="members_bulk_upload_template.csv"
+          cols={MEMBER_COLS}
+          required={MEMBER_REQUIRED}
+          aliasMap={MEMBER_ALIASES}
+          validateRow={validateMemberRow}
+          apiEndpoint="/api/admin/family-members/bulk"
+          onSuccess={onSuccess}
+        />
+      )}
+    </Modal>
   );
 };
 
