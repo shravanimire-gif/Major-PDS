@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Plus, Upload } from 'lucide-react';
+import { CreditCard, Plus } from 'lucide-react';
 import api from '../../api/axios';
 import BulkUploadModal from '../../components/admin/BulkUploadModal';
-import { usePageHeader } from '../../context/AdminHeaderContext';
 import useToast from '../../components/ui/useToast';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import Button from '../../components/ui/Button';
+import PanelHeader from '../../design/primitives/PanelHeader';
 
 const PAGE_SIZE = 50;
 
@@ -56,10 +56,9 @@ const RationCards = () => {
     fetchRationCards();
   }, []);
 
-  usePageHeader('Ration Cards', [
-    { key: 'bulk', label: 'Bulk Upload', icon: Upload, onClick: () => setBulkOpen(true) },
-    { key: 'add', label: 'Add Ration Card', icon: Plus, variant: 'primary', onClick: () => navigate('/admin/ration-cards/new') },
-  ]);
+  useEffect(() => {
+    document.title = 'Ration Cards — PDS Supervision';
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(rationCards.length / PAGE_SIZE));
   const pageRows = useMemo(
@@ -69,6 +68,17 @@ const RationCards = () => {
 
   return (
     <>
+      <PanelHeader
+        title="Ration Cards"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setBulkOpen(true)}>
+              Bulk Upload
+            </Button>
+            <Button onClick={() => navigate('/admin/ration-cards/new')}>Add Ration Card</Button>
+          </div>
+        }
+      />
       <Table footer={<Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}>
         <Table.Head>
           <tr>

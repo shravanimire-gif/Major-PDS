@@ -1,0 +1,35 @@
+/*
+  Design Foundation — global typography (Prompt 1).
+
+  Additive. Does not touch the existing `body` rule in ../index.css (which
+  legacy chrome relies on for background/color) — this file only adds the
+  font load that was declared-but-never-imported, plus the tabular-nums
+  contract a data-heavy dashboard needs so numbers align in tables.
+*/
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
+body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+td,
+input,
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

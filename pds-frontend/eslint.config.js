@@ -18,4 +18,13 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // e2e/ and the Playwright config itself are plain Node scripts (no React,
+  // no browser globals) — process/__dirname/etc. are real globals there,
+  // not undefined references.
+  {
+    files: ['e2e/**/*.js', 'playwright.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

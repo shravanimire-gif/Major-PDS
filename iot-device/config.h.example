@@ -1,0 +1,22 @@
+#pragma once
+
+// Copy this file to config.h and fill in real values for your device.
+// config.h is git-ignored (see .gitignore) — it holds real WiFi credentials
+// and the device's bearer token, so it must never be committed or hardcoded
+// directly into esp32_pds.ino.
+
+#define WIFI_SSID "your-wifi-ssid"
+#define WIFI_PASSWORD "your-wifi-password"
+
+// pds-backend host/port — no scheme, no path (e.g. your laptop's LAN IP
+// during development, or the deployed hostname in production).
+#define BACKEND_HOST "192.168.1.50"
+#define BACKEND_PORT 5055
+#define BACKEND_WS_PATH "/ws/iot"
+
+// Assigned when you register this device — see
+// iot-device/PHASE1_DONE.md ("How to register a device") for the exact
+// POST /api/admin/iot/devices call. DEVICE_TOKEN is shown exactly once at
+// registration time; if you lose it, rotate it instead of trying to recover it.
+#define DEVICE_ID "esp32-shop-dhp001-01"
+#define DEVICE_TOKEN "paste-the-plaintext-token-shown-once-at-registration"

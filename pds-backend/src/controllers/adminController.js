@@ -470,7 +470,7 @@ const getAreas = async (req, res, next) => {
         COUNT(DISTINCT fm.id)::int AS beneficiary_count
       FROM areas a
       LEFT JOIN shops s ON s.area_id = a.id
-      LEFT JOIN ration_cards rc ON rc.area_id = a.id
+      LEFT JOIN ration_cards rc ON rc.area_id = a.id AND rc.is_active = true
       LEFT JOIN family_members fm ON fm.ration_card_id = rc.id AND fm.is_head = true
       ${whereClause}
       GROUP BY a.id, a.name, a.is_active

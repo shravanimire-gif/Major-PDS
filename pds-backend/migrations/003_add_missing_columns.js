@@ -54,27 +54,31 @@ exports.up = (pgm) => {
         END $$;
     `);
 
-    // Add the _kg columns if they don't exist
-    pgm.addColumns('transactions', {
-        rice_qty_kg: {
-            type: 'numeric(8,2)',
-            notNull: true,
-            default: 0,
-            ifNotExists: true,
-        },
-        wheat_qty_kg: {
-            type: 'numeric(8,2)',
-            notNull: true,
-            default: 0,
-            ifNotExists: true,
-        },
-        sugar_qty_kg: {
-            type: 'numeric(8,2)',
-            notNull: true,
-            default: 0,
-            ifNotExists: true,
-        },
-    });
+    // Add the _kg columns if they don't exist. Guarded with information_schema
+    // checks (rather than pgm.addColumns' ifNotExists, which this
+    // node-pg-migrate version doesn't actually render into the ALTER TABLE
+    // SQL) because the DO block above may have *just* created these same
+    // columns via rename on a freshly-installed DB — an unconditional ADD
+    // here would then fail with "column already exists".
+    pgm.sql(`
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_name = 'transactions' AND column_name = 'rice_qty_kg') THEN
+                ALTER TABLE transactions ADD COLUMN rice_qty_kg numeric(8,2) NOT NULL DEFAULT 0;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_name = 'transactions' AND column_name = 'wheat_qty_kg') THEN
+                ALTER TABLE transactions ADD COLUMN wheat_qty_kg numeric(8,2) NOT NULL DEFAULT 0;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_name = 'transactions' AND column_name = 'sugar_qty_kg') THEN
+                ALTER TABLE transactions ADD COLUMN sugar_qty_kg numeric(8,2) NOT NULL DEFAULT 0;
+            END IF;
+        END $$;
+    `);
 
     // Sync served_by with dispensed_by for existing records
     pgm.sql(`

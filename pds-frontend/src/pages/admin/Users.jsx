@@ -3,7 +3,7 @@ import { Plus, Upload, UserCog } from 'lucide-react';
 import api from '../../api/axios';
 import AddShopkeeperModal from '../../components/admin/AddShopkeeperModal';
 import ShopkeeperBulkUploadModal from '../../components/admin/ShopkeeperBulkUploadModal';
-import { usePageHeader } from '../../context/AdminHeaderContext';
+import PanelHeader from '../../design/primitives/PanelHeader';
 import useToast from '../../components/ui/useToast';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
@@ -39,10 +39,9 @@ const Users = () => {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
 
-  usePageHeader('Users', [
-    { key: 'bulk', label: 'Bulk Upload', icon: Upload, onClick: () => setIsBulkUploadOpen(true) },
-    { key: 'add', label: 'Add Shopkeeper', icon: Plus, variant: 'primary', onClick: () => setIsAddModalOpen(true) },
-  ]);
+  useEffect(() => {
+    document.title = 'Users & Roles — PDS Supervision';
+  }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -125,6 +124,22 @@ const Users = () => {
   });
 
   return (
+    <>
+      <PanelHeader
+        title="Users & Roles"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setIsBulkUploadOpen(true)}>
+              <Upload size={16} />
+              Bulk Upload
+            </Button>
+            <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
+              <Plus size={16} />
+              Add Shopkeeper
+            </Button>
+          </div>
+        }
+      />
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Input
@@ -275,6 +290,7 @@ const Users = () => {
         )}
       </Modal>
     </div>
+    </>
   );
 };
 

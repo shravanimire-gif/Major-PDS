@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Gauge } from 'lucide-react';
 import api from '../../api/axios';
 import QRScanner from '../../components/shopkeeper/QRScanner';
+import DispenseWeighingPanel from '../../components/shopkeeper/DispenseWeighingPanel';
 import useToast from '../../components/ui/useToast';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
@@ -13,7 +14,21 @@ const FLOW = {
   SCANNING: 'SCANNING',
   BENEFICIARY_LOADED: 'BENEFICIARY_LOADED',
   CONFIRMATION: 'CONFIRMATION',
+  WEIGHING: 'WEIGHING',
   SUCCESS: 'SUCCESS',
+};
+
+const COMMODITY_BY_QTY_KEY = {
+  rice_qty_kg: 'rice',
+  wheat_qty_kg: 'wheat',
+  sugar_qty_kg: 'sugar',
+};
+
+const OUTCOME_TOAST = {
+  committed: { type: 'success', message: 'Dispensed successfully via the IoT scale.' },
+  cancelled: { type: 'warning', message: 'Weighing cancelled.' },
+  device_lost: { type: 'danger', message: 'Weighing scale disconnected — please reconnect and restart.' },
+  failed_insufficient_balance: { type: 'danger', message: 'Measured weight exceeded the remaining balance.' },
 };
 
 const emptyQuantities = {
@@ -61,6 +76,8 @@ const ScanAndDispense = () => {
   const [wallet, setWallet] = useState(null);
   const [quantities, setQuantities] = useState(emptyQuantities);
   const [dispenseResult, setDispenseResult] = useState(null);
+  const [iotAvailable, setIotAvailable] = useState(false);
+  const [weighingSession, setWeighingSession] = useState(null);
 
   const maxes = useMemo(
     () => ({
@@ -92,22 +109,25 @@ const ScanAndDispense = () => {
     setWallet(null);
     setQuantities(emptyQuantities);
     setDispenseResult(null);
+    setIotAvailable(false);
+    setWeighingSession(null);
   };
 
   const fetchBeneficiary = async (payload) => {
     setLoading(true);
 
     try {
-      const response = await api.get(`/api/shopkeeper/beneficiary/${payload.rationCardId}`, {
-        params: {
-          sessionId: payload.sessionId,
-          expiresAt: payload.expiresAt,
-        },
-      });
+      const [beneficiaryRes, deviceStatusRes] = await Promise.all([
+        api.get(`/api/shopkeeper/beneficiary/${payload.rationCardId}`, {
+          params: { sessionId: payload.sessionId, expiresAt: payload.expiresAt },
+        }),
+        api.get('/api/dispense/device-status').catch(() => ({ data: { active: false } })),
+      ]);
 
-      setBeneficiary(response.data.beneficiary);
-      setWallet(response.data.wallet);
+      setBeneficiary(beneficiaryRes.data.beneficiary);
+      setWallet(beneficiaryRes.data.wallet);
       setQuantities(emptyQuantities);
+      setIotAvailable(Boolean(deviceStatusRes.data.active));
       setFlowState(FLOW.BENEFICIARY_LOADED);
     } catch (error) {
       toast.danger(error.response?.data?.error || 'Failed to load beneficiary');
@@ -115,6 +135,48 @@ const ScanAndDispense = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Starts an IoT-gated weighing session for one commodity (one container on
+  // one scale at a time — see PHASE2_DONE.md) using the already-scanned QR
+  // session as the identity proof, then attaches the shop's device.
+  const handleWeighOnScale = async (qtyKey) => {
+    const commodity = COMMODITY_BY_QTY_KEY[qtyKey];
+    const entitledGrams = Math.round(Number(quantities[qtyKey] || 0) * 1000);
+
+    if (entitledGrams <= 0) {
+      toast.warning('Enter a quantity before weighing');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const createRes = await api.post('/api/dispense/session', {
+        ration_card_id: beneficiary.ration_card_id,
+        commodity,
+        entitled_grams: entitledGrams,
+        qr_session_id: qrPayload.sessionId,
+      });
+
+      const { session_id: sessionId, session_jwt: sessionJwt, tolerance_grams: toleranceGrams } = createRes.data;
+
+      await api.post(`/api/dispense/session/${sessionId}/attach`, { session_jwt: sessionJwt });
+
+      setWeighingSession({ sessionId, commodity, entitledGrams, toleranceGrams });
+      setFlowState(FLOW.WEIGHING);
+    } catch (error) {
+      toast.danger(error.response?.data?.error || 'Failed to start weighing session');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWeighingDone = (outcome) => {
+    const toastSpec = OUTCOME_TOAST[outcome];
+    if (toastSpec) {
+      toast[toastSpec.type](toastSpec.message);
+    }
+    resetToScan();
   };
 
   const handleScanResult = (rawText) => {
@@ -234,17 +296,29 @@ const ScanAndDispense = () => {
                 { key: 'wheat_qty_kg', label: 'Wheat qty' },
                 { key: 'sugar_qty_kg', label: 'Sugar qty' },
               ].map((field) => (
-                <Input
-                  key={field.key}
-                  label={field.label}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={quantities[field.key]}
-                  onChange={(event) => handleQtyChange(field.key, event.target.value)}
-                  error={hasExceeded(field.key) ? `Cannot exceed ${maxes[field.key]} kg` : undefined}
-                  inputClassName="h-11"
-                />
+                <div key={field.key} className="space-y-2">
+                  <Input
+                    label={field.label}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={quantities[field.key]}
+                    onChange={(event) => handleQtyChange(field.key, event.target.value)}
+                    error={hasExceeded(field.key) ? `Cannot exceed ${maxes[field.key]} kg` : undefined}
+                    inputClassName="h-11"
+                  />
+                  {iotAvailable && Number(quantities[field.key]) > 0 && !hasExceeded(field.key) && (
+                    <Button
+                      variant="secondary"
+                      className="h-9 w-full text-xs"
+                      onClick={() => handleWeighOnScale(field.key)}
+                      disabled={loading}
+                    >
+                      <Gauge size={14} />
+                      Weigh on Scale
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
 
@@ -258,6 +332,18 @@ const ScanAndDispense = () => {
             </div>
           </Card>
         </div>
+      )}
+
+      {flowState === FLOW.WEIGHING && weighingSession && beneficiary && (
+        <DispenseWeighingPanel
+          sessionId={weighingSession.sessionId}
+          commodity={weighingSession.commodity}
+          entitledGrams={weighingSession.entitledGrams}
+          toleranceGrams={weighingSession.toleranceGrams}
+          beneficiaryName={beneficiary.name}
+          cardNumber={beneficiary.card_number}
+          onDone={handleWeighingDone}
+        />
       )}
 
       {flowState === FLOW.SUCCESS && dispenseResult && (

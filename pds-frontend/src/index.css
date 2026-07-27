@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./design/tokens.css";
+@import "./design/typography.css";
 
 /* radius-sm/md and shadow-sm/md below are registered as real Tailwind theme keys
    (rounded-sm, rounded-md, shadow-sm, shadow-md) since nothing in the app currently

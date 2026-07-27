@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Map, Plus } from 'lucide-react';
 import api from '../../api/axios';
-import { usePageHeader } from '../../context/AdminHeaderContext';
+import PanelHeader from '../../design/primitives/PanelHeader';
 import useToast from '../../components/ui/useToast';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
@@ -51,14 +51,16 @@ const Areas = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    document.title = 'Areas — PDS Supervision';
+  }, []);
+
   const openAddModal = () => {
     setEditArea(null);
     setForm(emptyForm);
     setFormError('');
     setShowModal(true);
   };
-
-  usePageHeader('Areas', [{ key: 'add', label: 'Add Area', icon: Plus, variant: 'primary', onClick: openAddModal }]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return areas;
@@ -120,6 +122,16 @@ const Areas = () => {
   };
 
   return (
+    <>
+      <PanelHeader
+        title="Areas"
+        actions={
+          <Button variant="primary" onClick={openAddModal}>
+            <Plus size={16} />
+            Add Area
+          </Button>
+        }
+      />
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
         <Card bodyClassName="p-5">
@@ -246,6 +258,7 @@ const Areas = () => {
         </form>
       </Modal>
     </div>
+    </>
   );
 };
 

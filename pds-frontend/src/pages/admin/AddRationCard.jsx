@@ -3,12 +3,12 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import api from '../../api/axios';
-import { usePageHeader } from '../../context/AdminHeaderContext';
 import useToast from '../../components/ui/useToast';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import PanelHeader from '../../design/primitives/PanelHeader';
 
 const defaultValues = {
   card_number: '',
@@ -31,7 +31,9 @@ const AddRationCard = () => {
   const [members, setMembers] = useState([]);
   const [errorBanner, setErrorBanner] = useState('');
 
-  usePageHeader('Add Ration Card');
+  useEffect(() => {
+    document.title = 'New Ration Card — PDS Supervision';
+  }, []);
 
   const {
     register,
@@ -162,7 +164,9 @@ const AddRationCard = () => {
   };
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <>
+      <PanelHeader title="New Ration Card" />
+      <div className="mx-auto max-w-4xl">
       <button
         type="button"
         onClick={() => navigate('/admin/ration-cards')}
@@ -310,7 +314,8 @@ const AddRationCard = () => {
           {isSubmitting ? 'Creating...' : 'Create Ration Card'}
         </Button>
       </form>
-    </div>
+      </div>
+    </>
   );
 };
 

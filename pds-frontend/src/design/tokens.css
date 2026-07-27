@@ -1,0 +1,128 @@
+/*
+  Design Foundation — semantic token layer (Prompt 1).
+
+  Additive only. Every token here lives under a `ds-` namespace so it can
+  never collide with the pre-existing tokens in ../index.css (brand-*,
+  chrome-*, surface*, text-primary/secondary/disabled, border*,
+  success/warning/danger/info-*, radius-sm/md, shadow-sm/md). Those keep
+  their current values; nothing here overrides them. src/design/primitives/
+  consume ONLY the tokens below — never the pre-existing ones.
+
+  Do not rename these once primitives/pages consume them — see
+  src/design/README.md for the token contract.
+*/
+
+@theme {
+  /* ---- Color: backgrounds ---- */
+  --color-ds-canvas: #fafafa; /* neutral-50 */
+  --color-ds-surface: #ffffff; /* white */
+  --color-ds-surface-alt: #fafafa; /* neutral-50 — zebra rows, panel-in-panel */
+  --color-ds-sunken: #f5f5f5; /* neutral-100 */
+
+  /* ---- Color: borders ---- */
+  --color-ds-border-subtle: #e5e5e5; /* neutral-200 */
+  --color-ds-border-default: #d4d4d4; /* neutral-300 */
+  --color-ds-border-strong: #a3a3a3; /* neutral-400 */
+
+  /* ---- Color: text ---- */
+  --color-ds-text-primary: #171717; /* neutral-900 */
+  --color-ds-text-secondary: #525252; /* neutral-600 */
+  --color-ds-text-tertiary: #737373; /* neutral-500 */
+  --color-ds-text-disabled: #a3a3a3; /* neutral-400 */
+  --color-ds-text-inverse: #ffffff;
+
+  /* ---- Color: overlay — Dialog backdrop (use with /40 opacity) and solid
+     dark surfaces like Tooltip (neutral-900, same value as text.primary,
+     named separately because it's used as a background/overlay, not text) ---- */
+  --color-ds-overlay: #171717;
+
+  /* ---- Color: accent — the ONLY hue used for primary actions ---- */
+  --color-ds-accent: #4f46e5; /* indigo-600 */
+  --color-ds-accent-hover: #4338ca; /* indigo-700 */
+  --color-ds-accent-active: #3730a3; /* indigo-800 */
+
+  /* ---- Color: status — reserved for status, never decoration ---- */
+  --color-ds-success: #059669; /* emerald-600 */
+  --color-ds-warning: #d97706; /* amber-600 */
+  --color-ds-danger: #e11d48; /* rose-600 */
+  --color-ds-info: #0284c7; /* sky-600 */
+
+  /* ---- Color: chart categorical series — identity only, never status.
+     Capped at 3 named slots: a donut/pie exposes every slice next to every
+     other (the palette's "all-pairs" case), and this ordering is the
+     largest subset that clears the CVD/normal-vision floors under that
+     stricter check — a 4th slot is never added here, callers fold overflow
+     into --color-ds-chart-other instead. See tokens.js `chart.series` for
+     the JS mirror (recharts needs raw hex, not a CSS var, for its `fill`
+     prop). ---- */
+  --color-ds-chart-series-1: #2a78d6; /* blue */
+  --color-ds-chart-series-2: #eb6834; /* orange */
+  --color-ds-chart-series-3: #1baf7a; /* aqua */
+  --color-ds-chart-other: #a3a3a3; /* folded "Other" slice — same neutral as ds-border-strong */
+
+  /* ---- Typography ---- */
+  --font-mono-ds: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-ds-display: 1.75rem; /* 28px, use once per page max */
+  --text-ds-display--line-height: 2.25rem; /* 36px */
+  --text-ds-title: 1.25rem; /* 20px */
+  --text-ds-title--line-height: 1.75rem; /* 28px */
+  --text-ds-subtitle: 1rem; /* 16px */
+  --text-ds-subtitle--line-height: 1.5rem; /* 24px */
+  --text-ds-body: 0.875rem; /* 14px — the default */
+  --text-ds-body--line-height: 1.25rem; /* 20px */
+  --text-ds-small: 0.8125rem; /* 13px — table cells, meta text */
+  --text-ds-small--line-height: 1.125rem; /* 18px */
+  --text-ds-xs: 0.75rem; /* 12px — labels, pills, uppercase captions */
+  --text-ds-xs--line-height: 1rem; /* 16px */
+  --text-ds-mono-sm: 0.8125rem; /* 13px — hashes, addresses, tx/device IDs */
+  --text-ds-mono-sm--line-height: 1.125rem; /* 18px */
+
+  /* ---- Radii — nothing rounder than lg; no rounded-full except avatars/status dots ---- */
+  --radius-ds-sm: 4px; /* pills, inline chips */
+  --radius-ds-md: 6px; /* inputs, buttons */
+  --radius-ds-lg: 8px; /* cards, panels, dialogs */
+
+  /* ---- Shadows — prefer borders; shadows only for dropdowns/popovers/modals ---- */
+  --shadow-ds-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 1px 0 rgb(0 0 0 / 0.04);
+  --shadow-ds-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+}
+
+/*
+  Motion tokens are hand-authored as plain custom properties + explicit
+  utility classes rather than @theme entries. Tailwind v4's documented
+  auto-generated namespaces reliably cover color/font-size/radius/shadow;
+  a generic `--duration-*` namespace is not one of them, so we define the
+  utilities directly to guarantee they compile rather than relying on
+  inference.
+*/
+:root {
+  --duration-ds-instant: 0ms;
+  --duration-ds-fast: 120ms; /* hovers, focus rings */
+  --duration-ds-base: 180ms; /* most transitions */
+  --duration-ds-slow: 280ms; /* modals, drawers */
+  --ease-ds-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* easing.emphasized intentionally reuses the same curve as easing.standard —
+     see src/design/README.md ("don't overuse variants"). Kept as a separate
+     property (not an alias) only so call sites can name intent. */
+  --ease-ds-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.duration-ds-instant {
+  transition-duration: var(--duration-ds-instant);
+}
+.duration-ds-fast {
+  transition-duration: var(--duration-ds-fast);
+}
+.duration-ds-base {
+  transition-duration: var(--duration-ds-base);
+}
+.duration-ds-slow {
+  transition-duration: var(--duration-ds-slow);
+}
+.ease-ds-standard {
+  transition-timing-function: var(--ease-ds-standard);
+}
+.ease-ds-emphasized {
+  transition-timing-function: var(--ease-ds-emphasized);
+}

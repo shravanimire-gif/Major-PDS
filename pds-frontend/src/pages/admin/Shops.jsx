@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Plus, Store, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Gauge, Plus, Store, Upload } from 'lucide-react';
 import api from '../../api/axios';
 import ShopBulkUploadModal from '../../components/admin/ShopBulkUploadModal';
-import { usePageHeader } from '../../context/AdminHeaderContext';
+import PanelHeader from '../../design/primitives/PanelHeader';
 import useToast from '../../components/ui/useToast';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
@@ -26,6 +27,7 @@ const COLUMNS = [
 const emptyShopForm = { shop_code: '', shop_name: '', area_id: '' };
 
 const Shops = () => {
+  useEffect(() => { document.title = 'Shops — PDS Supervision'; }, []);
   const toast = useToast();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,11 +73,6 @@ const Shops = () => {
       setLoadingAreas(false);
     }
   };
-
-  usePageHeader('Shops', [
-    { key: 'bulk', label: 'Bulk Upload', icon: Upload, onClick: () => setShowBulkUpload(true) },
-    { key: 'add', label: 'Add Shop', icon: Plus, variant: 'primary', onClick: openAddShopModal },
-  ]);
 
   const closeAddShopModal = () => {
     setShowAddShop(false);
@@ -172,6 +169,21 @@ const Shops = () => {
 
   return (
     <>
+      <PanelHeader
+        title="Shops"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setShowBulkUpload(true)}>
+              <Upload size={16} />
+              Bulk Upload
+            </Button>
+            <Button variant="primary" onClick={openAddShopModal}>
+              <Plus size={16} />
+              Add Shop
+            </Button>
+          </div>
+        }
+      />
       <Table>
         <Table.Head>
           <tr>
@@ -218,6 +230,13 @@ const Shops = () => {
                     </Table.Cell>
                     <Table.Cell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-3">
+                        <Link
+                          to={`/admin/shops/${shop.id}/live`}
+                          className="flex items-center gap-1 rounded-sm text-xs font-medium text-text-secondary transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                        >
+                          <Gauge size={14} />
+                          Live weight
+                        </Link>
                         {!shop.shopkeeper_name && (
                           <button
                             onClick={(e) => openAssignModal(shop, e)}

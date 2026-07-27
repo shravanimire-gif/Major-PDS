@@ -175,15 +175,17 @@ async function getEntitlementVsActual(groupBy, range) {
 }
 
 /**
- * Current snapshot: count of beneficiaries (individual family members on
- * active ration cards) by NFSA category.
+ * Current snapshot: count of beneficiaries (heads of active ration cards,
+ * matching the definition used by getAreas and getBeneficiaries — a
+ * "beneficiary" is a ration-card holder, not every listed family member)
+ * by NFSA category.
  */
 async function getCategoryBreakdown() {
     return _cached("category-breakdown", async () => {
         const { rows } = await pool.query(
             `SELECT rc.category, COUNT(fm.id)::int AS beneficiary_count
        FROM ration_cards rc
-       JOIN family_members fm ON fm.ration_card_id = rc.id
+       JOIN family_members fm ON fm.ration_card_id = rc.id AND fm.is_head = true
        WHERE rc.is_active = true
        GROUP BY rc.category
        ORDER BY rc.category`

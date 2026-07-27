@@ -9,6 +9,9 @@ const pool = require("./config/db");
 const { startEntitlementCron } = require("./jobs/entitlementCron");
 const { startOtpCleanupCron } = require("./jobs/otpCleanup");
 const { startAnomalyDetectionCron } = require("./jobs/anomalyDetectionCron");
+const { startAnchorRetryCron } = require("./jobs/anchorRetryCron");
+const { startAnomalyRulesCron } = require("./jobs/anomalyRulesCron");
+const { attachWebSocketServers } = require("./ws/attachSockets");
 
 const VALID_NODE_ENVS = ["development", "production", "test"];
 const REQUIRED_ENV_VARS = [
@@ -189,6 +192,8 @@ const startServer = async () => {
     startEntitlementCron();
     startOtpCleanupCron();
     startAnomalyDetectionCron();
+    startAnchorRetryCron();
+    startAnomalyRulesCron();
 
     // Enhanced startup diagnostics
     logger.info("===== BACKEND STARTUP DIAGNOSTICS =====");
@@ -218,6 +223,8 @@ const startServer = async () => {
         logger.info(`Local access: http://localhost:${PORT}`);
       }
     });
+
+    attachWebSocketServers(server);
 
     server.on("error", (error) => {
       if (error.code === "EADDRINUSE") {

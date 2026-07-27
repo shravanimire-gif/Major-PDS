@@ -11,8 +11,12 @@ const shopkeeperRoutes = require("./routes/shopkeeper");
 const entitlementRoutes = require("./routes/entitlement");
 const analyticsRoutes = require("./routes/analytics");
 const beneficiaryRoutes = require("./routes/beneficiary");
+const iotRoutes = require("./routes/iotRoutes");
+const dispenseSessionRoutes = require("./routes/dispenseSessionRoutes");
+const anomalyRoutes = require("./routes/anomalyRoutes");
 const { verifyToken, requireRole } = require("./middleware/auth");
 const { getCorsDebugInfo } = require("./config/cors");
+const metrics = require("./config/metrics");
 
 dotenv.config();
 
@@ -67,6 +71,13 @@ app.get("/debug/cors", (req, res) => {
   res.json(getCorsDebugInfo());
 });
 
+// Unauthenticated, same convention as /health — standard Prometheus-scrape
+// pattern; no PII in any of the exposed counters/histograms/gauges.
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", metrics.register.contentType);
+  res.end(await metrics.register.metrics());
+});
+
 // Auth routes — strict (brute force protection)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -102,6 +113,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", entitlementRoutes);
 app.use("/api/admin", analyticsRoutes);
+app.use("/api/admin/iot", iotRoutes);
+app.use("/api/admin/anomalies", anomalyRoutes);
+app.use("/api/dispense", dispenseSessionRoutes);
 app.use("/api/shopkeeper", shopkeeperRoutes);
 app.use("/api/beneficiary", beneficiaryRoutes);
 

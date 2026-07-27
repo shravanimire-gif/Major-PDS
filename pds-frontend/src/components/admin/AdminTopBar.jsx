@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAdminHeaderValue } from '../../context/AdminHeaderContext';
 import Button from '../ui/Button';
 import ThemeToggle from '../ui/ThemeToggle';
+import AnomalyBadge from './AnomalyBadge';
 
 const getInitials = (name, email) => {
   const source = (name || '').trim();
@@ -64,6 +65,8 @@ const AdminTopBar = () => {
             {label}
           </Button>
         ))}
+
+        <AnomalyBadge />
 
         <ThemeToggle />
 

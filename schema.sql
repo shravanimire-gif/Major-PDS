@@ -1,6 +1,7 @@
 -- =============================================================================
 -- PDS (Public Distribution System) — Production Schema
--- PostgreSQL 14+  |  Generated from live Neon DB — June 2026
+-- PostgreSQL 14+  |  Regenerated from the live local DB (newpds) — 27 Jul 2026
+-- Reflects node-pg-migrate migrations 001 through 020 (fully applied).
 -- =============================================================================
 -- HOW TO USE IN pgAdmin:
 --   1. Connect to your target database (create a fresh one if needed).
@@ -8,6 +9,13 @@
 --   3. Paste this entire file and click ▶ Execute / F5.
 --   4. Everything runs in a single transaction — it either all succeeds or
 --      rolls back cleanly.
+--
+-- NOTE: this file is a convenience snapshot for spinning up a database
+-- without running migrations (e.g. local onboarding, ad-hoc environments).
+-- It does NOT create the `pgmigrations` bookkeeping table, so a DB built
+-- from this file is NOT tracked by node-pg-migrate — don't run
+-- `npm run migrate:up` against it afterwards without reconciling history.
+-- The source of truth for schema changes is pds-backend/migrations/.
 -- =============================================================================
 
 BEGIN;
@@ -31,18 +39,35 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- ---------------------------------------------------------------------------
--- 2. CORE TABLES  (order respects foreign-key dependencies)
+-- 2. FUNCTIONS
 -- ---------------------------------------------------------------------------
 
--- 2.1  areas
+-- Blocks deletion of the admin user (by role or by the reserved admin email),
+-- even via ad-hoc SQL — application code should be deactivating, not deleting.
+CREATE OR REPLACE FUNCTION prevent_admin_user_delete() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+      IF OLD.role = 'admin' OR LOWER(COALESCE(OLD.email, '')) = 'admin@pds.gov' THEN
+        RAISE EXCEPTION 'Admin users cannot be deleted';
+      END IF;
+      RETURN OLD;
+    END;
+    $$;
+
+
+-- ---------------------------------------------------------------------------
+-- 3. CORE TABLES  (order respects foreign-key dependencies)
+-- ---------------------------------------------------------------------------
+
+-- 3.1  areas
 CREATE TABLE IF NOT EXISTS areas (
     id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     name       VARCHAR(100)  NOT NULL UNIQUE,
-	is_active BOOLEAN DEFAULT TRUE,
+    is_active  BOOLEAN       NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 
--- 2.2  policies  (entitlement rules per ration category)
+-- 3.2  policies  (entitlement rules per ration category)
 CREATE TABLE IF NOT EXISTS policies (
     id                   UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     category             ration_category NOT NULL UNIQUE,
@@ -53,7 +78,7 @@ CREATE TABLE IF NOT EXISTS policies (
     updated_at           TIMESTAMP       NOT NULL DEFAULT NOW()
 );
 
--- 2.3  users  (admin / shopkeeper / beneficiary)
+-- 3.3  users  (admin / shopkeeper / beneficiary)
 CREATE TABLE IF NOT EXISTS users (
     id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     role          user_role   NOT NULL,
@@ -61,28 +86,39 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255) UNIQUE,
     mobile        VARCHAR(15),
     password_hash TEXT,
-	address TEXT,
+    address       TEXT,
     is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
-    created_at    TIMESTAMP   NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMP   NOT NULL DEFAULT NOW(),
+    gender        VARCHAR(10),
+    age           INTEGER
 );
 
--- 2.4  shops
+CREATE INDEX IF NOT EXISTS idx_users_email  ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile);
+CREATE INDEX IF NOT EXISTS idx_users_role   ON users(role);
+
+DROP TRIGGER IF EXISTS trg_prevent_admin_user_delete ON users;
+CREATE TRIGGER trg_prevent_admin_user_delete
+    BEFORE DELETE ON users
+    FOR EACH ROW EXECUTE FUNCTION prevent_admin_user_delete();
+
+-- 3.4  shops
 CREATE TABLE IF NOT EXISTS shops (
     id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     shop_code      VARCHAR(20)  NOT NULL UNIQUE,
     shop_name      VARCHAR(150) NOT NULL,
-    area_id        UUID         NOT NULL REFERENCES areas(id)         ON DELETE RESTRICT,
-    shopkeeper_id  UUID         UNIQUE       REFERENCES users(id)     ON DELETE SET NULL,
+    area_id        UUID         NOT NULL REFERENCES areas(id)     ON DELETE RESTRICT,
+    shopkeeper_id  UUID         UNIQUE   REFERENCES users(id)     ON DELETE SET NULL,
     address        TEXT,
-	contact_number VARCHAR(15),
+    contact_number VARCHAR(15),
     is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_shops_area_id        ON shops(area_id);
-CREATE INDEX IF NOT EXISTS idx_shops_shopkeeper_id  ON shops(shopkeeper_id);
+CREATE INDEX IF NOT EXISTS idx_shops_area_id       ON shops(area_id);
+CREATE INDEX IF NOT EXISTS idx_shops_shopkeeper_id ON shops(shopkeeper_id);
 
--- 2.5  ration_cards
+-- 3.5  ration_cards
 CREATE TABLE IF NOT EXISTS ration_cards (
     id           UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     card_number  VARCHAR(50)     NOT NULL UNIQUE,
@@ -91,46 +127,51 @@ CREATE TABLE IF NOT EXISTS ration_cards (
     shop_id      UUID            NOT NULL REFERENCES shops(id)  ON DELETE RESTRICT,
     area_id      UUID            NOT NULL REFERENCES areas(id)  ON DELETE RESTRICT,
     is_active    BOOLEAN         NOT NULL DEFAULT TRUE,
-    created_at   TIMESTAMP       NOT NULL DEFAULT NOW()
+    created_at   TIMESTAMP       NOT NULL DEFAULT NOW(),
+    address      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_ration_cards_shop_id      ON ration_cards(shop_id);
 CREATE INDEX IF NOT EXISTS idx_ration_cards_area_id      ON ration_cards(area_id);
 CREATE INDEX IF NOT EXISTS idx_ration_cards_head_user_id ON ration_cards(head_user_id);
 
--- 2.6  family_members
+-- 3.6  family_members
+-- NOTE: ration_card_id is intentionally NOT unique — a card can have many
+-- members. Only user_id is unique (one person = one membership).
 CREATE TABLE IF NOT EXISTS family_members (
-    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    ration_card_id  UUID        NOT NULL UNIQUE REFERENCES ration_cards(id) ON DELETE CASCADE,
-    user_id         UUID        NOT NULL UNIQUE REFERENCES users(id)        ON DELETE CASCADE,
-    name            VARCHAR(150) NOT NULL,
-    age             INTEGER      NOT NULL,
-    is_head         BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP    NOT NULL DEFAULT NOW()
+    id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    ration_card_id UUID         NOT NULL REFERENCES ration_cards(id) ON DELETE CASCADE,
+    user_id        UUID         NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    name           VARCHAR(150) NOT NULL,
+    age            INTEGER      NOT NULL CHECK (age >= 0 AND age <= 120),
+    is_head        BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
+    relationship   VARCHAR(50)
 );
 
 CREATE INDEX IF NOT EXISTS idx_family_members_ration_card_id ON family_members(ration_card_id);
 CREATE INDEX IF NOT EXISTS idx_family_members_user_id        ON family_members(user_id);
 
--- 2.7  wallets  (one per ration card, holds monthly grain balances)
+-- 3.7  wallets  (one per ration card, holds monthly grain balances)
 CREATE TABLE IF NOT EXISTS wallets (
     id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     ration_card_id    UUID         NOT NULL UNIQUE REFERENCES ration_cards(id) ON DELETE CASCADE,
-    rice_balance_kg   NUMERIC(8,2) NOT NULL DEFAULT 0,
-    wheat_balance_kg  NUMERIC(8,2) NOT NULL DEFAULT 0,
+    rice_balance_kg   NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (rice_balance_kg >= 0),
+    wheat_balance_kg  NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (wheat_balance_kg >= 0),
+    sugar_balance_kg  NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (sugar_balance_kg >= 0),
     last_reset_date   DATE,
     updated_at        TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
--- 2.8  transactions  (grain dispense records — immutable audit log)
+-- 3.8  transactions  (grain dispense records — immutable audit log)
 CREATE TABLE IF NOT EXISTS transactions (
     id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     ration_card_id      UUID         NOT NULL REFERENCES ration_cards(id) ON DELETE RESTRICT,
     shop_id             UUID         NOT NULL REFERENCES shops(id)        ON DELETE RESTRICT,
-    served_by           UUID                  REFERENCES users(id)        ON DELETE NO ACTION,
-    rice_qty_kg         NUMERIC(8,2) NOT NULL DEFAULT 0,
-    wheat_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0,
-    sugar_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0,
+    served_by           UUID                  REFERENCES users(id),
+    rice_qty_kg         NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (rice_qty_kg >= 0),
+    wheat_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (wheat_qty_kg >= 0),
+    sugar_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (sugar_qty_kg >= 0),
     blockchain_tx_hash  TEXT,
     created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
@@ -139,7 +180,24 @@ CREATE INDEX IF NOT EXISTS idx_transactions_ration_card_id ON transactions(ratio
 CREATE INDEX IF NOT EXISTS idx_transactions_shop_id        ON transactions(shop_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at     ON transactions(created_at);
 
--- 2.9  qr_sessions  (short-lived QR tokens for beneficiary → shopkeeper flow)
+-- 3.9  blockchain_logs  (Sepolia anchor status for each transaction)
+CREATE TABLE IF NOT EXISTS blockchain_logs (
+    id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id  UUID         NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
+    tx_hash         TEXT,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'confirmed', 'failed')),
+    block_number    BIGINT,
+    attempts        INTEGER      NOT NULL DEFAULT 0,
+    last_error      TEXT,
+    submitted_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
+    confirmed_at    TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_blockchain_logs_status         ON blockchain_logs(status);
+CREATE INDEX IF NOT EXISTS idx_blockchain_logs_transaction_id ON blockchain_logs(transaction_id);
+
+-- 3.10  qr_sessions  (short-lived QR tokens for beneficiary → shopkeeper flow)
 CREATE TABLE IF NOT EXISTS qr_sessions (
     session_id         VARCHAR(64)  PRIMARY KEY,
     ration_card_id     UUID         NOT NULL REFERENCES ration_cards(id) ON DELETE CASCADE,
@@ -152,9 +210,10 @@ CREATE TABLE IF NOT EXISTS qr_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_qr_sessions_ration_card_id ON qr_sessions(ration_card_id);
-CREATE INDEX IF NOT EXISTS idx_qr_sessions_expires_at      ON qr_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_qr_sessions_expires_at     ON qr_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_qr_sessions_shop_id        ON qr_sessions(shop_id);
 
--- 2.10  otp_verifications  (SMS OTP audit / fallback store)
+-- 3.11  otp_verifications  (SMS OTP audit / fallback store)
 CREATE TABLE IF NOT EXISTS otp_verifications (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     mobile      VARCHAR(15) NOT NULL,
@@ -168,10 +227,153 @@ CREATE INDEX IF NOT EXISTS idx_otp_verifications_mobile ON otp_verifications(mob
 
 
 -- ---------------------------------------------------------------------------
--- 3. SEED DATA
+-- 4. IOT / SMART-DISPENSER TABLES
 -- ---------------------------------------------------------------------------
 
--- 3.1  Entitlement policies  (system cannot function without these)
+-- 4.1  iot_devices  (one smart dispenser per shop, token-authenticated)
+CREATE TABLE IF NOT EXISTS iot_devices (
+    id                         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id                  VARCHAR(100) NOT NULL UNIQUE,
+    device_token_hash          TEXT         NOT NULL,
+    shop_id                    UUID         NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+    status                     VARCHAR(20)  NOT NULL DEFAULT 'active',
+    token_expires_at           TIMESTAMP,
+    last_seen_at               TIMESTAMP,
+    created_at                 TIMESTAMP    NOT NULL DEFAULT NOW(),
+    needs_recalibration        BOOLEAN      NOT NULL DEFAULT FALSE,
+    calibrated_at              TIMESTAMP,
+    previous_token_hash        TEXT,
+    previous_token_expires_at  TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_iot_devices_shop_id ON iot_devices(shop_id);
+CREATE INDEX IF NOT EXISTS idx_iot_devices_status  ON iot_devices(status);
+
+-- 4.2  sensor_readings  (raw weight samples streamed from a device)
+CREATE TABLE IF NOT EXISTS sensor_readings (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id   VARCHAR(100) NOT NULL REFERENCES iot_devices(device_id) ON DELETE CASCADE,
+    grams_int   INTEGER      NOT NULL,
+    taken_at    TIMESTAMP    NOT NULL,
+    session_id  VARCHAR(150),
+    created_at  TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sensor_readings_device_id ON sensor_readings(device_id);
+CREATE INDEX IF NOT EXISTS idx_sensor_readings_taken_at  ON sensor_readings(taken_at);
+
+-- 4.3  sensor_reading_rejections  (readings rejected by validation, for diagnostics)
+CREATE TABLE IF NOT EXISTS sensor_reading_rejections (
+    id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id    VARCHAR(100) NOT NULL REFERENCES iot_devices(device_id) ON DELETE CASCADE,
+    rejected_at  TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sensor_reading_rejections_device_id_rejected_at
+    ON sensor_reading_rejections(device_id, rejected_at);
+
+-- 4.4  iot_audit  (append-only audit trail for device/admin actions)
+CREATE TABLE IF NOT EXISTS iot_audit (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_type  VARCHAR(20) NOT NULL,
+    actor_id    UUID,
+    action      VARCHAR(50) NOT NULL,
+    target      TEXT        NOT NULL,
+    at_time     TIMESTAMP   NOT NULL DEFAULT NOW(),
+    meta_json   JSONB       NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_iot_audit_action  ON iot_audit(action);
+CREATE INDEX IF NOT EXISTS idx_iot_audit_at_time ON iot_audit(at_time);
+
+-- 4.5  commodity_tolerances  (per-commodity weight tolerance for dispensing)
+CREATE TABLE IF NOT EXISTS commodity_tolerances (
+    commodity            VARCHAR(20)  PRIMARY KEY,
+    min_tolerance_grams   INTEGER      NOT NULL DEFAULT 20,
+    tolerance_pct         NUMERIC(5,2) NOT NULL DEFAULT 1
+);
+
+-- 4.6  dispense_sessions  (an open weighing session at a shop's dispenser)
+CREATE TABLE IF NOT EXISTS dispense_sessions (
+    id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id          UUID         NOT NULL REFERENCES shops(id)        ON DELETE CASCADE,
+    ration_card_id   UUID         NOT NULL REFERENCES ration_cards(id) ON DELETE CASCADE,
+    commodity        VARCHAR(20)  NOT NULL,
+    entitled_grams   INTEGER      NOT NULL,
+    tolerance_grams  INTEGER      NOT NULL,
+    device_id        VARCHAR(100) REFERENCES iot_devices(device_id) ON DELETE SET NULL,
+    state            VARCHAR(30)  NOT NULL DEFAULT 'active',
+    opened_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
+    expires_at       TIMESTAMP    NOT NULL,
+    attached_at      TIMESTAMP,
+    committed_at     TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispense_sessions_shop_id        ON dispense_sessions(shop_id);
+CREATE INDEX IF NOT EXISTS idx_dispense_sessions_ration_card_id ON dispense_sessions(ration_card_id);
+CREATE INDEX IF NOT EXISTS idx_dispense_sessions_device_id_state ON dispense_sessions(device_id, state);
+
+-- 4.7  dispense_records  (committed, hash-chained dispense outcome)
+CREATE TABLE IF NOT EXISTS dispense_records (
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id          UUID         NOT NULL UNIQUE REFERENCES dispense_sessions(id) ON DELETE RESTRICT,
+    ration_card_id      UUID         NOT NULL REFERENCES ration_cards(id) ON DELETE RESTRICT,
+    shop_id             UUID         NOT NULL REFERENCES shops(id)        ON DELETE RESTRICT,
+    commodity           VARCHAR(20)  NOT NULL,
+    entitled_grams      INTEGER      NOT NULL,
+    measured_grams      INTEGER      NOT NULL,
+    prev_hash           TEXT,
+    row_hash            TEXT         NOT NULL,
+    committed_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
+    blockchain_tx_hash  TEXT,
+    last_anchor_error   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispense_records_ration_card_id ON dispense_records(ration_card_id);
+CREATE INDEX IF NOT EXISTS idx_dispense_records_shop_id_committed_at
+    ON dispense_records(shop_id, committed_at);
+
+-- 4.8  used_jtis  (replay protection for dispense-session JWTs)
+CREATE TABLE IF NOT EXISTS used_jtis (
+    jti         TEXT      PRIMARY KEY,
+    session_id  UUID      NOT NULL REFERENCES dispense_sessions(id) ON DELETE CASCADE,
+    used_at     TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- 4.9  anomaly_rules  (configurable anomaly-detection rule definitions)
+CREATE TABLE IF NOT EXISTS anomaly_rules (
+    rule_key     VARCHAR(50) PRIMARY KEY,
+    enabled      BOOLEAN     NOT NULL DEFAULT TRUE,
+    severity     VARCHAR(20) NOT NULL,
+    params_json  JSONB       NOT NULL DEFAULT '{}',
+    created_at   TIMESTAMP   NOT NULL DEFAULT NOW()
+);
+
+-- 4.10  anomaly_flags  (raised anomalies against shops/devices/dispenses)
+CREATE TABLE IF NOT EXISTS anomaly_flags (
+    id                   UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    rule_key             VARCHAR(50)  NOT NULL REFERENCES anomaly_rules(rule_key)     ON DELETE RESTRICT,
+    shop_id              UUID         NOT NULL REFERENCES shops(id)                   ON DELETE CASCADE,
+    device_id            VARCHAR(100) REFERENCES iot_devices(device_id)               ON DELETE SET NULL,
+    dispense_record_id   UUID         REFERENCES dispense_records(id)                 ON DELETE SET NULL,
+    severity             VARCHAR(20)  NOT NULL,
+    description          TEXT         NOT NULL,
+    created_at           TIMESTAMP    NOT NULL DEFAULT NOW(),
+    resolved_at          TIMESTAMP,
+    auto_resolved_at     TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_anomaly_flags_rule_key ON anomaly_flags(rule_key);
+CREATE INDEX IF NOT EXISTS idx_anomaly_flags_shop_id  ON anomaly_flags(shop_id);
+CREATE INDEX IF NOT EXISTS idx_anomaly_flags_resolved_at_auto_resolved_at
+    ON anomaly_flags(resolved_at, auto_resolved_at);
+
+
+-- ---------------------------------------------------------------------------
+-- 5. SEED DATA
+-- ---------------------------------------------------------------------------
+
+-- 5.1  Entitlement policies  (system cannot function without these)
 INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg, validity_days)
 VALUES
     ('APL', 3.00, 2.00, 0.50, 30),
@@ -179,7 +381,7 @@ VALUES
     ('AAY', 7.00, 8.00, 1.00, 30)
 ON CONFLICT (category) DO NOTHING;
 
--- 3.2  Default admin user
+-- 5.2  Default admin user
 --      Password: abcd1234  (bcrypt, cost 10)
 --      ⚠ CHANGE THIS PASSWORD immediately after first login in production.
 INSERT INTO users (role, email, password_hash)
@@ -190,15 +392,15 @@ VALUES (
 )
 ON CONFLICT (email) DO NOTHING;
 
--- Areas and shops are NOT seeded here.
--- Create them through the admin panel so demo data reflects your actual context.
+-- Areas, shops, IoT devices, and anomaly rules are NOT seeded here.
+-- Create them through the admin panel / app so demo data reflects your context.
 
 
 -- ---------------------------------------------------------------------------
--- 4. USEFUL VIEWS  (read-only, safe to keep in production)
+-- 6. USEFUL VIEWS  (read-only, safe to keep in production)
 -- ---------------------------------------------------------------------------
 
--- 4.1  Full beneficiary overview
+-- 6.1  Full beneficiary overview
 CREATE OR REPLACE VIEW v_beneficiaries AS
 SELECT
     rc.id              AS ration_card_id,
@@ -225,7 +427,7 @@ JOIN shops s           ON s.id  = rc.shop_id
 JOIN areas a           ON a.id  = rc.area_id
 LEFT JOIN wallets w    ON w.ration_card_id = rc.id;
 
--- 4.2  Transaction history with human-readable context
+-- 6.2  Transaction history with human-readable context + blockchain status
 CREATE OR REPLACE VIEW v_transactions AS
 SELECT
     t.id,
@@ -233,17 +435,20 @@ SELECT
     rc.card_number,
     rc.category,
     s.shop_name,
-    u.name             AS served_by_name,
+    u.name                    AS served_by_name,
     t.rice_qty_kg,
     t.wheat_qty_kg,
     t.sugar_qty_kg,
-    t.blockchain_tx_hash
+    t.blockchain_tx_hash,
+    bl.status                 AS blockchain_status,
+    bl.confirmed_at           AS blockchain_confirmed_at
 FROM transactions t
-JOIN ration_cards rc ON rc.id = t.ration_card_id
-JOIN shops s         ON s.id  = t.shop_id
-LEFT JOIN users u    ON u.id  = t.served_by;
+JOIN ration_cards rc       ON rc.id = t.ration_card_id
+JOIN shops s               ON s.id  = t.shop_id
+LEFT JOIN users u          ON u.id  = t.served_by
+LEFT JOIN blockchain_logs bl ON bl.transaction_id = t.id;
 
--- 4.3  Shop summary
+-- 6.3  Shop summary
 CREATE OR REPLACE VIEW v_shop_summary AS
 SELECT
     s.id,
@@ -261,134 +466,38 @@ LEFT JOIN ration_cards rc ON rc.shop_id = s.id
 LEFT JOIN transactions t  ON t.shop_id  = s.id
 GROUP BY s.id, s.shop_code, s.shop_name, a.name, u.name, u.mobile;
 
+-- 6.4  Blockchain anchors still awaiting confirmation
+CREATE OR REPLACE VIEW v_blockchain_pending AS
+SELECT
+    bl.id,
+    bl.transaction_id,
+    bl.tx_hash,
+    bl.attempts,
+    bl.last_error,
+    bl.submitted_at,
+    t.ration_card_id,
+    t.shop_id,
+    t.rice_qty_kg,
+    t.wheat_qty_kg,
+    t.sugar_qty_kg,
+    t.created_at       AS transaction_date
+FROM blockchain_logs bl
+JOIN transactions t ON t.id = bl.transaction_id
+WHERE bl.status = 'pending'
+ORDER BY bl.submitted_at;
+
 
 COMMIT;
 
 -- =============================================================================
 -- DONE.
 -- Tables:  areas, policies, users, shops, ration_cards, family_members,
---          wallets, transactions, qr_sessions, otp_verifications
--- Views:   v_beneficiaries, v_transactions, v_shop_summary
+--          wallets, transactions, blockchain_logs, qr_sessions,
+--          otp_verifications, iot_devices, sensor_readings,
+--          sensor_reading_rejections, iot_audit, commodity_tolerances,
+--          dispense_sessions, dispense_records, used_jtis, anomaly_rules,
+--          anomaly_flags
+-- Views:   v_beneficiaries, v_transactions, v_shop_summary, v_blockchain_pending
 -- Seed:    3 policies · 1 admin (admin@pds.gov / abcd1234)
---          Areas and shops → create via admin panel
--- =============================================================================
-CREATE TABLE blockchain_logs (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  transaction_id   UUID NOT NULL REFERENCES transactions(id),
-  tx_hash          TEXT,
-  status           VARCHAR(20) DEFAULT 'pending',
-  -- pending | confirmed | failed
-  block_number     BIGINT,
-  submitted_at     TIMESTAMP DEFAULT NOW(),
-  confirmed_at     TIMESTAMP
-);
-
--- =============================================================================
--- PDS Schema Patch — family_members fix + hardened blockchain_logs
--- PostgreSQL 14+
--- =============================================================================
--- HOW TO USE IN pgAdmin:
---   1. Connect to your `pds` database.
---   2. Tools -> Query Tool.
---   3. Paste this whole file and run (F5).
---   4. It runs in one transaction: all-or-nothing.
---
--- SAFE TO RUN ON EITHER PATH:
---   - migration-based DB (npm run migrate:up): family_members has no bad
---     constraint, so the DROP is a no-op; blockchain_logs likely doesn't exist
---     yet, so it gets created fresh with the hardened definition.
---   - schema.sql-based DB: drops the bad UNIQUE, and upgrades the existing
---     blockchain_logs (adds missing columns/constraints/index) in place.
---   - Idempotent: re-running it changes nothing.
--- =============================================================================
-
-BEGIN;
-
--- Needed for gen_random_uuid() if the table is created fresh.
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- ---------------------------------------------------------------------------
--- FIX 1: family_members one-member-per-card bug
--- The UNIQUE on ration_card_id (present only in schema.sql) caps a card at one
--- member. Drop it. The UNIQUE on user_id stays (one person = one membership).
--- ---------------------------------------------------------------------------
-ALTER TABLE family_members
-    DROP CONSTRAINT IF EXISTS family_members_ration_card_id_key;
-
--- The plain lookup index should remain (recreate if missing).
-CREATE INDEX IF NOT EXISTS idx_family_members_ration_card_id
-    ON family_members(ration_card_id);
-
-
--- ---------------------------------------------------------------------------
--- FIX 2: blockchain_logs — create or harden, INSIDE this transaction
--- ---------------------------------------------------------------------------
-
--- 2.0  Create with the full hardened shape if it doesn't exist yet.
-CREATE TABLE IF NOT EXISTS blockchain_logs (
-    id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id  UUID         NOT NULL REFERENCES transactions(id) ON DELETE RESTRICT,
-    tx_hash         TEXT,
-    status          VARCHAR(20)  NOT NULL DEFAULT 'pending',
-    block_number    BIGINT,
-    attempts        INTEGER      NOT NULL DEFAULT 0,
-    last_error      TEXT,
-    submitted_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    confirmed_at    TIMESTAMP
-);
-
--- 2.1  If the table already existed (schema.sql path), add any missing columns.
-ALTER TABLE blockchain_logs ADD COLUMN IF NOT EXISTS attempts     INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE blockchain_logs ADD COLUMN IF NOT EXISTS last_error   TEXT;
-ALTER TABLE blockchain_logs ADD COLUMN IF NOT EXISTS block_number BIGINT;
-
--- 2.2  Make status NOT NULL with a default, normalising any existing NULLs.
-UPDATE blockchain_logs SET status = 'pending' WHERE status IS NULL;
-ALTER TABLE blockchain_logs ALTER COLUMN status SET DEFAULT 'pending';
-ALTER TABLE blockchain_logs ALTER COLUMN status SET NOT NULL;
-
--- 2.3  One log per transaction (UNIQUE also gives an index for lookups).
---      NOTE: errors if duplicate transaction_id rows already exist — clean
---      them first. On a fresh/dev DB the table is empty, so this is fine.
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'blockchain_logs_transaction_id_key'
-    ) THEN
-        ALTER TABLE blockchain_logs
-            ADD CONSTRAINT blockchain_logs_transaction_id_key UNIQUE (transaction_id);
-    END IF;
-END $$;
-
--- 2.4  Restrict status to valid values.
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'blockchain_logs_status_check'
-    ) THEN
-        ALTER TABLE blockchain_logs
-            ADD CONSTRAINT blockchain_logs_status_check
-            CHECK (status IN ('pending', 'confirmed', 'failed'));
-    END IF;
-END $$;
-
--- 2.5  Index for the confirmation listener's `WHERE status = 'pending'` poll.
-CREATE INDEX IF NOT EXISTS idx_blockchain_logs_status
-    ON blockchain_logs(status);
-
-COMMIT;
-
--- =============================================================================
--- VERIFY (read-only — run these after the patch to confirm)
--- =============================================================================
--- family_members: should NOT list family_members_ration_card_id_key
---   SELECT conname FROM pg_constraint
---   WHERE conrelid = 'family_members'::regclass AND contype = 'u';
---
--- blockchain_logs: should show the unique + check constraints
---   SELECT conname, contype FROM pg_constraint
---   WHERE conrelid = 'blockchain_logs'::regclass;
---
--- blockchain_logs columns: attempts, last_error should be present
---   \d blockchain_logs
+--          Areas, shops, IoT devices → create via admin panel
 -- =============================================================================

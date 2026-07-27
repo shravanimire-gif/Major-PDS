@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import api from '../../api/axios';
-import { usePageHeader } from '../../context/AdminHeaderContext';
+import PanelHeader from '../../design/primitives/PanelHeader';
 import Table from '../../components/ui/Table';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
@@ -27,7 +28,13 @@ const getCategoryBadgeStatus = (category) => {
 };
 
 const Beneficiaries = () => {
-  usePageHeader('Beneficiaries');
+  useEffect(() => { document.title = 'Beneficiaries — PDS Supervision'; }, []);
+
+  // Dashboard's category/area donuts navigate here with a filter pre-picked
+  // via router state (e.g. clicking the "BPL" slice) — seed the initial
+  // filters from it so the list lands already scoped, instead of the admin
+  // having to re-pick the same filter that was just clicked.
+  const location = useLocation();
 
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -37,8 +44,8 @@ const Beneficiaries = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    category: '',
-    area_id: '',
+    category: location.state?.category || '',
+    area_id: location.state?.area_id || '',
     shop_id: '',
   });
 
@@ -95,7 +102,9 @@ const Beneficiaries = () => {
   );
 
   return (
-    <div className="space-y-4">
+    <>
+      <PanelHeader title="Beneficiaries" />
+      <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Select
           className="w-48"
@@ -173,7 +182,8 @@ const Beneficiaries = () => {
           )}
         </Table.Body>
       </Table>
-    </div>
+      </div>
+    </>
   );
 };
 

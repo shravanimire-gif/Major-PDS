@@ -1,5 +1,16 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Users as UsersIcon, UserCog, Map, Store, Zap } from 'lucide-react';
+import {
+  LayoutDashboard,
+  CreditCard,
+  Users as UsersIcon,
+  UserCog,
+  Map,
+  Store,
+  Zap,
+  Gauge,
+  ListTree,
+  AlertTriangle,
+} from 'lucide-react';
 import Logo from '../ui/Logo';
 import cx from '../ui/cx';
 
@@ -11,6 +22,9 @@ const NAV_ITEMS = [
   { to: '/admin/areas', label: 'Areas', icon: Map },
   { to: '/admin/shops', label: 'Shops', icon: Store },
   { to: '/admin/entitlements', label: 'Entitlements', icon: Zap },
+  { to: '/admin/iot/fleet', label: 'IoT Fleet', icon: Gauge },
+  { to: '/admin/iot/sessions', label: 'IoT Sessions', icon: ListTree },
+  { to: '/admin/anomalies', label: 'Anomalies', icon: AlertTriangle },
 ];
 
 const Sidebar = () => {

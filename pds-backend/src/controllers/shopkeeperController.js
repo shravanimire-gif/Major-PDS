@@ -632,4 +632,5 @@ module.exports = {
   getBeneficiaryByRationCardId,
   dispense,
   createTransaction,
+  getAssignedShop,
 };
