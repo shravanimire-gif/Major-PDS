@@ -430,6 +430,9 @@ test('PHASE 2/9 — Admin Panel screens render, and device status reflects real 
         },
         'the backend to stop reporting the device as online',
         45000,
+        // 2 s, not the 250 ms default: polling an /api route four times a second
+        // exceeds the 100 req/min apiLimiter and turns a passing check into a 429.
+        2000,
     );
     // 'stale' is the legitimate intermediate state: no live socket, last_seen_at
     // still recent. Either value proves status follows communication, not the
@@ -874,14 +877,14 @@ test('PHASE 17 — a partial allocation is rejected by the backend', async () =>
 // helpers
 // ---------------------------------------------------------------------------
 
-async function expectEventually(fn, label, timeoutMs = 30000) {
+async function expectEventually(fn, label, timeoutMs = 30000, intervalMs = 250) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         // eslint-disable-next-line no-await-in-loop
         const result = await fn();
         if (result) return result;
         // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, intervalMs));
     }
     throw new Error(`Timed out waiting for ${label}`);
 }
