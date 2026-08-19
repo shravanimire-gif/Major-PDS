@@ -6,14 +6,14 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "start:prod": "NODE_ENV=production node src/server.js",
+    "start:prod": "cross-env NODE_ENV=production node src/server.js",
     "start:migrate": "npm run migrate:up && npm run start:prod",
     "dev": "nodemon src/server.js",
     "seed:admin": "node seed-admin.js",
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "migrate:create": "node-pg-migrate create",
-    "test": "NODE_ENV=test jest --runInBand --forceExit",
+    "test": "cross-env NODE_ENV=test jest --runInBand --forceExit",
     "seed": "node seed.js"
   },
   "jest": {
@@ -42,6 +42,7 @@
     "ws": "^8.21.1"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.7",
     "supertest": "^7.2.2"

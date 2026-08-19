@@ -77,6 +77,11 @@ const Dispenses = () => {
                         <Table.Head>
                             <tr>
                                 <Table.Cell header>Shop</Table.Cell>
+                                {/* The beneficiary a dispense served was previously not shown
+                                    anywhere on this screen — rows carried no card number and no
+                                    visible session id, so "who received this grain?" could not be
+                                    answered from the list at all. */}
+                                <Table.Cell header>Beneficiary</Table.Cell>
                                 <Table.Cell header>Commodity</Table.Cell>
                                 <Table.Cell header numeric>Entitled (g)</Table.Cell>
                                 <Table.Cell header numeric>Measured (g)</Table.Cell>
@@ -86,10 +91,10 @@ const Dispenses = () => {
                             </tr>
                         </Table.Head>
                         <Table.Body>
-                            {loading && <Table.LoadingRows rows={8} columns={7} />}
-                            {!loading && error && <Table.Empty colSpan={7}>{error}</Table.Empty>}
+                            {loading && <Table.LoadingRows rows={8} columns={8} />}
+                            {!loading && error && <Table.Empty colSpan={8}>{error}</Table.Empty>}
                             {!loading && !error && sessions.length === 0 && (
-                                <Table.Empty colSpan={7}>No sessions match these filters.</Table.Empty>
+                                <Table.Empty colSpan={8}>No sessions match these filters.</Table.Empty>
                             )}
                             {!loading &&
                                 !error &&
@@ -100,6 +105,11 @@ const Dispenses = () => {
                                         onClick={() => navigate(`/admin/dispenses/${session.id}`)}
                                     >
                                         <Table.Cell>{session.shop_name}</Table.Cell>
+                                        <Table.Cell>
+                                            {session.card_number || (
+                                                <span className="text-text-secondary">—</span>
+                                            )}
+                                        </Table.Cell>
                                         <Table.Cell className="capitalize">{session.commodity}</Table.Cell>
                                         <Table.Cell numeric>{session.entitled_grams.toLocaleString()}</Table.Cell>
                                         <Table.Cell numeric>

@@ -1,4 +1,17 @@
 #pragma once
+#include "pds_config.h"
+
+// COMPILED OUT IN THE USB/SERIAL BUILD.
+//
+// The Arduino IDE compiles every .cpp/.h in the sketch folder regardless of
+// what the .ino includes, so without this guard the default (USB) build would
+// fail unless the WiFi and arduinoWebSockets libraries were installed — for a
+// transport it does not use. pds_config.h carries the switch and is included
+// first for exactly this reason.
+//
+// The file is guarded rather than deleted: the WiFi/WSS transport is working
+// code, and set PDS_TRANSPORT_SERIAL to 0 in pds_config.h to build it again.
+#if !PDS_TRANSPORT_SERIAL
 #include <Arduino.h>
 #include <WebSocketsClient.h>
 
@@ -31,3 +44,5 @@ private:
     static void staticEventHandler(WStype_t type, uint8_t* payload, size_t length);
     void handleEvent(WStype_t type, uint8_t* payload, size_t length);
 };
+
+#endif // !PDS_TRANSPORT_SERIAL

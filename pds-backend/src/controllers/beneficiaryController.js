@@ -46,7 +46,7 @@ const getWallet = async (req, res, next) => {
 
         const result = await pool.query(
             `
-      SELECT w.rice_balance_kg, w.wheat_balance_kg, w.sugar_balance_kg
+      SELECT w.rice_balance_kg, w.wheat_balance_kg
       FROM wallets w
       JOIN ration_cards rc ON rc.id = w.ration_card_id
       JOIN family_members fm ON fm.ration_card_id = rc.id
@@ -65,7 +65,6 @@ const getWallet = async (req, res, next) => {
             wallet: {
                 rice_balance_kg: toNumber(row.rice_balance_kg),
                 wheat_balance_kg: toNumber(row.wheat_balance_kg),
-                sugar_balance_kg: toNumber(row.sugar_balance_kg),
             },
         });
     } catch (err) {
@@ -118,7 +117,6 @@ const getTransactions = async (req, res, next) => {
         t.id,
         t.rice_qty_kg,
         t.wheat_qty_kg,
-        t.sugar_qty_kg,
         t.created_at,
         s.shop_name
       FROM transactions t

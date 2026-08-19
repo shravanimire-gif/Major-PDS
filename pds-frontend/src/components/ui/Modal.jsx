@@ -10,6 +10,26 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }) => {
   const previouslyFocusedRef = useRef(null);
   const titleId = useId();
 
+  // "Latest ref" for onClose so the focus-trap effect below can depend on
+  // `isOpen` ALONE.
+  //
+  // Callers pass an inline arrow (`onClose={() => setOpen(false)}`), which is a
+  // new function identity on every render — so with `onClose` in the dependency
+  // array the effect tore down and re-ran on every render of the parent. Its
+  // cleanup restores focus to whatever was focused before, and its body then
+  // focuses the panel's first focusable element, so a controlled input inside a
+  // modal lost focus after the FIRST character typed: every keystroke changed
+  // parent state, which re-ran the trap, which moved focus to the panel's first
+  // control. Typing "ESP32-A1B2C3" registered as "E".
+  //
+  // The ref keeps Escape wired to the current callback while making the effect
+  // run exactly twice per modal — on open and on close — which is the only time
+  // focus should move.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -21,7 +41,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }) => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current?.();
         return;
       }
 
@@ -47,7 +67,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }) => {
       document.removeEventListener('keydown', handleKeyDown);
       previouslyFocusedRef.current?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

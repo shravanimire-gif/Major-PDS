@@ -18,12 +18,12 @@ let shop2Id, rationCard2Id;
 beforeAll(async () => {
     // Policies
     await pool.query(`
-    INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg) VALUES
-      ('BPL', 5.00, 3.00, 1.00)
+    INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
+      ('BPL', 3000, 2000)
+    
     ON CONFLICT (category) DO UPDATE
-      SET rice_per_person_kg = EXCLUDED.rice_per_person_kg,
-          wheat_per_person_kg = EXCLUDED.wheat_per_person_kg,
-          sugar_per_person_kg = EXCLUDED.sugar_per_person_kg
+      SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
+          wheat_per_card_grams = EXCLUDED.wheat_per_card_grams
   `);
 
     // Area
@@ -73,10 +73,10 @@ beforeAll(async () => {
         );
     }
 
-    // Wallet: rice=15, wheat=9, sugar=3
+    // Wallet: rice=15, wheat=9
     await pool.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg)
-     VALUES ($1, 15, 9, 3)`,
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg)
+     VALUES ($1, 3, 2)`,
         [rationCardId],
     );
 
@@ -102,7 +102,7 @@ beforeAll(async () => {
         [rationCard2Id, head2Id],
     );
     await pool.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg) VALUES ($1, 15, 9, 3)`,
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, 3, 2)`,
         [rationCard2Id],
     );
 });
@@ -126,11 +126,11 @@ const createSession = async (rcId, sId, userId, expiresInMs = 60000) => {
 // Reset wallet before each test
 beforeEach(async () => {
     await pool.query(
-        `UPDATE wallets SET rice_balance_kg=15, wheat_balance_kg=9, sugar_balance_kg=3 WHERE ration_card_id=$1`,
+        `UPDATE wallets SET rice_balance_kg=3, wheat_balance_kg=2 WHERE ration_card_id=$1`,
         [rationCardId],
     );
     await pool.query(
-        `UPDATE wallets SET rice_balance_kg=15, wheat_balance_kg=9, sugar_balance_kg=3 WHERE ration_card_id=$1`,
+        `UPDATE wallets SET rice_balance_kg=3, wheat_balance_kg=2 WHERE ration_card_id=$1`,
         [rationCard2Id],
     );
     await pool.query(`DELETE FROM transactions`);
@@ -144,10 +144,10 @@ describe('POST /api/shopkeeper/dispense', () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 5, wheat_qty_kg: 3, sugar_qty_kg: 1 });
+            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2 });
 
         expect(res.status).toBe(200);
-        expect(res.body.remaining_wallet.rice_balance_kg).toBe(10);
+        expect(res.body.remaining_wallet.rice_balance_kg).toBe(0); // whole allocation
 
         const txRes = await pool.query(`SELECT * FROM transactions WHERE ration_card_id=$1`, [rationCardId]);
         expect(txRes.rows.length).toBe(1);
@@ -159,12 +159,12 @@ describe('POST /api/shopkeeper/dispense', () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 999, wheat_qty_kg: 0, sugar_qty_kg: 0 });
+            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 999, wheat_qty_kg: 0 });
 
         expect(res.status).toBe(400);
 
         const walletRes = await pool.query(`SELECT rice_balance_kg FROM wallets WHERE ration_card_id=$1`, [rationCardId]);
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(15);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
     });
 
     test('3. all quantities are 0 → 400 validation error', async () => {
@@ -173,7 +173,7 @@ describe('POST /api/shopkeeper/dispense', () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 0, wheat_qty_kg: 0, sugar_qty_kg: 0 });
+            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 0, wheat_qty_kg: 0 });
 
         expect(res.status).toBe(400);
     });
@@ -184,19 +184,19 @@ describe('POST /api/shopkeeper/dispense', () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCard2Id, session_id: sessionId, rice_qty_kg: 5, wheat_qty_kg: 0, sugar_qty_kg: 0 });
+            .send({ ration_card_id: rationCard2Id, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 0 });
 
         expect(res.status).toBe(403);
 
         const walletRes = await pool.query(`SELECT rice_balance_kg FROM wallets WHERE ration_card_id=$1`, [rationCard2Id]);
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(15);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
     });
 
     test('5. invalid ration_card_id format → 400', async () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: 'not-a-uuid', rice_qty: 5, wheat_qty: 0, sugar_qty: 0 });
+            .send({ ration_card_id: 'not-a-uuid', rice_qty: 3, wheat_qty: 0 });
 
         expect(res.status).toBe(400);
     });
@@ -207,7 +207,7 @@ describe('POST /api/shopkeeper/dispense', () => {
         await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2, sugar_qty_kg: 1 });
+            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2 });
 
         const txRes = await pool.query(
             `SELECT * FROM transactions WHERE ration_card_id=$1`,

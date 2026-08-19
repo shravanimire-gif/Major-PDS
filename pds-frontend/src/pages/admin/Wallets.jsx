@@ -15,7 +15,7 @@ const Wallets = () => {
             <EmptyState
                 icon={<Wallet size={20} />}
                 title="No standalone wallet view yet"
-                description="Wallet balances (rice, wheat, sugar) currently live on each ration card and beneficiary record. A dedicated ledger view will appear here once one exists."
+                description="Wallet balances (rice, wheat) currently live on each ration card and beneficiary record. A dedicated ledger view will appear here once one exists."
             />
         </>
     );

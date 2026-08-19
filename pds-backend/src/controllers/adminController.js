@@ -3,6 +3,10 @@ const crypto = require("crypto");
 const pool = require("../config/db");
 const logger = require("../config/logger");
 const blockchainHealthService = require("../services/blockchainHealthService");
+const {
+  POLICY_SELECT_COLUMNS,
+  allocationForPolicy,
+} = require("../services/allocationPolicyService");
 
 const ALLOWED_CATEGORIES = ["APL", "BPL", "AAY"];
 
@@ -64,7 +68,7 @@ const createRationCard = async (req, res, next) => {
     }
 
     const policyResult = await client.query(
-      `SELECT rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg
+      `SELECT ${POLICY_SELECT_COLUMNS}
        FROM policies WHERE category = $1 LIMIT 1`,
       [category],
     );
@@ -117,14 +121,16 @@ const createRationCard = async (req, res, next) => {
     }
 
     const totalMembers = 1 + members.length;
-    const riceBalance = Number(policy.rice_per_person_kg) * totalMembers;
-    const wheatBalance = Number(policy.wheat_per_person_kg) * totalMembers;
-    const sugarBalance = Number(policy.sugar_per_person_kg) * totalMembers;
+    // Per-card allocation — family size no longer scales it. This path used
+    // to multiply by member count while the monthly cron applied a different
+    // rule for AAY, so a card's balance changed the first time the cron ran;
+    // both now go through allocationForPolicy.
+    const { riceKg: riceBalance, wheatKg: wheatBalance } = allocationForPolicy(policy);
 
     await client.query(
-      `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg)
-       VALUES ($1, $2, $3, $4)`,
-      [rationCard.id, riceBalance, wheatBalance, sugarBalance],
+      `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg)
+       VALUES ($1, $2, $3)`,
+      [rationCard.id, riceBalance, wheatBalance],
     );
 
     await client.query("COMMIT");
@@ -138,9 +144,8 @@ const createRationCard = async (req, res, next) => {
       ration_card: { id: rationCard.id, card_number: rationCard.card_number },
       members_created: totalMembers,
       wallet: {
-        rice_balance_kg: Number(riceBalance.toFixed(2)),
-        wheat_balance_kg: Number(wheatBalance.toFixed(2)),
-        sugar_balance_kg: Number(sugarBalance.toFixed(2)),
+        rice_balance_kg: riceBalance,
+        wheat_balance_kg: wheatBalance,
       },
     });
   } catch (error) {
@@ -240,8 +245,7 @@ const getRationCards = async (req, res, next) => {
          a.name AS area_name,
          (SELECT COUNT(*) FROM family_members fm_c WHERE fm_c.ration_card_id = rc.id)::int AS family_size,
          COALESCE(w.rice_balance_kg, 0) AS rice_balance_kg,
-         COALESCE(w.wheat_balance_kg, 0) AS wheat_balance_kg,
-         COALESCE(w.sugar_balance_kg, 0) AS sugar_balance_kg
+         COALESCE(w.wheat_balance_kg, 0) AS wheat_balance_kg
        FROM ration_cards rc
        LEFT JOIN users u ON u.id = rc.head_user_id
        LEFT JOIN family_members fm_head ON fm_head.ration_card_id = rc.id AND fm_head.is_head = true
@@ -985,7 +989,7 @@ const bulkCreateRationCards = async (req, res, next) => {
       const shopId = shopResult.rows[0].id;
 
       const policyResult = await client.query(
-        `SELECT rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg FROM policies WHERE category = $1 LIMIT 1`,
+        `SELECT ${POLICY_SELECT_COLUMNS} FROM policies WHERE category = $1 LIMIT 1`,
         [cleanCategory],
       );
       if (policyResult.rows.length === 0) throw new Error(`Policy not found for category ${cleanCategory}`);
@@ -1013,13 +1017,13 @@ const bulkCreateRationCards = async (req, res, next) => {
         [cardId, headUserId, full_name.trim(), ageNum],
       );
 
-      const rice = Number(policy.rice_per_person_kg) * fsNum;
-      const wheat = Number(policy.wheat_per_person_kg) * fsNum;
-      const sugar = Number(policy.sugar_per_person_kg) * fsNum;
+      // fsNum (declared family size) is still validated and stored on the
+      // card, but allocation is per card — see allocationPolicyService.
+      const { riceKg: rice, wheatKg: wheat } = allocationForPolicy(policy);
 
       await client.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg) VALUES ($1, $2, $3, $4)`,
-        [cardId, rice, wheat, sugar],
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, $2, $3)`,
+        [cardId, rice, wheat],
       );
 
       await client.query("COMMIT");
@@ -1170,7 +1174,7 @@ const bulkAddFamilyMembers = async (req, res, next) => {
       const category = cardResult.rows[0].category;
 
       const policyResult = await client.query(
-        `SELECT rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg FROM policies WHERE category = $1 LIMIT 1`,
+        `SELECT ${POLICY_SELECT_COLUMNS} FROM policies WHERE category = $1 LIMIT 1`,
         [category],
       );
       if (policyResult.rows.length === 0) throw new Error(`Policy not found for category ${category}`);
@@ -1188,19 +1192,19 @@ const bulkAddFamilyMembers = async (req, res, next) => {
         [cardId, memberUserId, member_name.trim(), ageNum, relationship?.trim() || null],
       );
 
+      // Adding a family member no longer tops the wallet up: allocation is
+      // per ration card, so household size does not change it. The wallet is
+      // re-set to the card's per-card allocation instead of accumulating —
+      // incrementing here is what used to push balances far past anything a
+      // single dispensing transaction could complete.
+      const { riceKg, wheatKg } = allocationForPolicy(policy);
       await client.query(
         `UPDATE wallets SET
-           rice_balance_kg  = rice_balance_kg  + $1,
-           wheat_balance_kg = wheat_balance_kg + $2,
-           sugar_balance_kg = sugar_balance_kg + $3,
+           rice_balance_kg  = $1,
+           wheat_balance_kg = $2,
            updated_at = NOW()
-         WHERE ration_card_id = $4`,
-        [
-          Number(policy.rice_per_person_kg),
-          Number(policy.wheat_per_person_kg),
-          Number(policy.sugar_per_person_kg),
-          cardId,
-        ],
+         WHERE ration_card_id = $3`,
+        [riceKg, wheatKg, cardId],
       );
 
       await client.query("COMMIT");
@@ -1271,7 +1275,7 @@ const getIntegrityChecks = async (req, res, next) => {
         name: "Suspicious transactions (>50 kg)",
         count: await run(
           `SELECT COUNT(*)::int AS count FROM transactions
-           WHERE (rice_qty_kg + wheat_qty_kg + sugar_qty_kg) > 50`
+           WHERE (rice_qty_kg + wheat_qty_kg) > 50`
         ),
         description: "Transactions dispensing more than 50 kg total require review",
       },
@@ -1289,7 +1293,7 @@ const getIntegrityChecks = async (req, res, next) => {
         name: "Negative wallet balances",
         count: await run(
           `SELECT COUNT(*)::int AS count FROM wallets
-           WHERE rice_balance_kg < 0 OR wheat_balance_kg < 0 OR sugar_balance_kg < 0`
+           WHERE rice_balance_kg < 0 OR wheat_balance_kg < 0`
         ),
         description: "Wallet balances must never be negative",
       },

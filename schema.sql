@@ -71,9 +71,18 @@ CREATE TABLE IF NOT EXISTS areas (
 CREATE TABLE IF NOT EXISTS policies (
     id                   UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     category             ration_category NOT NULL UNIQUE,
-    rice_per_person_kg   NUMERIC(5,2)    NOT NULL DEFAULT 0,
-    wheat_per_person_kg  NUMERIC(5,2)    NOT NULL DEFAULT 0,
-    sugar_per_person_kg  NUMERIC(5,2)    NOT NULL DEFAULT 0,
+    -- Allocation is PER RATION CARD (per household), per commodity, in
+    -- grams -- not per person. Family size does not scale it. The CHECKs make
+    -- the domain rule structural: a household's whole allocation for one
+    -- commodity must be deliverable by ONE dispensing transaction, so the
+    -- policy table cannot physically hold a larger figure. 4000 mirrors
+    -- MAX_DISPENSE_TRANSACTION_GRAMS in src/config/allocation.js (SQL cannot
+    -- read the JS constant -- change both together); the % 10 rule mirrors
+    -- ALLOCATION_GRAMS_STEP and keeps grams <-> NUMERIC(8,2) kg lossless.
+    rice_per_card_grams  INTEGER         NOT NULL
+        CHECK (rice_per_card_grams  > 0 AND rice_per_card_grams  <= 4000 AND rice_per_card_grams  % 10 = 0),
+    wheat_per_card_grams INTEGER         NOT NULL
+        CHECK (wheat_per_card_grams > 0 AND wheat_per_card_grams <= 4000 AND wheat_per_card_grams % 10 = 0),
     validity_days        INTEGER         NOT NULL DEFAULT 30,
     updated_at           TIMESTAMP       NOT NULL DEFAULT NOW()
 );
@@ -158,7 +167,6 @@ CREATE TABLE IF NOT EXISTS wallets (
     ration_card_id    UUID         NOT NULL UNIQUE REFERENCES ration_cards(id) ON DELETE CASCADE,
     rice_balance_kg   NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (rice_balance_kg >= 0),
     wheat_balance_kg  NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (wheat_balance_kg >= 0),
-    sugar_balance_kg  NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (sugar_balance_kg >= 0),
     last_reset_date   DATE,
     updated_at        TIMESTAMP    NOT NULL DEFAULT NOW()
 );
@@ -171,7 +179,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     served_by           UUID                  REFERENCES users(id),
     rice_qty_kg         NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (rice_qty_kg >= 0),
     wheat_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (wheat_qty_kg >= 0),
-    sugar_qty_kg        NUMERIC(8,2) NOT NULL DEFAULT 0 CHECK (sugar_qty_kg >= 0),
     blockchain_tx_hash  TEXT,
     created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
@@ -233,9 +240,16 @@ CREATE INDEX IF NOT EXISTS idx_otp_verifications_mobile ON otp_verifications(mob
 -- 4.1  iot_devices  (one smart dispenser per shop, token-authenticated)
 CREATE TABLE IF NOT EXISTS iot_devices (
     id                         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- The stable hardware identity. For the USB/serial ESP32 this is derived
+    -- from the chip's factory MAC (ESP32-XXXXXX) and reported by the firmware
+    -- itself, so it survives reflashes and COM-port renumbering. A COM port is
+    -- never an identity.
     device_id                  VARCHAR(100) NOT NULL UNIQUE,
     device_token_hash          TEXT         NOT NULL,
-    shop_id                    UUID         NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+    -- NULLable: an unassigned device is registered but inert. The /ws/iot
+    -- handshake rejects it, so device.shop_id === session.shop_id can never be
+    -- satisfied by a NULL. See migration 026.
+    shop_id                    UUID         REFERENCES shops(id) ON DELETE CASCADE,
     status                     VARCHAR(20)  NOT NULL DEFAULT 'active',
     token_expires_at           TIMESTAMP,
     last_seen_at               TIMESTAMP,
@@ -243,7 +257,12 @@ CREATE TABLE IF NOT EXISTS iot_devices (
     needs_recalibration        BOOLEAN      NOT NULL DEFAULT FALSE,
     calibrated_at              TIMESTAMP,
     previous_token_hash        TEXT,
-    previous_token_expires_at  TIMESTAMP
+    previous_token_expires_at  TIMESTAMP,
+    -- Human label shown in the Admin Panel; falls back to device_id when NULL.
+    device_name                VARCHAR(150),
+    -- Reported by the device in its serial `hello` frame, relayed by the IoT
+    -- bridge. Never admin-supplied, so it always describes the running binary.
+    firmware_version           VARCHAR(50)
 );
 
 CREATE INDEX IF NOT EXISTS idx_iot_devices_shop_id ON iot_devices(shop_id);
@@ -287,10 +306,19 @@ CREATE INDEX IF NOT EXISTS idx_iot_audit_action  ON iot_audit(action);
 CREATE INDEX IF NOT EXISTS idx_iot_audit_at_time ON iot_audit(at_time);
 
 -- 4.5  commodity_tolerances  (per-commodity weight tolerance for dispensing)
+--      Answers "how much measurement deviation is acceptable around the
+--      intended quantity?" — distinct from the business allocation ceiling
+--      (config/allocation.js) and from the load cell's safety ceiling
+--      (config/iot.js). tolerance_grams = GREATEST(min_tolerance_grams,
+--      ROUND(entitled_grams * tolerance_pct / 100)).
+--      The PRIMARY KEY already prevents duplicate configuration per commodity.
 CREATE TABLE IF NOT EXISTS commodity_tolerances (
-    commodity            VARCHAR(20)  PRIMARY KEY,
-    min_tolerance_grams   INTEGER      NOT NULL DEFAULT 20,
+    commodity            VARCHAR(20)  PRIMARY KEY
+        CHECK (commodity IN ('rice', 'wheat')),
+    min_tolerance_grams   INTEGER      NOT NULL DEFAULT 20
+        CHECK (min_tolerance_grams > 0 AND min_tolerance_grams <= 500),
     tolerance_pct         NUMERIC(5,2) NOT NULL DEFAULT 1
+        CHECK (tolerance_pct > 0 AND tolerance_pct <= 100)
 );
 
 -- 4.6  dispense_sessions  (an open weighing session at a shop's dispenser)
@@ -326,10 +354,20 @@ CREATE TABLE IF NOT EXISTS dispense_records (
     row_hash            TEXT         NOT NULL,
     committed_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
     blockchain_tx_hash  TEXT,
-    last_anchor_error   TEXT
+    last_anchor_error   TEXT,
+    -- The canonical business transaction this IoT dispense produced.
+    -- Written by dispenseSessionService.commitSession in the same PostgreSQL
+    -- transaction as the wallet debit, so analytics / anomaly detection /
+    -- the activity feed (which all read `transactions`) see IoT dispenses.
+    -- Nullable: manual dispenses have no dispense_record, and IoT records
+    -- committed before this link existed keep NULL.
+    transaction_id      UUID         REFERENCES transactions(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_dispense_records_ration_card_id ON dispense_records(ration_card_id);
+-- One business transaction per IoT dispense. Partial so legacy NULLs coexist.
+CREATE UNIQUE INDEX IF NOT EXISTS dispense_records_transaction_id_unique_index
+    ON dispense_records(transaction_id) WHERE transaction_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_dispense_records_shop_id_committed_at
     ON dispense_records(shop_id, committed_at);
 
@@ -339,6 +377,27 @@ CREATE TABLE IF NOT EXISTS used_jtis (
     session_id  UUID      NOT NULL REFERENCES dispense_sessions(id) ON DELETE CASCADE,
     used_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- 4.8b anomaly_events  (seed detector output — see jobs/anomalyDetectionCron.js)
+--      Created by migrations/005_add_anomaly_events.js but was missing from
+--      this file, so a schema.sql-bootstrapped database had no such table and
+--      both the activity feed (activityFeedService._getAnomalyEvents) and the
+--      anomaly cron failed against it. Kept in sync with that migration.
+CREATE TABLE IF NOT EXISTS anomaly_events (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    type            VARCHAR(50) NOT NULL,
+    severity        VARCHAR(20) NOT NULL,   -- 'info' | 'warning' | 'critical'
+    shop_code       VARCHAR(20),
+    transaction_id  UUID        REFERENCES transactions(id) ON DELETE SET NULL,
+    description     TEXT        NOT NULL,
+    created_at      TIMESTAMP   NOT NULL DEFAULT NOW(),
+    resolved        BOOLEAN     NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_anomaly_events_created_at     ON anomaly_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_anomaly_events_resolved       ON anomaly_events(resolved);
+CREATE INDEX IF NOT EXISTS idx_anomaly_events_transaction_id ON anomaly_events(transaction_id);
+
 
 -- 4.9  anomaly_rules  (configurable anomaly-detection rule definitions)
 CREATE TABLE IF NOT EXISTS anomaly_rules (
@@ -374,14 +433,28 @@ CREATE INDEX IF NOT EXISTS idx_anomaly_flags_resolved_at_auto_resolved_at
 -- ---------------------------------------------------------------------------
 
 -- 5.1  Entitlement policies  (system cannot function without these)
-INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg, validity_days)
+--      Per-card monthly allocation in grams. Category differentiation is
+--      preserved (APL < BPL < AAY, as before); every figure is <= 4000 g so a
+--      card's whole allocation for a commodity completes in one transaction.
+INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams, validity_days)
 VALUES
-    ('APL', 3.00, 2.00, 0.50, 30),
-    ('BPL', 5.00, 3.00, 1.00, 30),
-    ('AAY', 7.00, 8.00, 1.00, 30)
+    ('APL', 2000, 1500, 30),
+    ('BPL', 3000, 2000, 30),
+    ('AAY', 4000, 3000, 30)
 ON CONFLICT (category) DO NOTHING;
 
--- 5.2  Default admin user
+-- 5.2  Commodity dispensing tolerances  (REQUIRED — the application fails
+--      closed without these; see dispenseSessionService.computeToleranceGrams)
+--      Values match migrations/011 and 024. Seeded here because a database
+--      built from this file alone previously had an empty table, which made
+--      physical dispensing tolerance depend on whether migrations had run.
+INSERT INTO commodity_tolerances (commodity, min_tolerance_grams, tolerance_pct)
+VALUES
+    ('rice', 20, 1.00),
+    ('wheat', 20, 1.00)
+ON CONFLICT (commodity) DO NOTHING;
+
+-- 5.3  Default admin user
 --      Password: abcd1234  (bcrypt, cost 10)
 --      ⚠ CHANGE THIS PASSWORD immediately after first login in production.
 INSERT INTO users (role, email, password_hash)
@@ -414,7 +487,6 @@ SELECT
     a.name             AS area_name,
     w.rice_balance_kg,
     w.wheat_balance_kg,
-    w.sugar_balance_kg,
     (
         SELECT COUNT(*) FROM family_members fm2
         WHERE fm2.ration_card_id = rc.id
@@ -438,7 +510,6 @@ SELECT
     u.name                    AS served_by_name,
     t.rice_qty_kg,
     t.wheat_qty_kg,
-    t.sugar_qty_kg,
     t.blockchain_tx_hash,
     bl.status                 AS blockchain_status,
     bl.confirmed_at           AS blockchain_confirmed_at
@@ -479,7 +550,6 @@ SELECT
     t.shop_id,
     t.rice_qty_kg,
     t.wheat_qty_kg,
-    t.sugar_qty_kg,
     t.created_at       AS transaction_date
 FROM blockchain_logs bl
 JOIN transactions t ON t.id = bl.transaction_id
@@ -495,9 +565,10 @@ COMMIT;
 --          wallets, transactions, blockchain_logs, qr_sessions,
 --          otp_verifications, iot_devices, sensor_readings,
 --          sensor_reading_rejections, iot_audit, commodity_tolerances,
---          dispense_sessions, dispense_records, used_jtis, anomaly_rules,
+--          dispense_sessions, dispense_records, used_jtis, anomaly_events,
+--          anomaly_rules,
 --          anomaly_flags
 -- Views:   v_beneficiaries, v_transactions, v_shop_summary, v_blockchain_pending
--- Seed:    3 policies · 1 admin (admin@pds.gov / abcd1234)
+-- Seed:    3 policies · 2 commodity tolerances · 1 admin (admin@pds.gov / abcd1234)
 --          Areas, shops, IoT devices → create via admin panel
 -- =============================================================================

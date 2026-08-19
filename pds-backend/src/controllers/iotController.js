@@ -4,6 +4,7 @@ const { generateToken, hashToken } = require("../services/deviceRegistryService"
 const deviceFleetService = require("../services/deviceFleetService");
 const deviceConnectionRegistry = require("../services/deviceConnectionRegistry");
 const auditLogService = require("../services/auditLogService");
+const liveReadingBus = require("../services/liveReadingBus");
 const {
     MIN_VALID_GRAMS,
     MAX_VALID_GRAMS,
@@ -49,17 +50,41 @@ const recordRejectionAndMaybeFlag = (deviceId) => {
 // into config.h on the ESP32 and it's gone from the server side).
 const registerDevice = async (req, res, next) => {
     try {
-        const { device_id: deviceId, shop_id: shopId } = req.body;
+        const { device_id: deviceId, shop_id: shopId, device_name: deviceName } = req.body;
+
+        // shop_id is optional: an admin may register the hardware first (the
+        // UID is a property of the board, known as soon as it is plugged in)
+        // and assign it to a shop as a separate, audited action. A device with
+        // no shop cannot connect at all — deviceRegistryService.validateToken
+        // rejects it with reason 'unassigned' — so registering early is inert,
+        // not a security hole.
+        if (shopId) {
+            const shopCheck = await pool.query(`SELECT id, is_active FROM shops WHERE id = $1`, [shopId]);
+            if (shopCheck.rows.length === 0) {
+                return res.status(400).json({ error: "shop_id does not exist" });
+            }
+            if (!shopCheck.rows[0].is_active) {
+                return res.status(400).json({ error: "Shop is not active" });
+            }
+        }
 
         const rawToken = generateToken();
         const tokenHash = await hashToken(rawToken);
 
         const result = await pool.query(
-            `INSERT INTO iot_devices (device_id, device_token_hash, shop_id)
-       VALUES ($1, $2, $3)
-       RETURNING id, device_id, shop_id, status, created_at`,
-            [deviceId, tokenHash, shopId],
+            `INSERT INTO iot_devices (device_id, device_token_hash, shop_id, device_name)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, device_id, shop_id, device_name, status, created_at`,
+            [deviceId, tokenHash, shopId || null, deviceName || null],
         );
+
+        await auditLogService.record({
+            actorType: "admin",
+            actorId: req.user?.id,
+            action: "register_device",
+            target: deviceId,
+            meta: { shopId: shopId || null },
+        });
 
         return res.status(201).json({
             device: result.rows[0],
@@ -72,6 +97,127 @@ const registerDevice = async (req, res, next) => {
         if (err.code === "23503") {
             return res.status(400).json({ error: "shop_id does not exist" });
         }
+        return next(err);
+    }
+};
+
+// The states a dispense_sessions row can be in while it is still capable of
+// producing a business transaction. Reassigning or unassigning a device out
+// from under one of these would break the device.shop_id === session.shop_id
+// invariant the commit relies on, so both actions refuse while one exists.
+const LIVE_SESSION_STATES = "('active','attached','weighing','confirming')";
+
+const findLiveSessionForDevice = async (deviceId) => {
+    const result = await pool.query(
+        `SELECT id, shop_id, state FROM dispense_sessions
+      WHERE device_id = $1 AND state IN ${LIVE_SESSION_STATES}
+      LIMIT 1`,
+        [deviceId],
+    );
+    return result.rows[0] || null;
+};
+
+// PATCH /api/admin/iot/devices/:deviceId/assignment
+// body: { shop_id: <uuid> }  -> assign / reassign
+//       { shop_id: null }    -> unassign
+//
+// This is the ONLY way a device's shop changes. The device itself can never
+// influence it: nothing the ESP32 or the bridge sends is consulted here, and
+// the /ws/iot handshake reads shop_id back out of this row rather than from
+// any frame. That is what makes "a device cannot claim another shop" true by
+// construction rather than by validation.
+const setDeviceAssignment = async (req, res, next) => {
+    try {
+        const { deviceId } = req.params;
+        const shopId = req.body.shop_id ?? null;
+
+        const deviceResult = await pool.query(
+            `SELECT device_id, shop_id FROM iot_devices WHERE device_id = $1`,
+            [deviceId],
+        );
+        if (deviceResult.rows.length === 0) {
+            return res.status(404).json({ error: "Device not found" });
+        }
+        const previousShopId = deviceResult.rows[0].shop_id;
+
+        // Checked FIRST, before anything about the destination shop: this
+        // refusal is a fact about THIS device, and it applies equally to an
+        // assign, a reassign and an unassign. Validating the target shop first
+        // would report "that shop already has a device" for a request whose
+        // real problem is that grain is on the pan right now.
+        const liveSession = await findLiveSessionForDevice(deviceId);
+        if (liveSession) {
+            return res.status(409).json({
+                error: `Device is mid-dispense (session ${liveSession.id} is ${liveSession.state}). Wait for it to finish or cancel it first.`,
+            });
+        }
+
+        if (shopId) {
+            const shopCheck = await pool.query(`SELECT id, is_active FROM shops WHERE id = $1`, [shopId]);
+            if (shopCheck.rows.length === 0) {
+                return res.status(400).json({ error: "shop_id does not exist" });
+            }
+            if (!shopCheck.rows[0].is_active) {
+                return res.status(400).json({ error: "Shop is not active" });
+            }
+
+            // One physical scale per shop: attachSession picks the shop's
+            // active device with LIMIT 1, so a second one would make which
+            // device gates a session non-deterministic.
+            const existing = await pool.query(
+                `SELECT device_id FROM iot_devices
+          WHERE shop_id = $1 AND status = 'active' AND device_id <> $2
+          LIMIT 1`,
+                [shopId, deviceId],
+            );
+            if (existing.rows.length > 0) {
+                return res.status(409).json({
+                    error: `Shop already has an active device (${existing.rows[0].device_id}). Unassign or disable it first.`,
+                });
+            }
+        }
+
+        const updated = await pool.query(
+            `UPDATE iot_devices SET shop_id = $1 WHERE device_id = $2
+       RETURNING id, device_id, shop_id, device_name, status`,
+            [shopId, deviceId],
+        );
+
+        await auditLogService.record({
+            actorType: "admin",
+            actorId: req.user?.id,
+            action: shopId ? "assign_device" : "unassign_device",
+            target: deviceId,
+            meta: { fromShopId: previousShopId, toShopId: shopId },
+        });
+
+        // A reassigned/unassigned device must not keep streaming into its old
+        // shop's live view under its old authorisation. Dropping the socket is
+        // the honest way to apply the change: the bridge reconnects within
+        // seconds and is re-authorised against the new row (or refused, if it
+        // is now unassigned).
+        const disconnected = deviceConnectionRegistry.closeConnection(
+            deviceId,
+            shopId ? "reassigned" : "unassigned",
+        );
+
+        if (previousShopId) {
+            liveReadingBus.publish(previousShopId, {
+                type: "device_status",
+                online: false,
+                deviceId,
+            });
+        }
+
+        logger.info("[IoT] Device assignment changed", {
+            deviceId,
+            fromShopId: previousShopId,
+            toShopId: shopId,
+            disconnected,
+        });
+
+        return res.status(200).json({ device: updated.rows[0], disconnected });
+    } catch (err) {
         return next(err);
     }
 };
@@ -166,37 +312,123 @@ const recalibrateDevice = async (req, res, next) => {
 };
 
 // GET /api/admin/iot/devices
+// The Admin Panel's IoT Devices module. One row per registered device with
+// everything that screen shows: hardware UID, name, lifecycle status, live
+// connectivity, assigned shop + that shop's shopkeeper, last seen, firmware
+// version and the most recent sensor reading.
+//
+// LEFT JOIN on shops (not JOIN): an unassigned device must still appear here —
+// it is precisely the device an admin has come to this page to assign.
+//
+// `current_weight_grams` is the latest SENSOR READING and nothing more. It is
+// read from sensor_readings, never from dispense_records or transactions, so
+// there is no path by which looking at this number could be mistaken for, or
+// turn into, a committed dispense. Only commitSession writes business rows.
 const listDevices = async (req, res, next) => {
     try {
         const result = await pool.query(
-            `SELECT id, device_id, shop_id, status, token_expires_at, last_seen_at, created_at
-       FROM iot_devices
-       ORDER BY created_at DESC`,
+            `SELECT
+          d.id,
+          d.device_id,
+          d.device_name,
+          d.shop_id,
+          d.status,
+          d.firmware_version,
+          d.token_expires_at,
+          d.last_seen_at,
+          d.needs_recalibration,
+          d.calibrated_at,
+          d.created_at,
+          s.shop_name,
+          s.shop_code,
+          s.is_active AS shop_is_active,
+          u.name  AS shopkeeper_name,
+          u.email AS shopkeeper_email,
+          r.grams_int AS current_weight_grams,
+          r.taken_at  AS current_weight_at
+       FROM iot_devices d
+       LEFT JOIN shops s ON s.id = d.shop_id
+       LEFT JOIN users u ON u.id = s.shopkeeper_id
+       LEFT JOIN LATERAL (
+         SELECT grams_int, taken_at
+           FROM sensor_readings sr
+          WHERE sr.device_id = d.device_id
+          ORDER BY sr.taken_at DESC
+          LIMIT 1
+       ) r ON true
+       ORDER BY d.created_at DESC`,
         );
 
-        return res.status(200).json({ devices: result.rows });
+        const devices = result.rows.map((row) => ({
+            ...row,
+            // Registry lifecycle (active/inactive/revoked) and connectivity
+            // (online/stale/offline) are different questions and are reported
+            // as different fields on purpose. A device row existing, or being
+            // 'active', is never by itself a reason to show ONLINE.
+            connectivity: deviceFleetService.deriveStatus(row.device_id, row.last_seen_at),
+        }));
+
+        return res.status(200).json({ devices });
     } catch (err) {
         return next(err);
     }
 };
 
 // PATCH /api/admin/iot/devices/:deviceId/status
+// Backs the Admin Panel's Enable (-> 'active') and Disable (-> 'inactive')
+// actions, and token revocation (-> 'revoked').
 const setDeviceStatus = async (req, res, next) => {
     try {
         const { deviceId } = req.params;
         const { status } = req.body;
 
-        const result = await pool.query(
-            `UPDATE iot_devices SET status = $1 WHERE device_id = $2
-       RETURNING id, device_id, shop_id, status`,
-            [status, deviceId],
-        );
-
-        if (result.rows.length === 0) {
+        const existing = await pool.query(`SELECT device_id, status FROM iot_devices WHERE device_id = $1`, [
+            deviceId,
+        ]);
+        if (existing.rows.length === 0) {
             return res.status(404).json({ error: "Device not found" });
         }
 
-        return res.status(200).json({ device: result.rows[0] });
+        // Disabling mid-dispense would strand a session whose device can no
+        // longer authenticate: the weighing would simply stop, with the wallet
+        // untouched but the session stuck until the idle sweep marked it
+        // device_lost. Refusing is clearer than producing that state silently.
+        if (status !== "active") {
+            const liveSession = await findLiveSessionForDevice(deviceId);
+            if (liveSession) {
+                return res.status(409).json({
+                    error: `Device is mid-dispense (session ${liveSession.id} is ${liveSession.state}). Wait for it to finish or cancel it first.`,
+                });
+            }
+        }
+
+        const result = await pool.query(
+            `UPDATE iot_devices SET status = $1 WHERE device_id = $2
+       RETURNING id, device_id, shop_id, device_name, status`,
+            [status, deviceId],
+        );
+
+        await auditLogService.record({
+            actorType: "admin",
+            actorId: req.user?.id,
+            action: "set_device_status",
+            target: deviceId,
+            meta: { from: existing.rows[0].status, to: status },
+        });
+
+        // A device that is no longer 'active' must stop being able to stream.
+        // The handshake already refuses it, but an ALREADY-open socket would
+        // otherwise survive until it happened to reconnect.
+        let disconnected = false;
+        if (status !== "active") {
+            disconnected = deviceConnectionRegistry.closeConnection(deviceId, `status_${status}`);
+            const shopId = result.rows[0].shop_id;
+            if (shopId) {
+                liveReadingBus.publish(shopId, { type: "device_status", online: false, deviceId });
+            }
+        }
+
+        return res.status(200).json({ device: result.rows[0], disconnected });
     } catch (err) {
         return next(err);
     }
@@ -248,6 +480,7 @@ module.exports = {
     rotateToken,
     listDevices,
     setDeviceStatus,
+    setDeviceAssignment,
     getFleet,
     recalibrateDevice,
     persistReading,

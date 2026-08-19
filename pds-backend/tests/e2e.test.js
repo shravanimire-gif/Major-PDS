@@ -37,14 +37,14 @@ beforeAll(async () => {
 
     // Policies
     await pool.query(`
-    INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg) VALUES
-      ('APL', 3.00, 2.00, 0.50),
-      ('BPL', 5.00, 3.00, 1.00),
-      ('AAY', 7.00, 8.00, 1.00)
+    INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
+      ('APL', 2000, 1500),
+      ('BPL', 3000, 2000),
+      ('AAY', 4000, 3000)
+    
     ON CONFLICT (category) DO UPDATE
-      SET rice_per_person_kg = EXCLUDED.rice_per_person_kg,
-          wheat_per_person_kg = EXCLUDED.wheat_per_person_kg,
-          sugar_per_person_kg = EXCLUDED.sugar_per_person_kg
+      SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
+          wheat_per_card_grams = EXCLUDED.wheat_per_card_grams
   `);
 
     // 1. Area
@@ -107,8 +107,8 @@ beforeAll(async () => {
 
     // Wallet (zeroed — allocation will fund it)
     await pool.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg)
-     VALUES ($1, 0, 0, 0) ON CONFLICT (ration_card_id) DO NOTHING`,
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg)
+     VALUES ($1, 0, 0) ON CONFLICT (ration_card_id) DO NOTHING`,
         [rationCardId],
     );
 
@@ -123,7 +123,7 @@ beforeAll(async () => {
     // If skipped (ran today already), force-set the wallet
     if (allocRes.body.skipped) {
         await pool.query(
-            `UPDATE wallets SET rice_balance_kg=15, wheat_balance_kg=9, sugar_balance_kg=3, last_reset_date=CURRENT_DATE
+            `UPDATE wallets SET rice_balance_kg=3, wheat_balance_kg=2, last_reset_date=CURRENT_DATE
        WHERE ration_card_id=$1`,
             [rationCardId],
         );
@@ -162,7 +162,7 @@ describe('E2E: Complete transaction flow', () => {
         }
     });
 
-    test('2. Shopkeeper fetches beneficiary wallet via DB — rice=15, family_size=3', async () => {
+    test('2. Shopkeeper fetches beneficiary wallet via DB — rice=3 (per card), family_size=3', async () => {
         // Verify wallet state directly (beneficiary lookup requires QR session)
         const walletRes = await pool.query(
             `SELECT w.rice_balance_kg, COUNT(fm.id)::int AS family_size
@@ -173,7 +173,8 @@ describe('E2E: Complete transaction flow', () => {
        GROUP BY w.rice_balance_kg`,
             [rationCardId],
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(15);
+        // BPL per-card allocation is 3 kg regardless of the 3 family members
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
         expect(walletRes.rows[0].family_size).toBe(3);
     });
 
@@ -181,19 +182,18 @@ describe('E2E: Complete transaction flow', () => {
         const res = await request(app)
             .post('/api/shopkeeper/transactions')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, rice_qty: 5, wheat_qty: 3, sugar_qty: 1 });
+            .send({ ration_card_id: rationCardId, rice_qty: 3, wheat_qty: 2 });
 
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
-        expect(res.body.remaining_wallet.rice_balance_kg).toBe(10);
-        expect(res.body.remaining_wallet.wheat_balance_kg).toBe(6);
-        expect(res.body.remaining_wallet.sugar_balance_kg).toBe(2);
+        expect(res.body.remaining_wallet.rice_balance_kg).toBe(0);
+        expect(res.body.remaining_wallet.wheat_balance_kg).toBe(0);
         expect(res.body.transaction.blockchain_tx_hash).toBeNull();
         expect(res.body.transaction.id).toBeDefined();
         expect(res.body.transaction.ration_card_id).toBe(rationCardId);
         expect(res.body.transaction.shop_id).toBe(shopId);
         expect(res.body.transaction.served_by).toBe(shopkeeperId);
-        expect(res.body.transaction.rice_qty_kg).toBe(5);
+        expect(res.body.transaction.rice_qty_kg).toBe(3);
 
         // Confirm DB row
         const txRes = await pool.query(
@@ -201,23 +201,23 @@ describe('E2E: Complete transaction flow', () => {
         );
         expect(txRes.rows.length).toBe(1);
         expect(txRes.rows[0].served_by).toBe(shopkeeperId);
-        expect(Number(txRes.rows[0].rice_qty_kg)).toBe(5);
+        expect(Number(txRes.rows[0].rice_qty_kg)).toBe(3);
     });
 
     test('4. Same card claims again this month → 400, wallet unchanged', async () => {
         const res = await request(app)
             .post('/api/shopkeeper/transactions')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, rice_qty: 3, wheat_qty: 2, sugar_qty: 1 });
+            .send({ ration_card_id: rationCardId, rice_qty: 3, wheat_qty: 2 });
 
         expect(res.status).toBe(400);
         expect(res.body.error).toBe('Already claimed this month');
 
-        // Wallet must still be at 10kg (unchanged)
+        // Wallet was fully discharged by test 3 and must be unchanged by this
         const walletRes = await pool.query(
             `SELECT rice_balance_kg FROM wallets WHERE ration_card_id=$1`, [rationCardId],
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(10);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(0);
     });
 
     test('5. Shopkeeper from wrong shop is blocked → 403', async () => {
@@ -235,7 +235,7 @@ describe('E2E: Complete transaction flow', () => {
             [freshCardId, headId],
         );
         await pool.query(
-            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg) VALUES ($1, 15, 9, 3)`,
+            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, 3, 2)`,
             [freshCardId],
         );
 
@@ -260,7 +260,7 @@ describe('E2E: Complete transaction flow', () => {
         const res = await request(app)
             .post('/api/shopkeeper/transactions')
             .set('Authorization', `Bearer ${secondToken}`)
-            .send({ ration_card_id: freshCardId, rice_qty: 5, wheat_qty: 0, sugar_qty: 0 });
+            .send({ ration_card_id: freshCardId, rice_qty: 3, wheat_qty: 0 });
 
         expect(res.status).toBe(403);
     });
@@ -281,8 +281,8 @@ describe('E2E: Complete transaction flow', () => {
             [idemCardId, headId],
         );
         await pool.query(
-            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg, last_reset_date)
-       VALUES ($1, 0, 0, 0, NULL)`,
+            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, last_reset_date)
+       VALUES ($1, 0, 0, NULL)`,
             [idemCardId],
         );
 

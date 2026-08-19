@@ -35,12 +35,19 @@ const listSessions = async ({ shopId, from, to, state, page = 1 } = {}) => {
 
     const listResult = await pool.query(
         `SELECT
-        ds.id, ds.shop_id, s.shop_name, ds.ration_card_id, ds.commodity,
+        ds.id, ds.shop_id, s.shop_name, ds.ration_card_id, rc.card_number, ds.commodity,
         ds.entitled_grams, ds.tolerance_grams, ds.device_id, ds.state,
         ds.opened_at, ds.attached_at, ds.committed_at, ds.expires_at,
         dr.id AS dispense_record_id, dr.measured_grams, dr.blockchain_tx_hash
      FROM dispense_sessions ds
      JOIN shops s ON s.id = ds.shop_id
+     -- card_number so an admin can tell WHICH beneficiary a dispense served.
+     -- ration_card_id alone is a UUID: it identifies the row, but it cannot be
+     -- read off a screen or matched against a paper card. The activity feed
+     -- already reports card_number, so omitting it here made the same fact
+     -- visible on one admin surface and missing on the one built for
+     -- investigating dispenses.
+     JOIN ration_cards rc ON rc.id = ds.ration_card_id
      LEFT JOIN dispense_records dr ON dr.session_id = ds.id
      ${whereClause}
      ORDER BY ds.opened_at DESC
@@ -60,9 +67,10 @@ const listSessions = async ({ shopId, from, to, state, page = 1 } = {}) => {
 // reading trace (for the chart), and its dispense_record if it committed.
 const getSessionTimeline = async (sessionId) => {
     const sessionResult = await pool.query(
-        `SELECT ds.*, s.shop_name
+        `SELECT ds.*, s.shop_name, rc.card_number, rc.category
      FROM dispense_sessions ds
      JOIN shops s ON s.id = ds.shop_id
+     JOIN ration_cards rc ON rc.id = ds.ration_card_id
      WHERE ds.id = $1`,
         [sessionId],
     );

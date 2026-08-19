@@ -78,19 +78,34 @@ app.get("/metrics", async (req, res) => {
   res.end(await metrics.register.metrics());
 });
 
-// Auth routes — strict (brute force protection)
+// Auth routes — strict (brute force protection).
+//
+// Env-overridable, with the strict values as DEFAULTS so production behaviour is
+// unchanged if nothing is set. The override exists because 10 attempts per 15
+// minutes per IP is correct against brute force but too tight for two legitimate
+// local activities: an end-to-end suite that logs in as several roles, and a live
+// demo where an operator switches between admin and shopkeeper repeatedly. Both
+// hit HTTP 429 and look like an application failure.
+//
+// Raise it in development (AUTH_RATE_LIMIT_MAX) — never in production.
+const authWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+const authMax = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: "Too many attempts. Try again in 15 minutes." },
+  windowMs: authWindowMs,
+  max: authMax,
+  message: {
+    error: `Too many attempts. Try again in ${Math.ceil(authWindowMs / 60000)} minutes.`,
+  },
 });
 app.use("/auth", authLimiter);
 app.use("/api/auth", authLimiter);
 
-// All other API routes — general limit
+// All other API routes — general limit. Also env-overridable: the Admin Panel's
+// device list polls every 5s, and an E2E run polling it alongside normal traffic
+// can brush the 100/min ceiling.
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS) || 60 * 1000,
+  max: Number(process.env.API_RATE_LIMIT_MAX) || 100,
   message: { error: "Too many requests. Slow down." },
 });
 app.use("/api", apiLimiter);

@@ -1,5 +1,9 @@
 const pool = require("../config/db");
 const logger = require("../config/logger");
+const {
+  POLICY_SELECT_COLUMNS,
+  allocationForPolicy,
+} = require("./allocationPolicyService");
 
 const computeAllocations = async (client) => {
   const cardsResult = await client.query(`
@@ -18,7 +22,7 @@ const computeAllocations = async (client) => {
   `);
 
   const policyResult = await client.query(`
-    SELECT category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg
+    SELECT ${POLICY_SELECT_COLUMNS}
     FROM policies
   `);
 
@@ -30,19 +34,25 @@ const computeAllocations = async (client) => {
     const policy = policyByCategory.get(card.category);
     if (!policy) throw new Error(`Policy not found for category ${card.category}`);
 
+    // Allocation is per ration card, not per person — see
+    // allocationPolicyService for why, and for the ceiling that makes the
+    // result dispensable in one IoT transaction. family_size is still
+    // reported (the admin preview shows it) but no longer scales the
+    // allocation, and the flat 35 kg AAY rice special case that used to live
+    // here is gone: AAY now carries its own per-card policy figure like every
+    // other category.
     const familySize = Number(card.family_size);
-    const riceKg = card.category === "AAY" ? 35 : Number(policy.rice_per_person_kg) * familySize;
-    const wheatKg = Number(policy.wheat_per_person_kg) * familySize;
-    const sugarKg = Number(policy.sugar_per_person_kg) * familySize;
+    const allocation = allocationForPolicy(policy);
 
     return {
       ration_card_id: card.ration_card_id,
       card_number: card.card_number,
       category: card.category,
       family_size: familySize,
-      rice_kg: Number(riceKg.toFixed(2)),
-      wheat_kg: Number(wheatKg.toFixed(2)),
-      sugar_kg: Number(sugarKg.toFixed(2)),
+      rice_kg: allocation.riceKg,
+      wheat_kg: allocation.wheatKg,
+      rice_grams: allocation.riceGrams,
+      wheat_grams: allocation.wheatGrams,
       last_reset_date: card.last_reset_date || null,
     };
   });
@@ -73,10 +83,10 @@ const runEntitlementAllocation = async (options = {}) => {
       for (const allocation of allocations) {
         await client.query(
           `UPDATE wallets
-           SET rice_balance_kg = $1, wheat_balance_kg = $2, sugar_balance_kg = $3,
+           SET rice_balance_kg = $1, wheat_balance_kg = $2,
                last_reset_date = CURRENT_DATE, updated_at = NOW()
-           WHERE ration_card_id = $4`,
-          [allocation.rice_kg, allocation.wheat_kg, allocation.sugar_kg, allocation.ration_card_id],
+           WHERE ration_card_id = $3`,
+          [allocation.rice_kg, allocation.wheat_kg, allocation.ration_card_id],
         );
       }
 

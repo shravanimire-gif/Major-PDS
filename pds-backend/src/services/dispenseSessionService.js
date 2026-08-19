@@ -5,6 +5,17 @@ const logger = require("../config/logger");
 const { buildRowHash } = require("./chainRowBuilder");
 const { enqueueAnchor } = require("./anchorEnqueuer");
 const dispenseSessionBus = require("./dispenseSessionBus");
+const {
+    MAX_DISPENSE_TRANSACTION_GRAMS,
+    getCardAllocation,
+    allocationGramsFor,
+    gramsToKg,
+} = require("./allocationPolicyService");
+const {
+    assertClaimable,
+    asMonthlyClaimError,
+    MonthlyClaimError,
+} = require("./monthlyClaimService");
 const metrics = require("../config/metrics");
 
 const SESSION_TTL_MS = 60 * 1000;
@@ -12,17 +23,48 @@ const SESSION_TTL_MS = 60 * 1000;
 const COMMODITY_BALANCE_COLUMN = {
     rice: "rice_balance_kg",
     wheat: "wheat_balance_kg",
-    sugar: "sugar_balance_kg",
 };
 
 const toNumber = (value) => Number.parseFloat(value || 0);
 
+// Raised when a commodity has no tolerance configuration. Kept distinct from
+// a generic failure so createSession can report a configuration fault rather
+// than a transient error.
+class ToleranceConfigurationError extends Error {
+    constructor(commodity) {
+        super(`No tolerance configuration for commodity "${commodity}"`);
+        this.name = "ToleranceConfigurationError";
+        this.code = "IOT_TOLERANCE_NOT_CONFIGURED";
+    }
+}
+
+// FAILS CLOSED. This value decides whether a physical measurement is accepted
+// as a completed dispense, so a missing row is a configuration fault, not
+// something to paper over. This used to fall back to a hardcoded
+// { 20 g, 1.00% } whenever the lookup returned nothing, which meant a
+// database bootstrapped from schema.sql (which created the table but never
+// seeded it) dispensed against an undocumented default while a
+// migration-bootstrapped database used the configured one — the same code
+// applying two different physical tolerances with nothing in the logs.
+//
+// Refusing to open the session is safe in practice: the rows are guaranteed
+// by schema.sql's seed, migration 011, migration 024 and tests/setup.js, so
+// reaching this throw means the deployment is genuinely misconfigured.
 const computeToleranceGrams = async (commodity, entitledGrams) => {
     const result = await pool.query(
         `SELECT min_tolerance_grams, tolerance_pct FROM commodity_tolerances WHERE commodity = $1`,
         [commodity],
     );
-    const row = result.rows[0] || { min_tolerance_grams: 20, tolerance_pct: 1.0 };
+
+    const row = result.rows[0];
+    if (!row) {
+        logger.error("[IoT] Missing commodity tolerance configuration — refusing to open a session", {
+            commodity,
+            hint: "Seed commodity_tolerances (schema.sql section 5, or npm run migrate:up)",
+        });
+        throw new ToleranceConfigurationError(commodity);
+    }
+
     const pctBased = Math.round((entitledGrams * Number(row.tolerance_pct)) / 100);
     return Math.max(Number(row.min_tolerance_grams), pctBased);
 };
@@ -34,7 +76,21 @@ const computeToleranceGrams = async (commodity, entitledGrams) => {
 // session's identity assurance to the proven QR mechanism.
 const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, qrSessionId }) => {
     if (!COMMODITY_BALANCE_COLUMN[commodity]) {
-        return { ok: false, status: 400, code: "IOT_INVALID_COMMODITY", message: "commodity must be rice, wheat, or sugar" };
+        return { ok: false, status: 400, code: "IOT_INVALID_COMMODITY", message: "commodity must be rice or wheat" };
+    }
+
+    // Business ceiling, checked here as well as in the Joi schema so the
+    // service is safe for non-HTTP callers. This is the allocation rule
+    // ("what may this household receive in the one transaction that fulfils
+    // it"), NOT the load cell's plausibility ceiling (MAX_VALID_GRAMS in
+    // config/iot.js), which stays where it is and rejects garbage frames.
+    if (entitledGrams !== undefined && entitledGrams !== null && Number(entitledGrams) > MAX_DISPENSE_TRANSACTION_GRAMS) {
+        return {
+            ok: false,
+            status: 400,
+            code: "IOT_ALLOCATION_EXCEEDED",
+            message: `A single dispensing transaction cannot exceed ${MAX_DISPENSE_TRANSACTION_GRAMS} g`,
+        };
     }
 
     const client = await pool.connect();
@@ -64,8 +120,52 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             return { ok: false, status: 410, code: "IOT_SESSION_EXPIRED", message: "QR session expired" };
         }
 
+        // Monthly eligibility, checked up front so the shopkeeper is told
+        // BEFORE they pour grain onto the scale. commitSession re-checks — this
+        // is a usability guard, not the guarantee.
+        try {
+            await assertClaimable(client, rationCardId, [commodity]);
+        } catch (err) {
+            if (err instanceof MonthlyClaimError) {
+                await client.query("ROLLBACK");
+                return { ok: false, status: 400, code: err.code, message: err.detail };
+            }
+            throw err;
+        }
+
+        // BUG 1 FIX — the session's entitled_grams is DERIVED, never accepted.
+        //
+        // The business model is one allocation -> one complete transaction, so
+        // a session must be opened for the household's whole authorised
+        // allocation for that commodity. Previously this number came straight
+        // from the request body, so a caller could open a session for 1000 g
+        // against a 3000 g allocation: it committed, consumed the month's rice
+        // claim, and stranded 2000 g in the wallet that could never be
+        // claimed. The value is now read from the authoritative policy and a
+        // mismatched client value is rejected outright — not clamped, not
+        // Math.min'd, not silently ignored.
+        const allocation = await getCardAllocation(client, rationCardId);
+        if (!allocation) {
+            await client.query("ROLLBACK");
+            return { ok: false, status: 404, code: "IOT_ALLOCATION_NOT_FOUND", message: "No allocation policy for this ration card" };
+        }
+        const allocationGrams = allocationGramsFor(allocation, commodity);
+
+        if (entitledGrams !== undefined && entitledGrams !== null && Number(entitledGrams) !== allocationGrams) {
+            await client.query("ROLLBACK");
+            return {
+                ok: false,
+                status: 400,
+                code: "IOT_PARTIAL_ALLOCATION",
+                message:
+                    `A dispensing session must cover the complete ${commodity} allocation of ` +
+                    `${allocationGrams} g for this ration card (requested ${Number(entitledGrams)} g). ` +
+                    `Partial dispensing is not supported.`,
+            };
+        }
+
         const walletResult = await client.query(
-            `SELECT rice_balance_kg, wheat_balance_kg, sugar_balance_kg FROM wallets WHERE ration_card_id = $1`,
+            `SELECT rice_balance_kg, wheat_balance_kg FROM wallets WHERE ration_card_id = $1`,
             [rationCardId],
         );
         if (walletResult.rows.length === 0) {
@@ -73,7 +173,10 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             return { ok: false, status: 404, code: "IOT_WALLET_NOT_FOUND", message: "Wallet not found" };
         }
         const balanceKg = toNumber(walletResult.rows[0][COMMODITY_BALANCE_COLUMN[commodity]]);
-        if (entitledGrams > balanceKg * 1000) {
+        // The wallet must still hold the whole allocation. If it does not, the
+        // card has already been served (or was funded off-policy) and this
+        // session could not complete in one transaction.
+        if (allocationGrams > balanceKg * 1000) {
             await client.query("ROLLBACK");
             return {
                 ok: false,
@@ -83,14 +186,14 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             };
         }
 
-        const toleranceGrams = await computeToleranceGrams(commodity, entitledGrams);
+        const toleranceGrams = await computeToleranceGrams(commodity, allocationGrams);
         const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
         const sessionResult = await client.query(
             `INSERT INTO dispense_sessions (shop_id, ration_card_id, commodity, entitled_grams, tolerance_grams, expires_at)
        VALUES ($1,$2,$3,$4,$5,$6)
        RETURNING id, expires_at`,
-            [shopId, rationCardId, commodity, entitledGrams, toleranceGrams, expiresAt],
+            [shopId, rationCardId, commodity, allocationGrams, toleranceGrams, expiresAt],
         );
         const session = sessionResult.rows[0];
 
@@ -110,7 +213,7 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             shopId,
             sessionId: session.id,
             commodity,
-            entitledGrams,
+            entitledGrams: allocationGrams,
         });
 
         return {
@@ -118,6 +221,7 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             sessionId: session.id,
             sessionJwt,
             expiresAt: session.expires_at,
+            entitledGrams: allocationGrams,
             toleranceGrams,
         };
     } catch (err) {
@@ -125,6 +229,14 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
             await client.query("ROLLBACK");
         } catch (_) {
             // ignore rollback failure, surface the original error
+        }
+        if (err instanceof ToleranceConfigurationError) {
+            return {
+                ok: false,
+                status: 500,
+                code: err.code,
+                message: "Dispensing tolerance is not configured for this commodity",
+            };
         }
         logger.error("[IoT] createSession failed", { shopId, message: err.message });
         return { ok: false, status: 500, code: "IOT_SESSION_CREATE_FAILED", message: "Failed to create session" };
@@ -330,18 +442,44 @@ const expireIfStale = async (sessionId) => {
 };
 
 // The single-transaction commit: hash-chain link + wallet debit (lock-free,
-// WHERE-guarded) + ledger row + session state, all-or-nothing. Called from
-// ws/iotSocketServer.js's state machine once the stability rule holds
-// through the confirming countdown.
+// WHERE-guarded) + canonical `transactions` row + ledger row + session state,
+// all-or-nothing. Called from ws/iotSocketServer.js's state machine once the
+// stability rule holds through the confirming countdown.
+//
+// The `transactions` INSERT is what makes an IoT dispense visible to
+// analytics, anomaly detection and the activity feed — they all read that
+// table and nothing else. It lives inside this same BEGIN/COMMIT precisely so
+// the wallet debit and the business transaction can never disagree: if either
+// fails, both roll back.
+//
+// Idempotency rides on the existing UNIQUE index on dispense_records.
+// session_id, so retrying one physical dispense cannot produce a second
+// business transaction. Two guards, in order:
+//   1. the SELECT ... FOR UPDATE below serialises concurrent commits of the
+//      same session; the loser sees state='committed' and returns
+//      invalid_state before writing anything.
+//   2. if a caller somehow reaches the INSERT anyway, the unique index
+//      aborts the whole transaction — including the `transactions` row —
+//      so no orphan business transaction can survive a duplicate commit.
 const commitSession = async (sessionId, measuredGrams) => {
     const endCommitTimer = metrics.commitLatencyHistogram.startTimer();
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
 
+        // shopkeeper_id is joined in to populate transactions.served_by:
+        // dispense_sessions has no user column, and createSession only ever
+        // accepts a shopId resolved from the calling shopkeeper's own
+        // getAssignedShop(), so the shop's assigned shopkeeper *is* the user
+        // who served this dispense. FOR UPDATE OF ds keeps the row lock on
+        // dispense_sessions alone — shops is read-only here.
         const sessionResult = await client.query(
-            `SELECT id, shop_id, ration_card_id, commodity, entitled_grams, state
-       FROM dispense_sessions WHERE id = $1 FOR UPDATE`,
+            `SELECT ds.id, ds.shop_id, ds.ration_card_id, ds.commodity, ds.entitled_grams,
+              ds.tolerance_grams, ds.state, s.shopkeeper_id
+       FROM dispense_sessions ds
+       JOIN shops s ON s.id = ds.shop_id
+       WHERE ds.id = $1
+       FOR UPDATE OF ds`,
             [sessionId],
         );
         if (sessionResult.rows.length === 0) {
@@ -360,6 +498,48 @@ const commitSession = async (sessionId, measuredGrams) => {
             return { success: false, reason: "invalid_commodity" };
         }
 
+        // BUG 3 FIX — tolerance enforced at the commit boundary.
+        //
+        // stabilityDetectorService already refuses to auto-confirm a reading
+        // outside tolerance, and that check stays. But the stability detector
+        // lives in the WebSocket loop, while THIS is the point where the
+        // wallet, transactions and dispense_records are permanently mutated.
+        // Any other caller of commitSession previously bypassed tolerance
+        // entirely (verified: a 2400 g measurement against a 3000 g / 30 g
+        // session committed). The authoritative check belongs here, before
+        // anything is written.
+        const entitledGrams = Number(session.entitled_grams);
+        const toleranceGrams = Number(session.tolerance_grams);
+        const deviation = Math.abs(measuredGrams - entitledGrams);
+
+        if (!Number.isInteger(measuredGrams) || deviation > toleranceGrams) {
+            await client.query("ROLLBACK");
+            logger.warn("[IoT] Commit rejected — measurement outside tolerance", {
+                sessionId,
+                entitledGrams,
+                measuredGrams,
+                toleranceGrams,
+                deviation,
+            });
+            await pool
+                .query(`UPDATE dispense_sessions SET state = 'failed_out_of_tolerance' WHERE id = $1`, [sessionId])
+                .catch(() => { /* best effort — the commit already rolled back */ });
+            dispenseSessionBus.publish(sessionId, { type: "state", state: "failed_out_of_tolerance" });
+            return { success: false, reason: "out_of_tolerance" };
+        }
+
+        // Monthly eligibility for the commodity about to be committed, in the
+        // SAME transaction as the wallet debit and the INSERT below. A session
+        // can sit open while another path claims the same commodity, so the
+        // decision has to be made here, not only at session creation.
+        //
+        // This does NOT conflict with IoT idempotency: a retry of an
+        // already-committed session is rejected earlier by the state guard
+        // (`weighing`/`confirming` only) and by the UNIQUE index on
+        // dispense_records.session_id, so one physical dispense stays exactly
+        // one claim, one debit and one transaction.
+        await assertClaimable(client, session.ration_card_id, [session.commodity]);
+
         // Per-shop hash-chain lock — serializes commits for this shop only
         // (a single ESP32 per shop means dispenses there are already
         // physically sequential, so this never contends across shops).
@@ -369,14 +549,42 @@ const commitSession = async (sessionId, measuredGrams) => {
         );
         const prevHash = chainResult.rows[0]?.row_hash || null;
 
-        const measuredKg = Math.round((measuredGrams / 1000) * 100) / 100;
+        // BUG 2 FIX + partial-underfill decision — the wallet is debited by the
+        // AUTHORISED ALLOCATION, never by the raw measurement.
+        //
+        // Tolerance means "the physical measurement is close enough to treat
+        // this allocation as fulfilled". It is not extra entitlement, and it is
+        // not a licence to under-serve. Debiting the measurement produced two
+        // defects at once:
+        //
+        //   overfill  3010 g measured vs a 3.00 kg wallet -> tried to debit
+        //             3.01 kg, failed the balance guard, and reported
+        //             "insufficient balance" for an in-spec dispense.
+        //   underfill 2990 g measured -> debited 2.99 kg and left 0.01 kg
+        //             stranded: unclaimable, because the month's commodity
+        //             claim was consumed by this very transaction.
+        //
+        // Debiting the allocation fixes both and is the only option of the
+        // three that preserves one-allocation/one-complete-transaction:
+        //   (A) debit the allocation      <- chosen
+        //   (B) debit measured + remainder -> the stranded-balance bug above
+        //   (C) reject unless exact        -> defeats tolerance entirely; no
+        //                                     physical scale lands on 3000 g
+        // The allocation is a multiple of ALLOCATION_GRAMS_STEP, so gramsToKg
+        // is exact and the wallet lands on 0.00 with no residue.
+        //
+        // authorised_debit === entitled_grams, always. measured_grams is
+        // preserved verbatim on dispense_records for audit and for anomaly
+        // detection to see systematic over/under-filling.
+        const authorizedKg = gramsToKg(entitledGrams);
 
         // No row lock here — deliberate: the WHERE clause is the concurrency
-        // guard for the wallet debit.
+        // guard for the wallet debit, and it also makes a negative balance
+        // impossible.
         const walletUpdate = await client.query(
             `UPDATE wallets SET ${columnName} = ${columnName} - $1, updated_at = NOW()
        WHERE ration_card_id = $2 AND ${columnName} >= $1`,
-            [measuredKg, session.ration_card_id],
+            [authorizedKg, session.ration_card_id],
         );
 
         if (walletUpdate.rowCount === 0) {
@@ -388,6 +596,30 @@ const commitSession = async (sessionId, measuredGrams) => {
             return { success: false, reason: "insufficient_balance" };
         }
 
+        // The canonical business transaction. `transactions` models a
+        // dispense as per-commodity kg columns, so the session's single
+        // commodity fills its own column and the other stays 0 — the exact
+        // shape shopkeeperController.dispense already writes for a
+        // single-commodity manual dispense, so every downstream consumer
+        // (analytics, anomaly detection, activity feed) treats the two paths
+        // identically with no query changes.
+        const txResult = await client.query(
+            `INSERT INTO transactions (ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id`,
+            [
+                session.ration_card_id,
+                session.shop_id,
+                session.shopkeeper_id,
+                session.commodity === "rice" ? authorizedKg : 0,
+                session.commodity === "wheat" ? authorizedKg : 0,
+            ],
+        );
+        const transactionId = txResult.rows[0].id;
+
+        // buildRowHash's input is deliberately unchanged — transaction_id is
+        // not hashed. The per-shop chain must stay verifiable against records
+        // written before this link existed.
         const fields = {
             sessionId: session.id,
             rationCardId: session.ration_card_id,
@@ -400,8 +632,8 @@ const commitSession = async (sessionId, measuredGrams) => {
 
         const recordResult = await client.query(
             `INSERT INTO dispense_records
-         (session_id, ration_card_id, shop_id, commodity, entitled_grams, measured_grams, prev_hash, row_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         (session_id, ration_card_id, shop_id, commodity, entitled_grams, measured_grams, prev_hash, row_hash, transaction_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING id`,
             [
                 session.id,
@@ -412,6 +644,7 @@ const commitSession = async (sessionId, measuredGrams) => {
                 measuredGrams,
                 prevHash,
                 rowHash,
+                transactionId,
             ],
         );
 
@@ -431,14 +664,23 @@ const commitSession = async (sessionId, measuredGrams) => {
             state: "committed",
             measuredGrams,
             dispenseRecordId,
+            transactionId,
         });
 
-        return { success: true, dispenseRecordId };
+        return { success: true, dispenseRecordId, transactionId };
     } catch (err) {
         try {
             await client.query("ROLLBACK");
         } catch (_) {
             // ignore rollback failure, surface the original error
+        }
+        const claimError = err instanceof MonthlyClaimError ? err : asMonthlyClaimError(err);
+        if (claimError) {
+            await pool
+                .query(`UPDATE dispense_sessions SET state = 'failed_already_claimed' WHERE id = $1`, [sessionId])
+                .catch(() => { /* state is best-effort; the commit already rolled back */ });
+            dispenseSessionBus.publish(sessionId, { type: "state", state: "failed_already_claimed" });
+            return { success: false, reason: "already_claimed" };
         }
         logger.error("[IoT] commitSession failed", { message: err.message, sessionId });
         return { success: false, reason: "error" };
@@ -449,6 +691,8 @@ const commitSession = async (sessionId, measuredGrams) => {
 };
 
 module.exports = {
+    ToleranceConfigurationError,
+    computeToleranceGrams,
     createSession,
     attachSession,
     cancelSession,

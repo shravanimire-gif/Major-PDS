@@ -25,7 +25,7 @@ Scope: `test/pds-beneficiary` — the beneficiary-facing Expo/React Native app (
 | Border / divider | `#dde3f0` (inputs, skeleton), `#f0f0f0` (list row dividers) | Login input border, SkeletonCard fill, Dashboard row separators |
 | Danger / error | `#e53935` | Logout button outline/text, QR expired state, timer red state |
 | Category badges (Dashboard only) | APL `#2196F3`, BPL `#FF9800`, AAY `#F44336` | `CATEGORY_COLOR` map, local to `DashboardScreen.js` |
-| Grain colors (Dashboard wallet) | Rice `#4CAF50`, Wheat `#FF9800`, Sugar `#9C27B0` | `GrainItem` calls in `DashboardScreen.js` |
+| Grain colors (Dashboard wallet) | Rice `#4CAF50`, Wheat `#FF9800` | `GrainItem` calls in `DashboardScreen.js` |
 
 Notable inconsistency: the AAY badge red (`#F44336`) and the app's "danger" red (`#e53935`) are two different reds for what is conceptually the same semantic color. Wheat's orange (`#FF9800`) and the BPL badge orange are the same value but coincidentally, not by shared reference.
 
@@ -56,7 +56,7 @@ Three different ad hoc shadow "levels" appear, each defined inline rather than a
 ## 7. Iconography
 
 100% emoji, no vector icon set:
-🌾 (login logo **and** wallet card title — same glyph, two different meanings) · 📱 (generate QR) · 👨‍👩‍👧 (family) · 📋 (transactions) · 👋 (greeting) · ⭐ (head-of-family marker) · 🌿 (wheat, only in the transaction row, not the wallet card) · 🍬 (sugar) · ⏰ (QR expired) · 🔄 (refresh) · `←` (back — plain text glyph, not an icon).
+🌾 (login logo **and** wallet card title — same glyph, two different meanings) · 📱 (generate QR) · 👨‍👩‍👧 (family) · 📋 (transactions) · 👋 (greeting) · ⭐ (head-of-family marker) · 🌿 (wheat, only in the transaction row, not the wallet card) · ⏰ (QR expired) · 🔄 (refresh) · `←` (back — plain text glyph, not an icon).
 
 Emoji rendering differs across iOS/Android/OEM emoji sets, which is the single biggest reason the app currently reads as a prototype rather than a branded enterprise product.
 
@@ -73,7 +73,7 @@ Emoji rendering differs across iOS/Android/OEM emoji sets, which is the single b
 ### DashboardScreen (`src/screens/DashboardScreen.js`)
 - `SafeAreaView` → `ScrollView` (pull-to-refresh) with a non-scrolling Logout button pinned below the scroll area.
 - Header: flat blue rectangle (greeting, beneficiary name, card number, category badge). No avatar/profile image.
-- Wallet card: title + 3-column rice/wheat/sugar values — plain numbers, no progress bar or "% of entitlement used" visualization.
+- Wallet card: title + 2-column rice/wheat values — plain numbers, no progress bar or "% of entitlement used" visualization.
 - Full-width QR CTA button sits between the wallet and family cards, styled with the same blue as the header.
 - Family card: plain text rows, head-of-household flagged with ⭐.
 - Transactions card: last 5 entries, no "view all," no per-commodity icon consistency with the wallet card.

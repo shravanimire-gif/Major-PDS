@@ -9,13 +9,14 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import PanelHeader from '../../design/primitives/PanelHeader';
 
+// Allocation is per ration card, not per person — Family Size is shown for
+// context only and no longer scales the Rice/Wheat figures.
 const COLUMNS = [
   { label: 'Card Number' },
   { label: 'Category' },
   { label: 'Family Size', numeric: true },
   { label: 'Rice (kg)', numeric: true },
   { label: 'Wheat (kg)', numeric: true },
-  { label: 'Sugar (kg)', numeric: true },
 ];
 
 const getCategoryBadgeStatus = (category) => {
@@ -50,9 +51,8 @@ const Entitlements = () => {
         cards: acc.cards + 1,
         rice: acc.rice + Number(row.rice_kg || 0),
         wheat: acc.wheat + Number(row.wheat_kg || 0),
-        sugar: acc.sugar + Number(row.sugar_kg || 0),
       }),
-      { cards: 0, rice: 0, wheat: 0, sugar: 0 },
+      { cards: 0, rice: 0, wheat: 0 },
     );
   }, [preview]);
 
@@ -112,8 +112,7 @@ const Entitlements = () => {
             footer={
               preview.length > 0 && !previewLoading ? (
                 <div className="px-4 py-3 text-xs font-medium text-text-secondary">
-                  Total: {totals.cards} cards | {totals.rice.toFixed(2)} kg rice | {totals.wheat.toFixed(2)} kg wheat |{' '}
-                  {totals.sugar.toFixed(2)} kg sugar
+                  Total: {totals.cards} cards | {totals.rice.toFixed(2)} kg rice | {totals.wheat.toFixed(2)} kg wheat
                 </div>
               ) : null
             }
@@ -142,11 +141,8 @@ const Entitlements = () => {
                       <Badge status={getCategoryBadgeStatus(row.category)}>{row.category}</Badge>
                     </Table.Cell>
                     <Table.Cell numeric>{row.family_size}</Table.Cell>
-                    <Table.Cell numeric>
-                      {row.category === 'AAY' ? <span className="italic text-text-disabled">35 (fixed)</span> : row.rice_kg}
-                    </Table.Cell>
+                    <Table.Cell numeric>{row.rice_kg}</Table.Cell>
                     <Table.Cell numeric>{row.wheat_kg}</Table.Cell>
-                    <Table.Cell numeric>{row.sugar_kg}</Table.Cell>
                   </Table.Row>
                 ))
               )}

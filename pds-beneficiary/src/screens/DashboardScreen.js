@@ -19,12 +19,14 @@ import {
 
 // ASSUMPTION: the API only returns the *remaining* balance per grain
 // (wallet.*_balance_kg), not a monthly entitlement total, so "% used" can't
-// be derived from the response alone. Mocked here using the standard NFSA
-// per-card monthly foodgrain entitlement (5kg/person is the usual figure,
-// but per-member totals aren't available on this screen, so a flat
-// per-card figure is used as a placeholder). Flagging for follow-up: the
-// API should expose an actual entitlement total per card/category.
-const MOCK_MONTHLY_ENTITLEMENT_KG = { rice: 15, wheat: 10, sugar: 2 };
+// be derived from the response alone. Mocked here using the largest per-card
+// allocation any category receives (AAY: 4 kg rice / 3 kg wheat — see
+// policies.rice_per_card_grams and src/config/allocation.js on the backend),
+// so the progress bar has a realistic denominator. Allocation is per card,
+// not per person, so a single flat figure is now the correct shape for this
+// placeholder. Flagging for follow-up: the API should expose the card's
+// actual per-category entitlement total.
+const MOCK_MONTHLY_ENTITLEMENT_KG = { rice: 4, wheat: 3 };
 
 export default function DashboardScreen({ navigation }) {
     const { logout } = useAuth();
@@ -131,14 +133,6 @@ export default function DashboardScreen({ navigation }) {
                             unit="kg"
                             color={colors.grain.wheat}
                         />
-                        <GrainItem
-                            label="Sugar"
-                            icon="grainSugar"
-                            value={wallet?.sugar_balance_kg}
-                            entitlement={MOCK_MONTHLY_ENTITLEMENT_KG.sugar}
-                            unit="kg"
-                            color={colors.grain.sugar}
-                        />
                     </View>
                 </Card>
 
@@ -198,9 +192,6 @@ export default function DashboardScreen({ navigation }) {
                                     )}
                                     {t.wheat_qty_kg > 0 && (
                                         <TxQty icon="grainWheat" value={t.wheat_qty_kg} color={colors.grain.wheat} />
-                                    )}
-                                    {t.sugar_qty_kg > 0 && (
-                                        <TxQty icon="grainSugar" value={t.sugar_qty_kg} color={colors.grain.sugar} />
                                     )}
                                 </View>
                             </View>

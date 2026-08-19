@@ -28,9 +28,10 @@ const createSchema = async () => {
     CREATE TABLE IF NOT EXISTS policies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       category ration_category NOT NULL UNIQUE,
-      rice_per_person_kg NUMERIC(5,2) NOT NULL DEFAULT 0,
-      wheat_per_person_kg NUMERIC(5,2) NOT NULL DEFAULT 0,
-      sugar_per_person_kg NUMERIC(5,2) NOT NULL DEFAULT 0,
+      rice_per_card_grams INTEGER NOT NULL DEFAULT 2000
+        CHECK (rice_per_card_grams > 0 AND rice_per_card_grams <= 4000 AND rice_per_card_grams % 10 = 0),
+      wheat_per_card_grams INTEGER NOT NULL DEFAULT 1500
+        CHECK (wheat_per_card_grams > 0 AND wheat_per_card_grams <= 4000 AND wheat_per_card_grams % 10 = 0),
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
@@ -91,7 +92,6 @@ const createSchema = async () => {
       ration_card_id UUID NOT NULL UNIQUE REFERENCES ration_cards(id) ON DELETE CASCADE,
       rice_balance_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
       wheat_balance_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
-      sugar_balance_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
       last_reset_date DATE,
       updated_at TIMESTAMP DEFAULT NOW()
     )
@@ -104,9 +104,27 @@ const createSchema = async () => {
       shop_id UUID NOT NULL REFERENCES shops(id),
       rice_qty_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
       wheat_qty_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
-      sugar_qty_kg NUMERIC(8,2) NOT NULL DEFAULT 0,
       served_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      -- Was missing here, so activityFeedService (which selects it) and
+      -- blockchainHealthService could never be exercised against this harness.
+      blockchain_tx_hash TEXT,
       created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+    // anomaly_events was missing from this harness, which made
+    // anomalyDetectionCron.runAnomalyDetection() untestable (it INSERTs here).
+    // Mirrors migrations/005_add_anomaly_events.js.
+    await pool.query(`
+    CREATE TABLE IF NOT EXISTS anomaly_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      type VARCHAR(50) NOT NULL,
+      severity VARCHAR(20) NOT NULL,
+      shop_code VARCHAR(20),
+      transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+      description TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      resolved BOOLEAN NOT NULL DEFAULT false
     )
   `);
 
@@ -128,7 +146,9 @@ const createSchema = async () => {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       device_id VARCHAR(100) NOT NULL UNIQUE,
       device_token_hash TEXT NOT NULL,
-      shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      -- Nullable = "registered but unassigned" (migration 026). Such a device
+      -- is rejected at the /ws/iot handshake, so it can never reach a session.
+      shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
       status VARCHAR(20) NOT NULL DEFAULT 'active',
       token_expires_at TIMESTAMP,
       last_seen_at TIMESTAMP,
@@ -136,8 +156,21 @@ const createSchema = async () => {
       calibrated_at TIMESTAMP,
       previous_token_hash TEXT,
       previous_token_expires_at TIMESTAMP,
+      device_name VARCHAR(150),
+      firmware_version VARCHAR(50),
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
+  `);
+
+    // Additive reconciliation for an ALREADY-CREATED test database. Every
+    // CREATE TABLE here is IF NOT EXISTS, so editing a table definition above
+    // has no effect on a test DB that was created by an earlier run — the
+    // columns migration 026 added would silently be missing and every device
+    // query would 500. Mirrors migrations/026 exactly.
+    await pool.query(`
+    ALTER TABLE iot_devices ADD COLUMN IF NOT EXISTS device_name      VARCHAR(150);
+    ALTER TABLE iot_devices ADD COLUMN IF NOT EXISTS firmware_version VARCHAR(50);
+    ALTER TABLE iot_devices ALTER COLUMN shop_id DROP NOT NULL;
   `);
 
     await pool.query(`
@@ -189,8 +222,13 @@ const createSchema = async () => {
       row_hash TEXT NOT NULL,
       committed_at TIMESTAMP NOT NULL DEFAULT NOW(),
       blockchain_tx_hash TEXT,
-      last_anchor_error TEXT
+      last_anchor_error TEXT,
+      transaction_id UUID REFERENCES transactions(id) ON DELETE RESTRICT
     )
+  `);
+    await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS dispense_records_transaction_id_unique_index
+      ON dispense_records(transaction_id) WHERE transaction_id IS NOT NULL
   `);
 
     await pool.query(`
@@ -202,8 +240,20 @@ const createSchema = async () => {
   `);
     await pool.query(`
     INSERT INTO commodity_tolerances (commodity, min_tolerance_grams, tolerance_pct) VALUES
-      ('rice', 20, 1.00), ('wheat', 20, 1.00), ('sugar', 20, 1.00)
+      ('rice', 20, 1.00), ('wheat', 20, 1.00)
     ON CONFLICT (commodity) DO NOTHING
+  `);
+
+    // One claim per ration card per commodity per calendar month — mirrors
+    // migrations/025. Partial + per commodity so an IoT rice dispense and an
+    // IoT wheat dispense (two rows, one commodity each) both remain legal.
+    await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS transactions_rice_monthly_claim_unique_index
+      ON transactions (ration_card_id, date_trunc('month', created_at)) WHERE rice_qty_kg > 0
+  `);
+    await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS transactions_wheat_monthly_claim_unique_index
+      ON transactions (ration_card_id, date_trunc('month', created_at)) WHERE wheat_qty_kg > 0
   `);
 
     await pool.query(`
@@ -263,7 +313,7 @@ const createSchema = async () => {
 const truncateAll = async () => {
     await pool.query(`
     TRUNCATE TABLE
-      iot_audit, anomaly_flags, used_jtis, dispense_records, dispense_sessions,
+      iot_audit, anomaly_flags, anomaly_events, used_jtis, dispense_records, dispense_sessions,
       sensor_reading_rejections, sensor_readings, iot_devices,
       qr_sessions, transactions, wallets,
       family_members, ration_cards, shops, users, policies, areas

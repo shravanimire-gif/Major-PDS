@@ -1,6 +1,46 @@
 const pool = require("../config/db");
 const logger = require("../config/logger");
 const { recordDispense } = require("../services/blockchainService");
+const {
+  assertClaimable,
+  asMonthlyClaimError,
+  MonthlyClaimError,
+} = require("../services/monthlyClaimService");
+const {
+  getCardAllocation,
+  allocationGramsFor,
+  kgToGrams,
+} = require("../services/allocationPolicyService");
+
+// One allocation -> one complete transaction. A manual dispense may cover one
+// commodity or both, but whichever commodities it covers must be dispensed in
+// FULL: a partial manual dispense consumes the month's claim for that
+// commodity and strands the rest of the allocation, which is the same defect
+// the IoT session path guards against (IOT_PARTIAL_ALLOCATION). Enforced here
+// too, otherwise the invariant is bypassable simply by using this endpoint.
+const assertCompleteAllocation = async (client, rationCardId, quantities) => {
+  const allocation = await getCardAllocation(client, rationCardId);
+  if (!allocation) {
+    const err = new Error("No allocation policy for this ration card");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  for (const [commodity, qtyKg] of Object.entries(quantities)) {
+    if (qtyKg <= 0) continue; // not being dispensed in this transaction
+    const requestedGrams = kgToGrams(qtyKg);
+    const allocationGrams = allocationGramsFor(allocation, commodity);
+    if (requestedGrams !== allocationGrams) {
+      const err = new Error(
+        `A dispense must cover the complete ${commodity} allocation of ${allocationGrams} g ` +
+        `for this ration card (requested ${requestedGrams} g). Partial dispensing is not supported.`,
+      );
+      err.statusCode = 400;
+      err.detail = "PARTIAL_ALLOCATION";
+      throw err;
+    }
+  }
+};
 
 const toNumber = (value) => Number.parseFloat(value || 0);
 
@@ -153,8 +193,7 @@ const getBeneficiaryByRationCardId = async (req, res, next) => {
             WHERE fm.ration_card_id = rc.id
           )::int AS family_size,
           w.rice_balance_kg,
-          w.wheat_balance_kg,
-          w.sugar_balance_kg
+          w.wheat_balance_kg
         FROM ration_cards rc
         JOIN shops s ON s.id = rc.shop_id
         LEFT JOIN areas a ON a.id = rc.area_id
@@ -182,6 +221,44 @@ const getBeneficiaryByRationCardId = async (req, res, next) => {
         .json({ error: "Beneficiary belongs to a different shop" });
     }
 
+    // The household's authoritative allocation for this month, resolved from
+    // its category's policy — the same allocationPolicyService call that
+    // createSession and commitSession use, so the screen cannot show a figure
+    // the backend would then reject.
+    //
+    // The dispense screen needs this because one allocation is fulfilled by ONE
+    // complete transaction: the quantity is not a shopkeeper input, it IS the
+    // allocation. Previously the screen had no source for it and left the
+    // quantity fields at 0, which made "Weigh on Scale" unreachable and
+    // "Confirm Dispense" a guaranteed validation error.
+    //
+    // Sent alongside the wallet, not instead of it: the allocation is what the
+    // card is entitled to this month, the wallet is what is still unclaimed.
+    // They differ exactly when the month's claim has already been taken, and
+    // the screen has to be able to say so.
+    let allocation = null;
+    try {
+      const cardAllocation = await getCardAllocation(pool, rationCardId);
+      if (cardAllocation) {
+        allocation = {
+          category: cardAllocation.category,
+          rice_grams: cardAllocation.riceGrams,
+          wheat_grams: cardAllocation.wheatGrams,
+          rice_kg: cardAllocation.riceKg,
+          wheat_kg: cardAllocation.wheatKg,
+        };
+      }
+    } catch (allocationError) {
+      // A policy row that violates the allocation invariant is a configuration
+      // fault, not a reason to refuse to show the beneficiary. Reported as a
+      // null allocation, which the screen renders as "allocation unavailable"
+      // rather than as 0 g (which would look like a legitimate zero).
+      logger.error("Failed to resolve card allocation for dispense screen", {
+        rationCardId,
+        message: allocationError.message,
+      });
+    }
+
     return res.status(200).json({
       beneficiary: {
         ration_card_id: row.ration_card_id,
@@ -196,8 +273,8 @@ const getBeneficiaryByRationCardId = async (req, res, next) => {
       wallet: {
         rice_balance_kg: toNumber(row.rice_balance_kg),
         wheat_balance_kg: toNumber(row.wheat_balance_kg),
-        sugar_balance_kg: toNumber(row.sugar_balance_kg),
       },
+      allocation,
     });
   } catch (error) {
     return next(error);
@@ -214,12 +291,10 @@ const dispense = async (req, res, next) => {
       beneficiary_user_id: beneficiaryUserId,
       rice_qty_kg: riceQtyRaw = 0,
       wheat_qty_kg: wheatQtyRaw = 0,
-      sugar_qty_kg: sugarQtyRaw = 0,
     } = req.body;
 
     const riceQty = Number(riceQtyRaw);
     const wheatQty = Number(wheatQtyRaw);
-    const sugarQty = Number(sugarQtyRaw);
 
     if (!rationCardId || !sessionId) {
       return res
@@ -229,39 +304,35 @@ const dispense = async (req, res, next) => {
 
     if (
       !Number.isFinite(riceQty) ||
-      !Number.isFinite(wheatQty) ||
-      !Number.isFinite(sugarQty)
+      !Number.isFinite(wheatQty)
     ) {
       return res.status(400).json({ error: "Quantities must be valid numbers" });
     }
 
-    if (riceQty < 0 || wheatQty < 0 || sugarQty < 0) {
+    if (riceQty < 0 || wheatQty < 0) {
       return res.status(400).json({ error: "Quantities must be >= 0" });
     }
 
-    if (riceQty === 0 && wheatQty === 0 && sugarQty === 0) {
+    if (riceQty === 0 && wheatQty === 0) {
       return res
         .status(400)
         .json({ error: "At least one quantity must be greater than zero" });
     }
 
-    // Double-claim prevention: one dispense per ration card per month
-    const claimCheck = await pool.query(
-      `SELECT COUNT(*) FROM transactions
-       WHERE ration_card_id = $1
-         AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
-         AND DATE(created_at) < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`,
-      [rationCardId],
-    );
-    if (Number(claimCheck.rows[0].count) > 0) {
-      logger.warn('[Dispense] Double claim attempt', { ration_card_id: rationCardId });
-      return res.status(400).json({
-        error: "Already claimed this month",
-        detail: "This ration card has already been served in the current month",
-      });
-    }
-
     await client.query("BEGIN");
+
+    // Monthly eligibility, per commodity, INSIDE the transaction. This used to
+    // run on `pool` (a separate connection) before BEGIN, which made it a
+    // time-of-check/time-of-use race: two concurrent requests both saw zero
+    // and both inserted. The partial unique indexes from migration 025 are the
+    // real guarantee; this check exists to return a clean 400 rather than a
+    // constraint violation, and the 23505 handler in the catch covers the
+    // request that loses the race.
+    const requestedCommodities = [];
+    if (riceQty > 0) requestedCommodities.push("rice");
+    if (wheatQty > 0) requestedCommodities.push("wheat");
+    await assertClaimable(client, rationCardId, requestedCommodities);
+    await assertCompleteAllocation(client, rationCardId, { rice: riceQty, wheat: wheatQty });
 
     const shop = await getAssignedShop(client, req.user.id);
     if (!shop) {
@@ -320,7 +391,6 @@ const dispense = async (req, res, next) => {
           w.ration_card_id,
           w.rice_balance_kg,
           w.wheat_balance_kg,
-          w.sugar_balance_kg,
           rc.shop_id,
           rc.card_number
         FROM wallets w
@@ -345,23 +415,20 @@ const dispense = async (req, res, next) => {
 
     const riceBalance = toNumber(wallet.rice_balance_kg);
     const wheatBalance = toNumber(wallet.wheat_balance_kg);
-    const sugarBalance = toNumber(wallet.sugar_balance_kg);
 
-    if (riceQty > riceBalance || wheatQty > wheatBalance || sugarQty > sugarBalance) {
+    if (riceQty > riceBalance || wheatQty > wheatBalance) {
       await client.query("ROLLBACK");
       return res.status(400).json({
         error: "Requested quantity exceeds wallet balance",
         wallet: {
           rice_balance_kg: riceBalance,
           wheat_balance_kg: wheatBalance,
-          sugar_balance_kg: sugarBalance,
         },
       });
     }
 
     const remainingRice = Number((riceBalance - riceQty).toFixed(2));
     const remainingWheat = Number((wheatBalance - wheatQty).toFixed(2));
-    const remainingSugar = Number((sugarBalance - sugarQty).toFixed(2));
 
     await client.query(
       `
@@ -369,11 +436,10 @@ const dispense = async (req, res, next) => {
         SET
           rice_balance_kg = $1,
           wheat_balance_kg = $2,
-          sugar_balance_kg = $3,
           updated_at = NOW()
-        WHERE ration_card_id = $4
+        WHERE ration_card_id = $3
       `,
-      [remainingRice, remainingWheat, remainingSugar, rationCardId],
+      [remainingRice, remainingWheat, rationCardId],
     );
 
     const txResult = await client.query(
@@ -383,13 +449,12 @@ const dispense = async (req, res, next) => {
           shop_id,
           rice_qty_kg,
           wheat_qty_kg,
-          sugar_qty_kg,
           served_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id, created_at
       `,
-      [rationCardId, shop.id, riceQty, wheatQty, sugarQty, req.user.id],
+      [rationCardId, shop.id, riceQty, wheatQty, req.user.id],
     );
 
     await client.query(
@@ -405,7 +470,7 @@ const dispense = async (req, res, next) => {
 
     await client.query("COMMIT");
 
-    logger.info('Dispense success', { ration_card_id: rationCardId, rice_qty: riceQty, wheat_qty: wheatQty, sugar_qty: sugarQty });
+    logger.info('Dispense success', { ration_card_id: rationCardId, rice_qty: riceQty, wheat_qty: wheatQty });
 
     // ── Blockchain recording (fire-and-forget after DB commit) ──────────────
     // Runs asynchronously — blockchain failure NEVER rolls back the DB transaction
@@ -447,12 +512,10 @@ const dispense = async (req, res, next) => {
       dispensed: {
         rice_qty_kg: riceQty,
         wheat_qty_kg: wheatQty,
-        sugar_qty_kg: sugarQty,
       },
       remaining_wallet: {
         rice_balance_kg: remainingRice,
         wheat_balance_kg: remainingWheat,
-        sugar_balance_kg: remainingSugar,
       },
     });
   } catch (error) {
@@ -460,6 +523,18 @@ const dispense = async (req, res, next) => {
       await client.query("ROLLBACK");
     } catch (rollbackError) {
       // Ignore rollback failures and surface original error.
+    }
+
+    // Either the in-transaction pre-check found an existing claim, or the
+    // database's partial unique index rejected a concurrent one. Both mean the
+    // same thing to the caller, so both produce the same 400.
+    const claimError = error instanceof MonthlyClaimError ? error : asMonthlyClaimError(error);
+    if (claimError) {
+      return res.status(400).json({ error: claimError.message, detail: claimError.detail });
+    }
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message, detail: error.detail });
     }
 
     return next(error);
@@ -478,30 +553,19 @@ const createTransaction = async (req, res, next) => {
       ration_card_id: rationCardId,
       rice_qty: riceQtyRaw = 0,
       wheat_qty: wheatQtyRaw = 0,
-      sugar_qty: sugarQtyRaw = 0,
     } = req.body;
 
     const riceQty = Number(riceQtyRaw);
     const wheatQty = Number(wheatQtyRaw);
-    const sugarQty = Number(sugarQtyRaw);
-
-    // Double-claim prevention
-    const claimCheck = await pool.query(
-      `SELECT COUNT(*) FROM transactions
-       WHERE ration_card_id = $1
-         AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
-         AND DATE(created_at) <  DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`,
-      [rationCardId],
-    );
-    if (Number(claimCheck.rows[0].count) > 0) {
-      logger.warn('[Dispense] Double claim attempt', { ration_card_id: rationCardId });
-      return res.status(400).json({
-        error: 'Already claimed this month',
-        detail: 'This ration card has already been served in the current month',
-      });
-    }
 
     await client.query('BEGIN');
+
+    // Same shared, per-commodity rule as /dispense — inside the transaction.
+    const requestedCommodities = [];
+    if (riceQty > 0) requestedCommodities.push('rice');
+    if (wheatQty > 0) requestedCommodities.push('wheat');
+    await assertClaimable(client, rationCardId, requestedCommodities);
+    await assertCompleteAllocation(client, rationCardId, { rice: riceQty, wheat: wheatQty });
 
     const shop = await getAssignedShop(client, req.user.id);
     if (!shop) {
@@ -511,7 +575,7 @@ const createTransaction = async (req, res, next) => {
 
     // Wallet + shop ownership check
     const walletResult = await client.query(
-      `SELECT w.id, w.ration_card_id, w.rice_balance_kg, w.wheat_balance_kg, w.sugar_balance_kg,
+      `SELECT w.id, w.ration_card_id, w.rice_balance_kg, w.wheat_balance_kg,
               rc.shop_id, rc.card_number
        FROM wallets w
        JOIN ration_cards rc ON rc.id = w.ration_card_id
@@ -534,32 +598,30 @@ const createTransaction = async (req, res, next) => {
 
     const riceBalance = toNumber(wallet.rice_balance_kg);
     const wheatBalance = toNumber(wallet.wheat_balance_kg);
-    const sugarBalance = toNumber(wallet.sugar_balance_kg);
 
-    if (riceQty > riceBalance || wheatQty > wheatBalance || sugarQty > sugarBalance) {
+    if (riceQty > riceBalance || wheatQty > wheatBalance) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         error: 'Requested quantity exceeds wallet balance',
-        wallet: { rice_balance_kg: riceBalance, wheat_balance_kg: wheatBalance, sugar_balance_kg: sugarBalance },
+        wallet: { rice_balance_kg: riceBalance, wheat_balance_kg: wheatBalance },
       });
     }
 
     const remainingRice = Number((riceBalance - riceQty).toFixed(2));
     const remainingWheat = Number((wheatBalance - wheatQty).toFixed(2));
-    const remainingSugar = Number((sugarBalance - sugarQty).toFixed(2));
 
     await client.query(
       `UPDATE wallets
-       SET rice_balance_kg = $1, wheat_balance_kg = $2, sugar_balance_kg = $3, updated_at = NOW()
-       WHERE ration_card_id = $4`,
-      [remainingRice, remainingWheat, remainingSugar, rationCardId],
+       SET rice_balance_kg = $1, wheat_balance_kg = $2, updated_at = NOW()
+       WHERE ration_card_id = $3`,
+      [remainingRice, remainingWheat, rationCardId],
     );
 
     const txResult = await client.query(
-      `INSERT INTO transactions (ration_card_id, shop_id, rice_qty_kg, wheat_qty_kg, sugar_qty_kg, served_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg, sugar_qty_kg, created_at`,
-      [rationCardId, shop.id, riceQty, wheatQty, sugarQty, req.user.id],
+      `INSERT INTO transactions (ration_card_id, shop_id, rice_qty_kg, wheat_qty_kg, served_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg, created_at`,
+      [rationCardId, shop.id, riceQty, wheatQty, req.user.id],
     );
 
     await client.query('COMMIT');
@@ -609,18 +671,29 @@ const createTransaction = async (req, res, next) => {
         served_by: tx.served_by,
         rice_qty_kg: toNumber(tx.rice_qty_kg),
         wheat_qty_kg: toNumber(tx.wheat_qty_kg),
-        sugar_qty_kg: toNumber(tx.sugar_qty_kg),
         created_at: tx.created_at,
         blockchain_tx_hash: null,
       },
       remaining_wallet: {
         rice_balance_kg: remainingRice,
         wheat_balance_kg: remainingWheat,
-        sugar_balance_kg: remainingSugar,
       },
     });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) { }
+
+    // Either the in-transaction pre-check found an existing claim, or the
+    // database's partial unique index rejected a concurrent one. Both mean the
+    // same thing to the caller, so both produce the same 400.
+    const claimError = error instanceof MonthlyClaimError ? error : asMonthlyClaimError(error);
+    if (claimError) {
+      return res.status(400).json({ error: claimError.message, detail: claimError.detail });
+    }
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message, detail: error.detail });
+    }
+
     return next(error);
   } finally {
     client.release();

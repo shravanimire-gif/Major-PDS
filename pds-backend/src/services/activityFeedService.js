@@ -58,7 +58,7 @@ async function _checkHealthTransition() {
 
 async function _getDispenseEvents(since, limit) {
     const { rows } = await pool.query(
-        `SELECT t.id, t.created_at, t.rice_qty_kg, t.wheat_qty_kg, t.sugar_qty_kg,
+        `SELECT t.id, t.created_at, t.rice_qty_kg, t.wheat_qty_kg,
             t.blockchain_tx_hash, s.shop_code, s.shop_name, rc.card_number, rc.id AS ration_card_id
      FROM transactions t
      JOIN shops s ON s.id = t.shop_id
@@ -74,7 +74,7 @@ async function _getDispenseEvents(since, limit) {
         type: "dispense",
         severity: "info",
         timestamp: r.created_at.toISOString(),
-        summary: `Dispensed ${Number(r.rice_qty_kg)}kg rice, ${Number(r.wheat_qty_kg)}kg wheat, ${Number(r.sugar_qty_kg)}kg sugar at ${r.shop_name} (card ${r.card_number})`,
+        summary: `Dispensed ${Number(r.rice_qty_kg)}kg rice, ${Number(r.wheat_qty_kg)}kg wheat at ${r.shop_name} (card ${r.card_number})`,
         refType: "transaction",
         refId: r.id,
         detail: {
@@ -85,7 +85,6 @@ async function _getDispenseEvents(since, limit) {
             rationCardId: r.ration_card_id,
             riceQtyKg: Number(r.rice_qty_kg),
             wheatQtyKg: Number(r.wheat_qty_kg),
-            sugarQtyKg: Number(r.sugar_qty_kg),
             anchored: r.blockchain_tx_hash != null,
         },
     }));

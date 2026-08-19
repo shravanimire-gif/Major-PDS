@@ -93,7 +93,7 @@ sequenceDiagram
     API->>DB: SELECT card_number dup check
     API->>DB: SELECT shop_id valid?
     API->>DB: SELECT head mobile not already beneficiary
-    API->>DB: SELECT policies WHERE category (rice/wheat/sugar per-person kg)
+    API->>DB: SELECT policies WHERE category (rice/wheat per-person kg)
     API->>DB: INSERT users (head, role='beneficiary')
     API->>DB: INSERT ration_cards (card_number, category, head_user_id, shop_id, area_id)
     API->>DB: INSERT family_members (head, is_head=true)
@@ -102,7 +102,7 @@ sequenceDiagram
         API->>DB: INSERT family_members (is_head=false)
     end
     API->>DB: wallet = policy.*_per_person_kg * family_size
-    API->>DB: INSERT wallets (rice/wheat/sugar_balance_kg)
+    API->>DB: INSERT wallets (rice/wheat_balance_kg)
     API->>DB: COMMIT
     deactivate API
     API-->>FE: 201 {ration_card, members_created, wallet}
@@ -191,7 +191,7 @@ sequenceDiagram
 flowchart TD
     Start(["Shopkeeper: beneficiary loaded, quantities entered"]) --> Branch{"IoT scale\nattached to shop?"}
 
-    Branch -- "No (manual, default path)" --> Confirm["Confirm Dispense button\nPOST /api/shopkeeper/dispense\n{ration_card_id, session_id, rice/wheat/sugar_qty_kg}"]
+    Branch -- "No (manual, default path)" --> Confirm["Confirm Dispense button\nPOST /api/shopkeeper/dispense\n{ration_card_id, session_id, rice/wheat_qty_kg}"]
 
     Branch -- "Yes (optional)" --> Weigh["POST /api/dispense/session\n+ /session/:id/attach\nWS /ws/shopkeeper/live subscribes"]
     Weigh --> ESP32["ESP32 streams gram readings\nvia wss /ws/iot"]
@@ -268,5 +268,5 @@ flowchart LR
 
 1. **`qr_sessions` schema drift**: `schema.sql` defines `session_id VARCHAR(64)`, but `server.js` boot-time `ensureDatabaseGuards()` creates it as `VARCHAR(150)` with slightly different defaults if the table doesn't already exist — whichever ran first on a given DB wins.
 2. **`blockchain_logs` table is unused**: defined in `schema.sql` but no application code writes to it; the real anchor status lives on `transactions.blockchain_tx_hash` / `dispense_records.blockchain_tx_hash`.
-3. **Sugar-only dispense never anchors**: `PDSLedger.recordTransaction` requires rice or wheat grams > 0, so a sugar-only dispense silently never gets a blockchain record.
+3. ~~**Sugar-only dispense never anchors**~~: resolved — sugar was removed as a commodity (migration `021_remove_sugar_commodity`). Every supported commodity (rice, wheat) now maps to a `PDSLedger.recordTransaction` parameter, so its `rice or wheat grams > 0` guard is always satisfiable.
 4. **`POST /api/shopkeeper/transactions`** is a parallel dispense endpoint that skips QR-session validation entirely — flagged in code comments as a legacy/"blockchain-stable, do not change" path; worth a dotted-line/alternate-path box rather than merging it into the main dispense arrow.

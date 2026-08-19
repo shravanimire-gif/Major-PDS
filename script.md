@@ -65,7 +65,7 @@
 - Click any row to drill into a single dispense's full detail and timeline.
 
 ### Wallets (`/admin/wallets`)
-**What it's for:** *(Placeholder today.)* Intended as a dedicated ledger of every family's rice/wheat/sugar balances.
+**What it's for:** *(Placeholder today.)* Intended as a dedicated ledger of every family's rice/wheat balances.
 
 **Talking points:**
 - Be upfront about this one: balances are visible today on each ration card / beneficiary record, but there's no standalone wallet-ledger screen yet. The page says so plainly rather than faking data.
@@ -82,7 +82,7 @@
 **What it's for:** Run the monthly ration allocation — the digital equivalent of "restocking everyone's quota on the 1st of the month."
 
 **Talking points:**
-- **Preview Allocation** first — shows exactly what every active card would receive (rice/wheat/sugar in kg, per category rules — AAY is a fixed 35kg) before anything changes.
+- **Preview Allocation** first — shows exactly what every active card would receive (rice/wheat in kg, per category rules) before anything changes. Allocation is per ration card, not per person: each category carries its own per-card figure (APL 2 kg rice / 1.5 kg wheat, BPL 3 / 2, AAY 4 / 3), sized so a card's whole allocation for one commodity completes in a single IoT dispensing transaction.
 - **Allocate Monthly Ration** actually applies it, after a confirmation dialog warning that it resets balances and can't be undone.
 - Normally this happens automatically every month, so this page is mainly for visibility and manual re-runs if needed.
 

@@ -80,7 +80,7 @@ export async function seedE2eData() {
         // BPL policy = 5kg rice/person (migration 001's seed); 1 person
         // (head only) => a clean, deterministic 5kg = 5000g wallet balance.
         await pool.query(
-            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg) VALUES ($1, 5, 3, 1)`,
+            `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, 5, 3)`,
             [rationCardId],
         );
 

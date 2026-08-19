@@ -149,7 +149,7 @@ const AddRationCard = () => {
       const wallet = data.wallet || {};
 
       toast.success(
-        `Ration card created! ${data.members_created} members added. Wallet: Rice ${wallet.rice_balance_kg}kg, Wheat ${wallet.wheat_balance_kg}kg, Sugar ${wallet.sugar_balance_kg}kg`
+        `Ration card created! ${data.members_created} members added. Wallet: Rice ${wallet.rice_balance_kg}kg, Wheat ${wallet.wheat_balance_kg}kg`
       );
 
       if (timeoutRef.current) {

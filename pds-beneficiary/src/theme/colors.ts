@@ -68,7 +68,6 @@ export const colors = {
     grain: {
         rice: SUCCESS,
         wheat: WARNING,
-        sugar: "#9C27B0",
     },
 
     // Deterministic background palette for initials avatars. All 6 clear

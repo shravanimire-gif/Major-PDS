@@ -22,14 +22,14 @@ beforeAll(async () => {
 
     // Policies
     await pool.query(`
-    INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg) VALUES
-      ('APL', 3.00, 2.00, 0.50),
-      ('BPL', 5.00, 3.00, 1.00),
-      ('AAY', 7.00, 8.00, 1.00)
+    INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
+      ('APL', 2000, 1500),
+      ('BPL', 3000, 2000),
+      ('AAY', 4000, 3000)
+    
     ON CONFLICT (category) DO UPDATE
-      SET rice_per_person_kg = EXCLUDED.rice_per_person_kg,
-          wheat_per_person_kg = EXCLUDED.wheat_per_person_kg,
-          sugar_per_person_kg = EXCLUDED.sugar_per_person_kg
+      SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
+          wheat_per_card_grams = EXCLUDED.wheat_per_card_grams
   `);
 
     // Area
@@ -84,8 +84,8 @@ const seedCard = async (cardNumber, category, memberCount) => {
 
     // Wallet (zeroed)
     await pool.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg)
-     VALUES ($1, 0, 0, 0)`,
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg)
+     VALUES ($1, 0, 0)`,
         [rcId],
     );
 
@@ -98,7 +98,7 @@ describe('Entitlement Engine', () => {
         await pool.query(`TRUNCATE TABLE transactions, wallets, family_members, ration_cards RESTART IDENTITY CASCADE`);
     });
 
-    test('1. AAY family of 6 gets fixed 35kg rice', async () => {
+    test('1. AAY card gets its per-card allocation (4kg rice) regardless of family size', async () => {
         await seedCard('AAY-001', 'AAY', 6);
 
         const res = await request(app)
@@ -112,10 +112,12 @@ describe('Entitlement Engine', () => {
        JOIN ration_cards rc ON rc.id = w.ration_card_id
        WHERE rc.card_number = 'AAY-001'`,
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(35);
+        // Was 35 kg flat (hardcoded in the service); now the AAY per-card
+        // policy figure, which one dispensing transaction can complete.
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(4);
     });
 
-    test('2. BPL family of 3 gets 15kg rice, 9kg wheat', async () => {
+    test('2. BPL card gets 3kg rice, 2kg wheat (per card, not per person)', async () => {
         await seedCard('BPL-001', 'BPL', 3);
 
         await request(app)
@@ -127,11 +129,11 @@ describe('Entitlement Engine', () => {
        JOIN ration_cards rc ON rc.id = w.ration_card_id
        WHERE rc.card_number = 'BPL-001'`,
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(15);
-        expect(Number(walletRes.rows[0].wheat_balance_kg)).toBe(9);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
+        expect(Number(walletRes.rows[0].wheat_balance_kg)).toBe(2);
     });
 
-    test('3. APL family of 4 gets 12kg rice (3 × 4)', async () => {
+    test('3. APL card gets 2kg rice — family size no longer multiplies it', async () => {
         await seedCard('APL-001', 'APL', 4);
 
         await request(app)
@@ -143,7 +145,7 @@ describe('Entitlement Engine', () => {
        JOIN ration_cards rc ON rc.id = w.ration_card_id
        WHERE rc.card_number = 'APL-001'`,
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(12);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(2);
     });
 
     test('4. preview does NOT change wallet', async () => {

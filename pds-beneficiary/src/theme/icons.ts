@@ -17,7 +17,6 @@ export const icons = {
     headOfFamily: { family: "Ionicons", name: "star" },
     grainRice: { family: "MaterialCommunityIcons", name: "rice" },
     grainWheat: { family: "MaterialCommunityIcons", name: "barley" },
-    grainSugar: { family: "MaterialCommunityIcons", name: "cube-outline" },
     qrCode: { family: "Ionicons", name: "qr-code" },
     qrExpired: { family: "Ionicons", name: "time-outline" },
     refresh: { family: "Ionicons", name: "refresh" },

@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const pool = require("../config/db");
+const logger = require("../config/logger");
+const { LAST_SEEN_TOUCH_INTERVAL_MS } = require("../config/iot");
 
 const TOKEN_BYTES = 32;
 const BCRYPT_ROUNDS = 10;
@@ -39,6 +41,16 @@ const validateToken = async (deviceId, rawToken) => {
         return { ok: false, reason: "inactive" };
     }
 
+    // An unassigned device (admin used "Unassign", migration 026 made shop_id
+    // nullable) is registered but inert. Rejected here, at the handshake,
+    // rather than later per-reading: every downstream consumer — the live
+    // reading bus, sensor_readings, session attach, the commit's
+    // device.shop_id === session.shop_id invariant — is keyed on a real shop,
+    // and none of them has a meaningful answer for NULL.
+    if (!device.shop_id) {
+        return { ok: false, reason: "unassigned" };
+    }
+
     if (device.token_expires_at && new Date(device.token_expires_at).getTime() <= Date.now()) {
         return { ok: false, reason: "expired" };
     }
@@ -74,4 +86,65 @@ const touchLastSeen = async (deviceId) => {
     );
 };
 
-module.exports = { generateToken, hashToken, validateToken, touchLastSeen };
+// last_seen_at is what the Admin Panel turns into ONLINE/OFFLINE once the live
+// WebSocket is gone (deviceFleetService.deriveStatus), so it has to keep
+// advancing while a device is streaming — not just record the moment it
+// connected. Without this, a bridge that ran for an hour and then died looked
+// "offline since an hour ago" the instant it dropped, and a backend restart
+// made every genuinely-connected device look stale.
+//
+// Throttled in memory rather than written per reading: the ESP32 samples at
+// 10 Hz, and an UPDATE per sample would be ~864k pointless row versions a day
+// per device for a field whose consumer tolerates minutes of staleness.
+const lastTouchedAtByDevice = new Map();
+
+const touchLastSeenThrottled = (deviceId) => {
+    const now = Date.now();
+    const previous = lastTouchedAtByDevice.get(deviceId) || 0;
+    if (now - previous < LAST_SEEN_TOUCH_INTERVAL_MS) {
+        return false;
+    }
+    lastTouchedAtByDevice.set(deviceId, now);
+    touchLastSeen(deviceId).catch((err) =>
+        logger.error("[IoT] Throttled last_seen_at update failed", { deviceId, message: err.message }),
+    );
+    return true;
+};
+
+// Test/diagnostic helper — lets a suite exercise the throttle deterministically
+// instead of waiting out LAST_SEEN_TOUCH_INTERVAL_MS.
+const _resetLastSeenThrottle = (deviceId) => {
+    if (deviceId === undefined) {
+        lastTouchedAtByDevice.clear();
+    } else {
+        lastTouchedAtByDevice.delete(deviceId);
+    }
+};
+
+// Records the firmware version a device reports in its serial `hello` frame
+// (relayed by the IoT bridge at connect time). Device-reported, never
+// admin-supplied, so iot_devices.firmware_version always describes the binary
+// actually running on the board. Written with a no-op guard so a reconnecting
+// device that reports the same version doesn't churn the row.
+const recordFirmwareVersion = async (deviceId, firmwareVersion) => {
+    if (!firmwareVersion) return false;
+    const result = await pool.query(
+        `UPDATE iot_devices
+        SET firmware_version = $1
+      WHERE device_id = $2
+        AND (firmware_version IS DISTINCT FROM $1)
+      RETURNING device_id`,
+        [String(firmwareVersion).slice(0, 50), deviceId],
+    );
+    return result.rows.length > 0;
+};
+
+module.exports = {
+    generateToken,
+    hashToken,
+    validateToken,
+    touchLastSeen,
+    touchLastSeenThrottled,
+    recordFirmwareVersion,
+    _resetLastSeenThrottle,
+};

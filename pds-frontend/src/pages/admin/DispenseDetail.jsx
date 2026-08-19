@@ -73,6 +73,12 @@ const DispenseDetail = () => {
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-semibold text-text-primary">
                             {session.shop_name} — {session.commodity}
+                            {session.card_number ? (
+                                <span className="ml-2 text-ds-body font-normal text-ds-text-secondary">
+                                    · card {session.card_number}
+                                    {session.category ? ` (${session.category})` : ''}
+                                </span>
+                            ) : null}
                         </h2>
                         <Badge status={STATE_BADGE[session.state] || 'neutral'}>{session.state}</Badge>
                     </div>

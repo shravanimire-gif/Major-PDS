@@ -31,18 +31,24 @@ async function _detectLargeTransactions() {
         `INSERT INTO anomaly_events (type, severity, shop_code, transaction_id, description)
      SELECT
        'large_transaction',
-       CASE WHEN (t.rice_qty_kg + t.wheat_qty_kg + t.sugar_qty_kg) >= $2 THEN 'critical' ELSE 'warning' END,
+       CASE WHEN (t.rice_qty_kg + t.wheat_qty_kg) >= $2 THEN 'critical' ELSE 'warning' END,
        s.shop_code,
        t.id,
        format(
-         'Single dispense of %s kg (rice %s, wheat %s, sugar %s) at %s exceeds the %s kg threshold',
-         (t.rice_qty_kg + t.wheat_qty_kg + t.sugar_qty_kg)::numeric(10,2),
-         t.rice_qty_kg, t.wheat_qty_kg, t.sugar_qty_kg, s.shop_name, $1::text
+         'Single dispense of %s kg (rice %s, wheat %s) at %s exceeds the %s kg threshold',
+         (t.rice_qty_kg + t.wheat_qty_kg)::numeric(10,2),
+         -- $1::numeric, not $1::text: $1 is also compared against a numeric
+         -- sum in the WHERE below, and PostgreSQL infers a single type per
+         -- parameter. Casting it to text here made that comparison
+         -- "numeric >= text", so this rule threw on every run and no
+         -- large_transaction anomaly was ever recorded. format('%s') renders
+         -- the numeric fine.
+         t.rice_qty_kg, t.wheat_qty_kg, s.shop_name, $1::numeric
        )
      FROM transactions t
      JOIN shops s ON s.id = t.shop_id
      WHERE t.created_at >= NOW() - interval '2 hours'
-       AND (t.rice_qty_kg + t.wheat_qty_kg + t.sugar_qty_kg) >= $1
+       AND (t.rice_qty_kg + t.wheat_qty_kg) >= $1
        AND NOT EXISTS (
          SELECT 1 FROM anomaly_events ae
          WHERE ae.transaction_id = t.id AND ae.type = 'large_transaction'
@@ -59,7 +65,7 @@ async function _detectShopSpikes() {
     const { rowCount } = await pool.query(
         `WITH last_24h AS (
        SELECT s.shop_code, s.shop_name,
-         SUM(t.rice_qty_kg + t.wheat_qty_kg + t.sugar_qty_kg) AS total_kg
+         SUM(t.rice_qty_kg + t.wheat_qty_kg) AS total_kg
        FROM transactions t
        JOIN shops s ON s.id = t.shop_id
        WHERE t.created_at >= NOW() - interval '24 hours'
@@ -67,7 +73,7 @@ async function _detectShopSpikes() {
      ),
      baseline AS (
        SELECT s.shop_code,
-         SUM(t.rice_qty_kg + t.wheat_qty_kg + t.sugar_qty_kg) / $1::numeric AS avg_daily_kg
+         SUM(t.rice_qty_kg + t.wheat_qty_kg) / $1::numeric AS avg_daily_kg
        FROM transactions t
        JOIN shops s ON s.id = t.shop_id
        WHERE t.created_at >= NOW() - make_interval(days => $1::int) - interval '24 hours'

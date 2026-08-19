@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CircleCheck, Gauge } from 'lucide-react';
+import { CircleCheck, Gauge, WifiOff } from 'lucide-react';
 import api from '../../api/axios';
 import QRScanner from '../../components/shopkeeper/QRScanner';
 import DispenseWeighingPanel from '../../components/shopkeeper/DispenseWeighingPanel';
@@ -8,6 +8,7 @@ import useToast from '../../components/ui/useToast';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 
 const FLOW = {
@@ -21,7 +22,6 @@ const FLOW = {
 const COMMODITY_BY_QTY_KEY = {
   rice_qty_kg: 'rice',
   wheat_qty_kg: 'wheat',
-  sugar_qty_kg: 'sugar',
 };
 
 const OUTCOME_TOAST = {
@@ -29,12 +29,19 @@ const OUTCOME_TOAST = {
   cancelled: { type: 'warning', message: 'Weighing cancelled.' },
   device_lost: { type: 'danger', message: 'Weighing scale disconnected — please reconnect and restart.' },
   failed_insufficient_balance: { type: 'danger', message: 'Measured weight exceeded the remaining balance.' },
+  failed_already_claimed: {
+    type: 'danger',
+    message: 'This ration card has already claimed this commodity for the current month.',
+  },
+  failed_out_of_tolerance: {
+    type: 'danger',
+    message: 'Final weight was outside the allowed tolerance — nothing was dispensed.',
+  },
 };
 
 const emptyQuantities = {
   rice_qty_kg: 0,
   wheat_qty_kg: 0,
-  sugar_qty_kg: 0,
 };
 
 const parseQrPayload = (rawText) => {
@@ -75,30 +82,44 @@ const ScanAndDispense = () => {
   const [beneficiary, setBeneficiary] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [quantities, setQuantities] = useState(emptyQuantities);
+  // The card's authoritative monthly allocation, resolved server-side from its
+  // category policy. This is the ONLY source for the dispensed quantity: one
+  // allocation is fulfilled by one complete transaction, so the quantity is not
+  // something the shopkeeper chooses.
+  const [allocation, setAllocation] = useState(null);
   const [dispenseResult, setDispenseResult] = useState(null);
-  const [iotAvailable, setIotAvailable] = useState(false);
+  // The shop's scale, as the backend reports it. `active` is the registry
+  // lifecycle ("a device is registered and enabled for this shop") and
+  // `connectivity` is whether a bridge is actually connected right now. Kept
+  // separate because a registered-but-unplugged scale must read OFFLINE — a row
+  // in PostgreSQL is not evidence that anything is on the counter.
+  const [deviceStatus, setDeviceStatus] = useState(null);
   const [weighingSession, setWeighingSession] = useState(null);
 
   const maxes = useMemo(
     () => ({
       rice_qty_kg: Number(wallet?.rice_balance_kg || 0),
       wheat_qty_kg: Number(wallet?.wheat_balance_kg || 0),
-      sugar_qty_kg: Number(wallet?.sugar_balance_kg || 0),
     }),
     [wallet],
   );
 
   const hasExceeded = (key) => Number(quantities[key] || 0) > maxes[key];
 
+  // ONLINE means a bridge is connected to this shop's device right now, not
+  // merely that a device row exists. 'stale' (recently seen, mid-reconnect) is
+  // treated as not-usable for starting a weighing: better to say so than to open
+  // a session that immediately goes device_lost.
+  const scaleOnline = deviceStatus?.active === true && deviceStatus?.connectivity === 'online';
+  const scaleRegistered = deviceStatus?.active === true;
+
   const hasAnySelected =
     Number(quantities.rice_qty_kg) > 0 ||
-    Number(quantities.wheat_qty_kg) > 0 ||
-    Number(quantities.sugar_qty_kg) > 0;
+    Number(quantities.wheat_qty_kg) > 0;
 
   const selectedItems = [
     { key: 'rice_qty_kg', label: 'Rice' },
     { key: 'wheat_qty_kg', label: 'Wheat' },
-    { key: 'sugar_qty_kg', label: 'Sugar' },
   ].filter((item) => Number(quantities[item.key]) > 0);
 
   const resetToScan = () => {
@@ -108,8 +129,9 @@ const ScanAndDispense = () => {
     setBeneficiary(null);
     setWallet(null);
     setQuantities(emptyQuantities);
+    setAllocation(null);
     setDispenseResult(null);
-    setIotAvailable(false);
+    setDeviceStatus(null);
     setWeighingSession(null);
   };
 
@@ -121,13 +143,29 @@ const ScanAndDispense = () => {
         api.get(`/api/shopkeeper/beneficiary/${payload.rationCardId}`, {
           params: { sessionId: payload.sessionId, expiresAt: payload.expiresAt },
         }),
-        api.get('/api/dispense/device-status').catch(() => ({ data: { active: false } })),
+        api
+          .get('/api/dispense/device-status')
+          .catch(() => ({ data: { active: false, connectivity: 'offline' } })),
       ]);
 
+      const loadedWallet = beneficiaryRes.data.wallet;
+      const loadedAllocation = beneficiaryRes.data.allocation || null;
+
       setBeneficiary(beneficiaryRes.data.beneficiary);
-      setWallet(beneficiaryRes.data.wallet);
-      setQuantities(emptyQuantities);
-      setIotAvailable(Boolean(deviceStatusRes.data.active));
+      setWallet(loadedWallet);
+      setAllocation(loadedAllocation);
+
+      // The quantity IS the allocation — never a shopkeeper input, and never
+      // the wallet balance. They differ when the month's claim has already been
+      // taken, and in that case the wallet check below refuses the dispense
+      // rather than quietly serving a smaller amount (which would consume the
+      // claim and strand the remainder).
+      setQuantities(
+        loadedAllocation
+          ? { rice_qty_kg: loadedAllocation.rice_kg, wheat_qty_kg: loadedAllocation.wheat_kg }
+          : emptyQuantities,
+      );
+      setDeviceStatus(deviceStatusRes.data);
       setFlowState(FLOW.BENEFICIARY_LOADED);
     } catch (error) {
       toast.danger(error.response?.data?.error || 'Failed to load beneficiary');
@@ -142,10 +180,13 @@ const ScanAndDispense = () => {
   // session as the identity proof, then attaches the shop's device.
   const handleWeighOnScale = async (qtyKey) => {
     const commodity = COMMODITY_BY_QTY_KEY[qtyKey];
-    const entitledGrams = Math.round(Number(quantities[qtyKey] || 0) * 1000);
+    // Grams comes from the allocation the server resolved, not from the kg field
+    // — a kg round-trip could lose grams, and the backend rejects any value that
+    // is not exactly the card's allocation.
+    const entitledGrams = commodity === 'rice' ? allocation?.rice_grams : allocation?.wheat_grams;
 
-    if (entitledGrams <= 0) {
-      toast.warning('Enter a quantity before weighing');
+    if (!entitledGrams || entitledGrams <= 0) {
+      toast.warning('No allocation available for this commodity');
       return;
     }
 
@@ -191,21 +232,13 @@ const ScanAndDispense = () => {
     fetchBeneficiary(parsed.payload);
   };
 
-  const handleQtyChange = (key, value) => {
-    const parsed = value === '' ? 0 : Number(value);
-    setQuantities((prev) => ({
-      ...prev,
-      [key]: Number.isFinite(parsed) ? parsed : 0,
-    }));
-  };
-
   const handleOpenConfirm = () => {
     if (!hasAnySelected) {
       toast.warning('Select at least one quantity');
       return;
     }
 
-    if (hasExceeded('rice_qty_kg') || hasExceeded('wheat_qty_kg') || hasExceeded('sugar_qty_kg')) {
+    if (hasExceeded('rice_qty_kg') || hasExceeded('wheat_qty_kg')) {
       toast.warning('Quantity cannot exceed wallet balance');
       return;
     }
@@ -222,7 +255,6 @@ const ScanAndDispense = () => {
         session_id: qrPayload.sessionId,
         rice_qty_kg: Number(quantities.rice_qty_kg || 0),
         wheat_qty_kg: Number(quantities.wheat_qty_kg || 0),
-        sugar_qty_kg: Number(quantities.sugar_qty_kg || 0),
       });
 
       setDispenseResult(data);
@@ -273,9 +305,30 @@ const ScanAndDispense = () => {
             <p className="text-sm text-text-secondary">Shop: {beneficiary.shop_name}</p>
           </Card>
 
+          {/* The scale's state, in the shopkeeper's terms. No COM port, no baud
+              rate, no device token, no serial detail — they weigh grain, they do
+              not configure hardware. */}
+          {scaleRegistered && (
+            <Card bodyClassName="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                <Gauge size={16} />
+                IoT Scale
+              </span>
+              {scaleOnline ? (
+                <Badge status="success" dot>
+                  Online
+                </Badge>
+              ) : (
+                <Badge status="danger" dot icon={<WifiOff size={12} />}>
+                  Offline
+                </Badge>
+              )}
+            </Card>
+          )}
+
           <Card bodyClassName="space-y-4">
             <h3 className="font-semibold text-text-primary">Wallet Balance</h3>
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-sm bg-surface-muted p-3 text-center">
                 <p className="text-text-secondary">Rice</p>
                 <p className="text-lg font-semibold tabular-nums text-text-primary">{maxes.rice_qty_kg} kg</p>
@@ -284,38 +337,42 @@ const ScanAndDispense = () => {
                 <p className="text-text-secondary">Wheat</p>
                 <p className="text-lg font-semibold tabular-nums text-text-primary">{maxes.wheat_qty_kg} kg</p>
               </div>
-              <div className="rounded-sm bg-surface-muted p-3 text-center">
-                <p className="text-text-secondary">Sugar</p>
-                <p className="text-lg font-semibold tabular-nums text-text-primary">{maxes.sugar_qty_kg} kg</p>
-              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
                 { key: 'rice_qty_kg', label: 'Rice qty' },
                 { key: 'wheat_qty_kg', label: 'Wheat qty' },
-                { key: 'sugar_qty_kg', label: 'Sugar qty' },
               ].map((field) => (
                 <div key={field.key} className="space-y-2">
+                  {/* Read-only: one allocation is dispensed in one complete
+                      transaction, so the quantity IS the card's authorised
+                      allocation. The backend derives and re-checks it and
+                      rejects any partial amount, so an editable field could
+                      only ever produce a validation error. */}
                   <Input
                     label={field.label}
                     type="number"
-                    min="0"
-                    step="0.01"
+                    readOnly
                     value={quantities[field.key]}
-                    onChange={(event) => handleQtyChange(field.key, event.target.value)}
-                    error={hasExceeded(field.key) ? `Cannot exceed ${maxes[field.key]} kg` : undefined}
+                    hint={
+                      allocation
+                        ? 'Full monthly allocation — partial dispensing is not supported'
+                        : 'Allocation unavailable — no policy is configured for this card'
+                    }
+                    error={hasExceeded(field.key) ? 'Already claimed this month (wallet is short)' : undefined}
                     inputClassName="h-11"
                   />
-                  {iotAvailable && Number(quantities[field.key]) > 0 && !hasExceeded(field.key) && (
+                  {scaleRegistered && Number(quantities[field.key]) > 0 && !hasExceeded(field.key) && (
                     <Button
                       variant="secondary"
                       className="h-9 w-full text-xs"
                       onClick={() => handleWeighOnScale(field.key)}
-                      disabled={loading}
+                      disabled={loading || !scaleOnline}
+                      title={scaleOnline ? undefined : 'The IoT scale is offline'}
                     >
                       <Gauge size={14} />
-                      Weigh on Scale
+                      {scaleOnline ? 'Weigh on Scale' : 'Scale offline'}
                     </Button>
                   )}
                 </div>
@@ -355,12 +412,11 @@ const ScanAndDispense = () => {
 
           <div className="mt-5 space-y-2 text-sm text-text-secondary">
             <p>
-              Dispensed: Rice {dispenseResult.dispensed.rice_qty_kg} kg, Wheat {dispenseResult.dispensed.wheat_qty_kg} kg,
-              Sugar {dispenseResult.dispensed.sugar_qty_kg} kg
+              Dispensed: Rice {dispenseResult.dispensed.rice_qty_kg} kg, Wheat {dispenseResult.dispensed.wheat_qty_kg} kg
             </p>
             <p>
               Remaining: Rice {dispenseResult.remaining_wallet.rice_balance_kg} kg, Wheat{' '}
-              {dispenseResult.remaining_wallet.wheat_balance_kg} kg, Sugar {dispenseResult.remaining_wallet.sugar_balance_kg} kg
+              {dispenseResult.remaining_wallet.wheat_balance_kg} kg
             </p>
           </div>
 

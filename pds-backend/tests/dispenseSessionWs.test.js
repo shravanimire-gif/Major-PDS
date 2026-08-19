@@ -94,9 +94,10 @@ const createAndAttachSession = async ({ rationCardId, entitledGrams }) => {
 
 beforeAll(async () => {
     await pool.query(
-        `INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg) VALUES
-      ('BPL', 5.00, 3.00, 1.00)
-     ON CONFLICT (category) DO UPDATE SET rice_per_person_kg = EXCLUDED.rice_per_person_kg`,
+        `INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
+      ('BPL', 3000, 2000)
+    
+     ON CONFLICT (category) DO UPDATE SET rice_per_card_grams = EXCLUDED.rice_per_card_grams`,
     );
 
     const areaRes = await pool.query(
@@ -143,15 +144,15 @@ afterAll(async () => {
 
 describe('IoT-gated dispense — happy path (readings -> auto-confirm -> committed)', () => {
     it('commits with a correct hash chain, NULL blockchain_tx_hash, and a wallet debit', async () => {
-        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-HAPPY', riceKg: 15 });
-        const sessionId = await createAndAttachSession({ rationCardId, entitledGrams: 5000 });
+        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-HAPPY', riceKg: 3 });
+        const sessionId = await createAndAttachSession({ rationCardId, entitledGrams: 3000 });
 
         const ws = await connectDevice(deviceId, deviceRawToken);
 
         // >=15 readings within the 3s stability window, tightly clustered at
         // the entitled amount — satisfies the auto-confirm rule immediately.
         for (let i = 0; i < 20; i++) {
-            sendReading(ws, 5000);
+            sendReading(ws, 3000);
             await sleep(20);
         }
 
@@ -164,15 +165,15 @@ describe('IoT-gated dispense — happy path (readings -> auto-confirm -> committ
         const recordRes = await pool.query('SELECT * FROM dispense_records WHERE session_id = $1', [sessionId]);
         expect(recordRes.rows.length).toBe(1);
         const record = recordRes.rows[0];
-        expect(record.measured_grams).toBeGreaterThanOrEqual(4995);
-        expect(record.measured_grams).toBeLessThanOrEqual(5005);
+        expect(record.measured_grams).toBeGreaterThanOrEqual(2995);
+        expect(record.measured_grams).toBeLessThanOrEqual(3005);
         expect(record.row_hash).toMatch(/^[0-9a-f]{64}$/);
         expect(record.blockchain_tx_hash).toBeNull(); // no BLOCKCHAIN_* env in test -> recordDispense no-ops
 
         const walletRes = await pool.query('SELECT rice_balance_kg FROM wallets WHERE ration_card_id = $1', [
             rationCardId,
         ]);
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBeCloseTo(10, 1); // 15kg - 5kg
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBeCloseTo(0, 1); // whole allocation discharged
 
         ws.close();
     });
@@ -185,7 +186,7 @@ describe('IoT-gated dispense — happy path (readings -> auto-confirm -> committ
             )
         ).rows[0];
 
-        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-CHAIN2', riceKg: 15 });
+        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-CHAIN2', riceKg: 3 });
         const sessionId = await createAndAttachSession({ rationCardId, entitledGrams: 3000 });
         const ws = await connectDevice(deviceId, deviceRawToken);
 
@@ -209,8 +210,8 @@ describe('IoT-gated dispense — happy path (readings -> auto-confirm -> committ
 
 describe('IoT-gated dispense — device disconnect mid-session', () => {
     it('moves the session to device_lost with no partial commit', async () => {
-        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-LOST', riceKg: 15 });
-        const sessionId = await createAndAttachSession({ rationCardId, entitledGrams: 5000 });
+        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-LOST', riceKg: 3 });
+        const sessionId = await createAndAttachSession({ rationCardId, entitledGrams: 3000 });
 
         const ws = await connectDevice(deviceId, deviceRawToken);
         sendReading(ws, 100); // nowhere near stable/in-tolerance
@@ -231,9 +232,9 @@ describe('IoT-gated dispense — device disconnect mid-session', () => {
 describe('IoT-gated dispense — insufficient-balance race', () => {
     it('commits exactly one of two concurrent commits against a shared wallet; the other fails cleanly', async () => {
         // 5kg available; two sessions each asking for 4kg — only one can win.
-        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-RACE', riceKg: 5 });
+        const rationCardId = await seedRationCardWithWallet({ cardNumber: 'BPL-WS-RACE', riceKg: 3 });
 
-        const sessionAId = await createAndAttachSession({ rationCardId, entitledGrams: 4000 });
+        const sessionAId = await createAndAttachSession({ rationCardId, entitledGrams: 3000 });
         // A second session on the same wallet needs its own attach — but
         // attach requires the shop's *available* device, and a device can
         // only usefully gate one session's readings at a time in real
@@ -245,7 +246,7 @@ describe('IoT-gated dispense — insufficient-balance race', () => {
         const createBRes = await request(app)
             .post('/api/dispense/session')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, commodity: 'rice', entitled_grams: 4000, qr_session_id: qrSessionIdB });
+            .send({ ration_card_id: rationCardId, commodity: 'rice', entitled_grams: 3000, qr_session_id: qrSessionIdB });
         expect(createBRes.status).toBe(201);
         const sessionBId = createBRes.body.session_id;
         await pool.query(`UPDATE dispense_sessions SET state = 'weighing' WHERE id = $1`, [sessionBId]);
@@ -254,8 +255,8 @@ describe('IoT-gated dispense — insufficient-balance race', () => {
         await pool.query(`UPDATE dispense_sessions SET state = 'weighing' WHERE id = $1`, [sessionAId]);
 
         const [resultA, resultB] = await Promise.all([
-            dispenseSessionService.commitSession(sessionAId, 4000),
-            dispenseSessionService.commitSession(sessionBId, 4000),
+            dispenseSessionService.commitSession(sessionAId, 3000),
+            dispenseSessionService.commitSession(sessionBId, 3000),
         ]);
 
         const successes = [resultA, resultB].filter((r) => r.success);
@@ -273,7 +274,7 @@ describe('IoT-gated dispense — insufficient-balance race', () => {
         const walletRes = await pool.query('SELECT rice_balance_kg FROM wallets WHERE ration_card_id = $1', [
             rationCardId,
         ]);
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBeCloseTo(1, 1); // 5kg - 4kg, only once
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBeCloseTo(0, 1); // 3kg - 3kg, only once
     });
 });
 

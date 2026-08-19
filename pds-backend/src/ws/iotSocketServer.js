@@ -3,19 +3,27 @@ const logger = require("../config/logger");
 const deviceRegistryService = require("../services/deviceRegistryService");
 const liveReadingBus = require("../services/liveReadingBus");
 const iotController = require("../controllers/iotController");
-const { deviceReadingFrameSchema } = require("../validators/iot");
+const {
+    deviceReadingFrameSchema,
+    deviceHelloFrameSchema,
+    deviceHeartbeatFrameSchema,
+    deviceErrorFrameSchema,
+} = require("../validators/iotFrames");
 const dispenseSessionService = require("../services/dispenseSessionService");
 const dispenseSessionBus = require("../services/dispenseSessionBus");
 const stabilityDetectorService = require("../services/stabilityDetectorService");
 const deviceConnectionRegistry = require("../services/deviceConnectionRegistry");
 const metrics = require("../config/metrics");
-const { CONFIRM_COUNTDOWN_MS } = require("../config/iot");
+const { CONFIRM_COUNTDOWN_MS, DEVICE_IDLE_TIMEOUT_MS } = require("../config/iot");
 
-// Device firmware pings every 15s (see iot-device/ws_client.cpp). If nothing
-// — not even a ping — has arrived for 3 missed intervals, treat the socket as
-// dead and terminate it rather than waiting on TCP to notice.
+// The client — the USB IoT bridge (iot-bridge/), or the Wi-Fi firmware's
+// ws_client.cpp — sends a heartbeat every 15s. If nothing at all (reading,
+// heartbeat or ping) has arrived for 3 missed intervals, treat the socket as
+// dead and terminate it rather than waiting on TCP to notice. Terminating
+// fires the 'close' handler, which is what actually flips the device to
+// OFFLINE and releases any session it was gating.
 const STALE_SWEEP_INTERVAL_MS = 15_000;
-const STALE_THRESHOLD_MS = 45_000;
+const STALE_THRESHOLD_MS = DEVICE_IDLE_TIMEOUT_MS;
 
 const extractSubprotocol = (req) => {
     const header = req.headers["sec-websocket-protocol"];
@@ -84,34 +92,116 @@ const createIotSocketServer = () => {
             ws.lastActivity = Date.now();
         });
 
-        ws.on("message", async (raw) => {
-            ws.lastActivity = Date.now();
+        // ---- FRAME HANDLERS ---------------------------------------------
+        // One handler per frame type, each validated against its own schema in
+        // validators/iotFrames.js. Anything unrecognised or malformed is
+        // dropped with a log line; a device frame never crashes the socket.
+        //
+        // No handler reads a business field off the frame. Shop comes from the
+        // authenticated `device` row, session from dispense_sessions, and
+        // entitlement from the session — a device that asserted any of those
+        // would be asserting its own authorisation.
 
-            let parsed;
-            try {
-                parsed = JSON.parse(raw.toString());
-            } catch (err) {
-                logger.warn("[IoT] Dropped malformed (non-JSON) frame", {
+        // `hello` — sent once per connection by the USB bridge (or the Wi-Fi
+        // firmware) right after the handshake. Its only persistent effect is
+        // recording the firmware version the board reported over serial.
+        const handleHello = (frame) => {
+            const { error, value } = deviceHelloFrameSchema.validate(frame);
+            if (error) {
+                logger.warn("[IoT] Dropped invalid hello frame", {
                     deviceId: device.device_id,
+                    message: error.message,
                 });
                 return;
             }
 
-            const { error, value } = deviceReadingFrameSchema.validate(parsed);
+            logger.info("[IoT] Device hello", {
+                deviceId: device.device_id,
+                shopId: device.shop_id,
+                firmware: value.firmware,
+                transport: value.transport,
+            });
+
+            deviceRegistryService
+                .recordFirmwareVersion(device.device_id, value.firmware)
+                .catch((err) =>
+                    logger.error("[IoT] Failed to record firmware version", {
+                        deviceId: device.device_id,
+                        message: err.message,
+                    }),
+                );
+        };
+
+        // `heartbeat` — keeps last_seen_at advancing while the scale sits idle.
+        // Deliberately NOT persisted as a 0 g reading: sensor_readings is the
+        // measurement log, and a heartbeat is not a measurement.
+        const handleHeartbeat = (frame) => {
+            const { error } = deviceHeartbeatFrameSchema.validate(frame);
+            if (error) {
+                logger.warn("[IoT] Dropped invalid heartbeat frame", {
+                    deviceId: device.device_id,
+                    message: error.message,
+                });
+                return;
+            }
+            deviceRegistryService.touchLastSeenThrottled(device.device_id);
+        };
+
+        // `error` — the hardware reporting its own fault (overload, cell
+        // disconnected/reversed, uncalibrated). Surfaced to the shop's live
+        // view so an admin/shopkeeper sees why readings stopped, and counted
+        // toward the needs_recalibration signal for a sensor fault. It carries
+        // no grams value, so it can never be mistaken for a dispense.
+        const handleDeviceError = (frame) => {
+            const { error, value } = deviceErrorFrameSchema.validate(frame);
+            if (error) {
+                logger.warn("[IoT] Dropped invalid error frame", {
+                    deviceId: device.device_id,
+                    message: error.message,
+                });
+                return;
+            }
+
+            logger.warn("[IoT] Device reported a hardware fault", {
+                deviceId: device.device_id,
+                code: value.code,
+                detail: value.detail,
+            });
+
+            // An overload/underrange fault means the cell produced a value
+            // outside its credible range — the same signal an out-of-range
+            // frame carries, so it feeds the same recalibration counter.
+            if (value.code === "OVERLOAD" || value.code === "SENSOR_FAULT") {
+                iotController.recordRejectionAndMaybeFlag(device.device_id);
+            }
+
+            liveReadingBus.publish(device.shop_id, {
+                type: "device_error",
+                deviceId: device.device_id,
+                code: value.code,
+                detail: value.detail,
+            });
+        };
+
+        const handleReading = async (frame) => {
+            const { error, value } = deviceReadingFrameSchema.validate(frame);
             if (error) {
                 logger.warn("[IoT] Dropped invalid frame", {
                     deviceId: device.device_id,
                     message: error.message,
                 });
                 // The sanity-ceiling rejection counter needs to see frames
-                // rejected here too — Joi's own max(10000) on `grams` means
-                // out-of-range readings are normally caught at this layer,
-                // never reaching iotController.persistReading's own check.
+                // rejected here too — Joi's own max on `grams`
+                // (MAX_VALID_GRAMS, config/iot.js) means out-of-range readings
+                // are normally caught at this layer, never reaching
+                // iotController.persistReading's own check.
                 if (error.details?.some((detail) => detail.path.includes("grams"))) {
                     iotController.recordRejectionAndMaybeFlag(device.device_id);
                 }
                 return;
             }
+
+            deviceRegistryService.touchLastSeenThrottled(device.device_id);
 
             const takenAt = new Date(value.ts);
 
@@ -226,6 +316,40 @@ const createIotSocketServer = () => {
             } else if (!stable && session.state === "confirming") {
                 clearConfirmTimer();
                 await dispenseSessionService.revertToWeighing(session.id);
+            }
+        };
+
+        ws.on("message", async (raw) => {
+            ws.lastActivity = Date.now();
+
+            let parsed;
+            try {
+                parsed = JSON.parse(raw.toString());
+            } catch (err) {
+                logger.warn("[IoT] Dropped malformed (non-JSON) frame", {
+                    deviceId: device.device_id,
+                });
+                return;
+            }
+
+            switch (parsed?.type) {
+                case "hello":
+                    handleHello(parsed);
+                    return;
+                case "heartbeat":
+                    handleHeartbeat(parsed);
+                    return;
+                case "error":
+                    handleDeviceError(parsed);
+                    return;
+                case "reading":
+                    await handleReading(parsed);
+                    return;
+                default:
+                    logger.warn("[IoT] Dropped frame with unknown type", {
+                        deviceId: device.device_id,
+                        type: typeof parsed?.type === "string" ? parsed.type.slice(0, 40) : typeof parsed?.type,
+                    });
             }
         });
 

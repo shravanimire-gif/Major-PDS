@@ -7,7 +7,12 @@
     "blockchain:test": "cd blockchain && npm test",
     "blockchain:local": "cd blockchain && npm run deploy:local",
     "blockchain:deploy": "cd blockchain && npm run deploy:sepolia",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "iot:bridge": "cd iot-bridge && npm start",
+    "iot:devices": "cd iot-bridge && npm run devices",
+    "iot:test": "cd iot-bridge && npm test",
+    "iot:sniff": "cd iot-bridge && npm run sniff",
+    "iot:verify": "cd iot-bridge && npm run verify"
   },
   "devDependencies": {
     "concurrently": "^8.0.0"

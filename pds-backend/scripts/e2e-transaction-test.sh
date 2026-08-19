@@ -61,8 +61,7 @@ sep "STEP 6 — Beneficiary Wallet (pre-transaction balance)"
 WALLET_RESP=$(get "$BASE/api/beneficiary/wallet" -H "Authorization: Bearer $BEN_TOKEN") || { fail "GET /beneficiary/wallet HTTP error"; exit 1; }
 PRE_RICE=$(jq_val "$WALLET_RESP" "['wallet']['rice_balance_kg']")
 PRE_WHEAT=$(jq_val "$WALLET_RESP" "['wallet']['wheat_balance_kg']")
-PRE_SUGAR=$(jq_val "$WALLET_RESP" "['wallet']['sugar_balance_kg']")
-[ -n "$PRE_RICE" ] && ok "Pre-transaction wallet → rice=$PRE_RICE, wheat=$PRE_WHEAT, sugar=$PRE_SUGAR" || fail "Wallet fetch failed: $WALLET_RESP"
+[ -n "$PRE_RICE" ] && ok "Pre-transaction wallet → rice=$PRE_RICE, wheat=$PRE_WHEAT" || fail "Wallet fetch failed: $WALLET_RESP"
 
 sep "STEP 7 — Beneficiary Family Members"
 FAM_RESP=$(get "$BASE/api/beneficiary/family" -H "Authorization: Bearer $BEN_TOKEN") || { fail "GET /beneficiary/family HTTP error"; exit 1; }
@@ -92,18 +91,16 @@ BEN_CAT=$(jq_val "$SCAN_RESP" "['beneficiary']['category']")
 BEN_FAM=$(jq_val "$SCAN_RESP" "['beneficiary']['family_size']")
 SCAN_RICE=$(jq_val "$SCAN_RESP" "['wallet']['rice_balance_kg']")
 SCAN_WHEAT=$(jq_val "$SCAN_RESP" "['wallet']['wheat_balance_kg']")
-SCAN_SUGAR=$(jq_val "$SCAN_RESP" "['wallet']['sugar_balance_kg']")
 
 [ -n "$BEN_NAME" ]  && ok "Beneficiary name displayed: $BEN_NAME"   || fail "Beneficiary name missing"
 [ -n "$BEN_CARD" ]  && ok "Card number displayed: $BEN_CARD"         || fail "Card number missing"
 [ -n "$BEN_CAT" ]   && ok "Category displayed: $BEN_CAT"             || fail "Category missing"
 [ -n "$BEN_FAM" ]   && ok "Family size displayed: $BEN_FAM"          || fail "Family size missing"
-[ -n "$SCAN_RICE" ] && ok "Wallet displayed → rice=$SCAN_RICE, wheat=$SCAN_WHEAT, sugar=$SCAN_SUGAR" || fail "Wallet balance missing"
+[ -n "$SCAN_RICE" ] && ok "Wallet displayed → rice=$SCAN_RICE, wheat=$SCAN_WHEAT" || fail "Wallet balance missing"
 
 sep "STEP 11 — Confirm Distribution (POST /shopkeeper/dispense)"
 RICE_DISPENSE=5
 WHEAT_DISPENSE=3
-SUGAR_DISPENSE=0
 
 DISPENSE_BODY=$(cat <<EOF
 {
@@ -111,8 +108,7 @@ DISPENSE_BODY=$(cat <<EOF
   "session_id": "$SESSION_ID",
   "beneficiary_user_id": "$BEN_USER_ID",
   "rice_qty_kg": $RICE_DISPENSE,
-  "wheat_qty_kg": $WHEAT_DISPENSE,
-  "sugar_qty_kg": $SUGAR_DISPENSE
+  "wheat_qty_kg": $WHEAT_DISPENSE
 }
 EOF
 )
@@ -139,7 +135,7 @@ else
 fi
 
 sep "STEP 13 — Verify Transaction in DB"
-DB_TX=$(psql -d newpds -t -c "SELECT id, rice_qty_kg, wheat_qty_kg, sugar_qty_kg, created_at FROM transactions WHERE id='$TX_ID' LIMIT 1;" 2>&1 | xargs)
+DB_TX=$(psql -d newpds -t -c "SELECT id, rice_qty_kg, wheat_qty_kg, created_at FROM transactions WHERE id='$TX_ID' LIMIT 1;" 2>&1 | xargs)
 [ -n "$DB_TX" ] && ok "Transaction in DB: $DB_TX" || fail "Transaction NOT found in DB"
 
 sep "STEP 14 — Verify QR Session Marked as Used"
@@ -174,7 +170,7 @@ sep "STEP 18 — Duplicate QR Reuse Prevention"
 NEW_SESSION=$(post "$BASE/api/beneficiary/qr-session" -H "Authorization: Bearer $BEN_TOKEN" -d '{}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('sessionId',''))" 2>/dev/null || echo "")
 if [ -n "$NEW_SESSION" ]; then
   DUP_QR_RESP=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $SK_TOKEN" \
-    "$BASE/api/shopkeeper/dispense" -d "{\"ration_card_id\":\"$QR_RC_ID\",\"session_id\":\"$NEW_SESSION\",\"beneficiary_user_id\":\"$BEN_USER_ID\",\"rice_qty_kg\":2,\"wheat_qty_kg\":1,\"sugar_qty_kg\":0}")
+    "$BASE/api/shopkeeper/dispense" -d "{\"ration_card_id\":\"$QR_RC_ID\",\"session_id\":\"$NEW_SESSION\",\"beneficiary_user_id\":\"$BEN_USER_ID\",\"rice_qty_kg\":2,\"wheat_qty_kg\":1}")
   DUP_QR_ERR=$(jq_val "$DUP_QR_RESP" "['error']")
   echo "$DUP_QR_ERR" | grep -qi "already claimed" && ok "Monthly re-claim blocked: $DUP_QR_ERR" || warn "Monthly re-claim check: $DUP_QR_RESP"
 fi

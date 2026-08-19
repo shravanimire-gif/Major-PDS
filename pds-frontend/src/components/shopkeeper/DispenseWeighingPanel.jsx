@@ -8,14 +8,25 @@ import api, { resolvedApiBaseUrl } from '../../api/axios';
 const TOKEN_KEY = 'pds_token';
 const RECONNECT_DELAY_MS = 3000;
 
-const TERMINAL_STATES = ['committed', 'cancelled', 'device_lost', 'failed_insufficient_balance'];
+const TERMINAL_STATES = [
+    'committed',
+    'cancelled',
+    'device_lost',
+    'failed_insufficient_balance',
+    // Raised when the card's monthly claim for this commodity was taken by
+    // another dispense (manual or IoT) while this session was open.
+    'failed_already_claimed',
+    // Raised by commitSession's tolerance guard when the final measurement is
+    // outside the session's allowed deviation.
+    'failed_out_of_tolerance',
+];
 
 const resolveWsUrl = () => {
     const base = resolvedApiBaseUrl || `${window.location.protocol}//${window.location.hostname}:5055`;
     return `${base.replace(/^http/, 'ws')}/ws/shopkeeper/live`;
 };
 
-const COMMODITY_LABEL = { rice: 'rice', wheat: 'wheat', sugar: 'sugar' };
+const COMMODITY_LABEL = { rice: 'rice', wheat: 'wheat' };
 
 // The IoT-gated dispense screen from Phase 2: beneficiary card on top, a big
 // live weight readout with a tolerance band in the middle, Cancel always
@@ -142,6 +153,10 @@ const DispenseWeighingPanel = ({
         stateText = 'Confirmed';
     } else if (sessionState === 'failed_insufficient_balance') {
         stateText = 'Insufficient balance';
+    } else if (sessionState === 'failed_already_claimed') {
+        stateText = 'Already claimed this month';
+    } else if (sessionState === 'failed_out_of_tolerance') {
+        stateText = 'Weight outside tolerance';
     } else if (sessionState === 'confirming') {
         const seconds = Math.max(1, Math.ceil((msLeft ?? 0) / 1000));
         stateText = `Hold — confirming in ${seconds}…`;
@@ -203,13 +218,25 @@ const DispenseWeighingPanel = ({
                 }
             >
                 <p className="text-sm text-text-secondary">
+                    {/* The committed line quotes the ENTITLEMENT, not the last
+                        live reading. The wallet is debited by the authorised
+                        allocation (measured_grams is kept on dispense_records for
+                        audit), so quoting the reading here would tell the
+                        beneficiary a different number from the one on their
+                        transaction. */}
                     {sessionState === 'committed' &&
-                        `Dispensed ${gramsInt.toLocaleString()}g of ${commodityLabel} to ${beneficiaryName}.`}
-                    {sessionState === 'cancelled' && 'The dispense was cancelled.'}
+                        `Dispensed ${entitledGrams.toLocaleString()}g of ${commodityLabel} to ${beneficiaryName} ` +
+                        `(measured ${gramsInt.toLocaleString()}g, within the ${toleranceGrams}g tolerance).`}
+                    {sessionState === 'cancelled' && 'The dispense was cancelled. Nothing was debited.'}
                     {sessionState === 'device_lost' &&
-                        'The weighing scale disconnected — please reconnect it and restart the dispense.'}
+                        'The weighing scale disconnected — please reconnect it and restart the dispense. Nothing was debited.'}
                     {sessionState === 'failed_insufficient_balance' &&
-                        "The measured weight exceeded the beneficiary's remaining balance."}
+                        "The beneficiary's wallet no longer holds this commodity's full allocation, so the dispense could not complete. Nothing was debited."}
+                    {sessionState === 'failed_already_claimed' &&
+                        'This ration card already claimed this commodity for the current month. Nothing was debited.'}
+                    {sessionState === 'failed_out_of_tolerance' &&
+                        `The final weight was outside the allowed ${toleranceGrams}g tolerance for a ` +
+                        `${entitledGrams.toLocaleString()}g allocation. Nothing was debited — re-weigh to try again.`}
                 </p>
             </Modal>
         </div>

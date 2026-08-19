@@ -1,0 +1,21 @@
+{
+  "name": "pds-iot-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Owns the ESP32's USB COM port on the Windows PC and relays weight readings to pds-backend's existing /ws/iot device protocol.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "devices": "node src/listDevices.js",
+    "sniff": "node src/sniff.js",
+    "verify": "node src/verifyHardware.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "dotenv": "^16.4.5",
+    "serialport": "^13.0.0",
+    "ws": "^8.21.1"
+  }
+}

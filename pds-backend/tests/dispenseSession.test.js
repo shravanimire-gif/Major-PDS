@@ -37,16 +37,18 @@ const createSessionViaApi = async (overrides = {}) => {
         .send({
             ration_card_id: overrides.rationCardId || rationCardId,
             commodity: overrides.commodity || 'rice',
-            entitled_grams: overrides.entitledGrams || 5000,
+            entitled_grams: overrides.entitledGrams || 3000,
             qr_session_id: qrSessionId,
         });
 };
 
 beforeAll(async () => {
     await pool.query(
-        `INSERT INTO policies (category, rice_per_person_kg, wheat_per_person_kg, sugar_per_person_kg) VALUES
-      ('BPL', 5.00, 3.00, 1.00)
-     ON CONFLICT (category) DO UPDATE SET rice_per_person_kg = EXCLUDED.rice_per_person_kg`,
+        `INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
+      ('BPL', 3000, 2000),
+      ('APL', 1000, 1000)
+     ON CONFLICT (category) DO UPDATE SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
+                                          wheat_per_card_grams = EXCLUDED.wheat_per_card_grams`,
     );
 
     const areaRes = await pool.query(
@@ -93,7 +95,7 @@ beforeAll(async () => {
 
     // 15kg rice balance = 15000g
     await pool.query(
-        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg, sugar_balance_kg) VALUES ($1, 15, 9, 3)`,
+        `INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, 3, 2)`,
         [rationCardId],
     );
 
@@ -115,7 +117,7 @@ describe('POST /api/dispense/session', () => {
         const res = await request(app)
             .post('/api/dispense/session')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, commodity: 'rice', entitled_grams: 5000, qr_session_id: qrSessionId });
+            .send({ ration_card_id: rationCardId, commodity: 'rice', entitled_grams: 3000, qr_session_id: qrSessionId });
 
         expect(res.status).toBe(201);
         expect(res.body.session_id).toBeDefined();
@@ -123,14 +125,20 @@ describe('POST /api/dispense/session', () => {
 
         const sessionRow = await pool.query('SELECT * FROM dispense_sessions WHERE id = $1', [res.body.session_id]);
         expect(sessionRow.rows[0].state).toBe('active');
-        expect(sessionRow.rows[0].tolerance_grams).toBe(50); // max(20, 1% of 5000)
+        expect(sessionRow.rows[0].tolerance_grams).toBe(30); // max(20, 1% of 3000)
 
         const qrRow = await pool.query('SELECT is_used FROM qr_sessions WHERE session_id = $1', [qrSessionId]);
         expect(qrRow.rows[0].is_used).toBe(true);
     });
 
     it('applies the 20g minimum tolerance floor for small quantities', async () => {
-        const res = await createSessionViaApi({ entitledGrams: 1000 }); // 1% = 10g, floor is 20g
+        // APL allocates 1000 g, so 1% = 10 g and the 20 g floor applies.
+        const aplRc = await pool.query(
+            `INSERT INTO ration_cards (card_number, category, shop_id, area_id) VALUES ($1, 'APL', $2, $3) RETURNING id`,
+            [`APL-DS-FLOOR-${Date.now()}`, shopId, areaId],
+        );
+        await pool.query(`INSERT INTO wallets (ration_card_id, rice_balance_kg) VALUES ($1, 1)`, [aplRc.rows[0].id]);
+        const res = await createSessionViaApi({ rationCardId: aplRc.rows[0].id, entitledGrams: 1000 });
         expect(res.status).toBe(201);
         const sessionRow = await pool.query('SELECT tolerance_grams FROM dispense_sessions WHERE id = $1', [
             res.body.session_id,
@@ -164,7 +172,7 @@ describe('POST /api/dispense/session', () => {
             lowBalRcRes.rows[0].id,
         ]);
 
-        const res = await createSessionViaApi({ rationCardId: lowBalRcRes.rows[0].id, entitledGrams: 5000 });
+        const res = await createSessionViaApi({ rationCardId: lowBalRcRes.rows[0].id, entitledGrams: 3000 });
         expect(res.status).toBe(400);
         expect(res.body.code).toBe('IOT_INSUFFICIENT_BALANCE');
     });
@@ -235,7 +243,7 @@ describe('POST /api/dispense/session/:id/attach', () => {
             [shopNoDeviceId, areaId],
         );
         await pool.query(
-            `INSERT INTO wallets (ration_card_id, rice_balance_kg) VALUES ($1, 20)`,
+            `INSERT INTO wallets (ration_card_id, rice_balance_kg) VALUES ($1, 3)`,
             [rcRes.rows[0].id],
         );
         await pool.query(
@@ -254,7 +262,7 @@ describe('POST /api/dispense/session/:id/attach', () => {
         const createRes = await request(app)
             .post('/api/dispense/session')
             .set('Authorization', `Bearer ${otherSkToken}`)
-            .send({ ration_card_id: rcRes.rows[0].id, commodity: 'rice', entitled_grams: 1000, qr_session_id: qrSessionId });
+            .send({ ration_card_id: rcRes.rows[0].id, commodity: 'rice', entitled_grams: 3000, qr_session_id: qrSessionId });
         expect(createRes.status).toBe(201);
 
         const res = await request(app)

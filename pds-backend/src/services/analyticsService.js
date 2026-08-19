@@ -29,7 +29,7 @@ function _normalizeRange(range) {
 }
 
 /**
- * Daily rice/wheat/sugar totals for the requested range, with zero-filled
+ * Daily rice/wheat totals for the requested range, with zero-filled
  * gaps for days with no dispenses (so a line/area chart doesn't skip days).
  */
 async function getDistributionTrend(range) {
@@ -41,8 +41,7 @@ async function getDistributionTrend(range) {
             `WITH daily AS (
          SELECT date_trunc('day', created_at)::date AS day,
                 SUM(rice_qty_kg) AS rice_kg,
-                SUM(wheat_qty_kg) AS wheat_kg,
-                SUM(sugar_qty_kg) AS sugar_kg
+                SUM(wheat_qty_kg) AS wheat_kg
          FROM transactions
          WHERE created_at >= date_trunc('day', NOW()) - make_interval(days => $1::int)
          GROUP BY 1
@@ -50,8 +49,7 @@ async function getDistributionTrend(range) {
        SELECT
          d::date AS day,
          COALESCE(daily.rice_kg, 0)::float AS rice_kg,
-         COALESCE(daily.wheat_kg, 0)::float AS wheat_kg,
-         COALESCE(daily.sugar_kg, 0)::float AS sugar_kg
+         COALESCE(daily.wheat_kg, 0)::float AS wheat_kg
        FROM generate_series(
          date_trunc('day', NOW()) - make_interval(days => $1::int),
          date_trunc('day', NOW()),
@@ -68,7 +66,6 @@ async function getDistributionTrend(range) {
                 date: r.day.toISOString().slice(0, 10),
                 rice_kg: r.rice_kg,
                 wheat_kg: r.wheat_kg,
-                sugar_kg: r.sugar_kg,
             })),
         };
     });
@@ -79,11 +76,17 @@ async function getDistributionTrend(range) {
  * dispensed over the range, sorted by |gap| descending (both under- and
  * over-dispensing are candidates worth an admin's attention).
  *
- * Entitlement is fundamentally a monthly figure (policies.*_per_person_kg,
+ * Entitlement is fundamentally a monthly figure (policies.*_per_card_grams,
  * replenished monthly by entitlementService/entitlementCron). To compare it
  * against an arbitrary N-day window, the monthly entitlement is pro-rated
  * by (days/30). This is an approximation, not exact accounting — flagged
  * here and in the implementation summary.
+ *
+ * Entitlement is per ration card, so it is NOT multiplied by member_count:
+ * one active card contributes exactly its category's per-card allocation.
+ * Reading it per-person here (as this query used to) would have overstated
+ * entitlement for every multi-member household and made utilisation look
+ * permanently low.
  */
 async function getEntitlementVsActual(groupBy, range) {
     const normalizedGroupBy = groupBy === "district" ? "district" : "shop";
@@ -101,31 +104,23 @@ async function getEntitlementVsActual(groupBy, range) {
             `WITH card_entitlement AS (
          SELECT
            rc.shop_id,
-           p.rice_per_person_kg * fm.member_count AS rice_entitled,
-           p.wheat_per_person_kg * fm.member_count AS wheat_entitled,
-           p.sugar_per_person_kg * fm.member_count AS sugar_entitled
+           p.rice_per_card_grams  / 1000.0 AS rice_entitled,
+           p.wheat_per_card_grams / 1000.0 AS wheat_entitled
          FROM ration_cards rc
          JOIN policies p ON p.category = rc.category
-         JOIN (
-           SELECT ration_card_id, COUNT(*) AS member_count
-           FROM family_members
-           GROUP BY ration_card_id
-         ) fm ON fm.ration_card_id = rc.id
          WHERE rc.is_active = true
        ),
        entitlement_by_shop AS (
          SELECT shop_id,
            SUM(rice_entitled) AS rice_entitled,
-           SUM(wheat_entitled) AS wheat_entitled,
-           SUM(sugar_entitled) AS sugar_entitled
+           SUM(wheat_entitled) AS wheat_entitled
          FROM card_entitlement
          GROUP BY shop_id
        ),
        actual_by_shop AS (
          SELECT shop_id,
            SUM(rice_qty_kg) AS rice_actual,
-           SUM(wheat_qty_kg) AS wheat_actual,
-           SUM(sugar_qty_kg) AS sugar_actual
+           SUM(wheat_qty_kg) AS wheat_actual
          FROM transactions
          WHERE created_at >= NOW() - make_interval(days => $2::int)
          GROUP BY shop_id
@@ -134,10 +129,8 @@ async function getEntitlementVsActual(groupBy, range) {
          ${groupCols},
          SUM(COALESCE(eb.rice_entitled, 0)) * $1::float AS rice_entitled,
          SUM(COALESCE(eb.wheat_entitled, 0)) * $1::float AS wheat_entitled,
-         SUM(COALESCE(eb.sugar_entitled, 0)) * $1::float AS sugar_entitled,
          SUM(COALESCE(ab.rice_actual, 0)) AS rice_actual,
-         SUM(COALESCE(ab.wheat_actual, 0)) AS wheat_actual,
-         SUM(COALESCE(ab.sugar_actual, 0)) AS sugar_actual
+         SUM(COALESCE(ab.wheat_actual, 0)) AS wheat_actual
        FROM shops s
        JOIN areas a ON a.id = s.area_id
        LEFT JOIN entitlement_by_shop eb ON eb.shop_id = s.id
@@ -147,21 +140,19 @@ async function getEntitlementVsActual(groupBy, range) {
         );
 
         const results = rows.map((r) => {
-            const entitledTotal = Number(r.rice_entitled) + Number(r.wheat_entitled) + Number(r.sugar_entitled);
-            const actualTotal = Number(r.rice_actual) + Number(r.wheat_actual) + Number(r.sugar_actual);
+            const entitledTotal = Number(r.rice_entitled) + Number(r.wheat_entitled);
+            const actualTotal = Number(r.rice_actual) + Number(r.wheat_actual);
             return {
                 id: r.group_id,
                 label: r.group_label,
                 entitled: {
                     rice_kg: Number(r.rice_entitled),
                     wheat_kg: Number(r.wheat_entitled),
-                    sugar_kg: Number(r.sugar_entitled),
                     total_kg: entitledTotal,
                 },
                 actual: {
                     rice_kg: Number(r.rice_actual),
                     wheat_kg: Number(r.wheat_actual),
-                    sugar_kg: Number(r.sugar_actual),
                     total_kg: actualTotal,
                 },
                 gap_kg: entitledTotal - actualTotal, // positive = under-dispensed, negative = over-dispensed
