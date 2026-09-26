@@ -36,7 +36,7 @@
 Scale scale;
 
 #if PDS_TRANSPORT_SERIAL
-SerialLink link;
+SerialLink serialLink;
 #else
 WifiManager wifiManager;
 WsClient wsClient;
@@ -48,6 +48,13 @@ unsigned long lastSampleMs = 0;
 unsigned long lastSentMs = 0;
 unsigned long lastHeartbeatMs = 0;
 int lastSentGrams = INT32_MIN; // guarantees the very first reading always sends
+
+// Guided calibration state. The operator starts it with `c` (1000 g) or
+// `c<grams>`, places the reference weight while the five-second countdown runs,
+// and the firmware captures the reading automatically.
+static bool calibrationPending = false;
+static float calibrationKnownGrams = 0.0f;
+static unsigned long calibrationDueMs = 0;
 
 // Sensor-fault state. While set, no reading is transmitted: an overloaded or
 // disconnected cell must surface as a safety condition, never as a business
@@ -61,8 +68,10 @@ unsigned long lastSafetyLogMs = 0;
 // never been calibrated". Weight readings from an uncalibrated cell are raw ADC
 // counts scaled by nothing, so they are meaningless as grams — the operator is
 // told, once, at boot.
-static bool isCalibrated() {
-    return scale.getCalibrationFactor() != 1.0f;
+static bool isCalibrated()
+{
+    const float factor = scale.getCalibrationFactor();
+    return scale.hasTareOffset() && isfinite(factor) && fabsf(factor) > 0.000001f && fabsf(factor - 1.0f) > 0.000001f;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,9 +80,10 @@ static bool isCalibrated() {
 // they treat an overload or a stability window.
 // ---------------------------------------------------------------------------
 
-static void emitReading(int grams, unsigned long nowMs) {
+static void emitReading(int grams, unsigned long nowMs)
+{
 #if PDS_TRANSPORT_SERIAL
-    link.sendReading(grams, nowMs);
+    serialLink.sendReading(grams, nowMs);
 #else
     struct timeval tv;
     gettimeofday(&tv, nullptr);
@@ -82,9 +92,10 @@ static void emitReading(int grams, unsigned long nowMs) {
 #endif
 }
 
-static void emitError(const char* code, const char* detail) {
+static void emitError(const char *code, const char *detail)
+{
 #if PDS_TRANSPORT_SERIAL
-    link.sendError(code, detail);
+    serialLink.sendError(code, detail);
 #else
     // The WiFi build's frame set has no error type (the backend's device frame
     // schema gained one with the USB work); the console line is the record.
@@ -92,9 +103,10 @@ static void emitError(const char* code, const char* detail) {
 #endif
 }
 
-static void emitLog(const char* message) {
+static void emitLog(const char *message)
+{
 #if PDS_TRANSPORT_SERIAL
-    link.sendLog(message);
+    serialLink.sendLog(message);
 #else
     Serial.println(message);
 #endif
@@ -103,7 +115,8 @@ static void emitLog(const char* message) {
 // True when the link is ready to carry a reading. Over USB the link is up as
 // soon as Serial is: whether anyone is listening is the PC's problem, and
 // buffering readings for an absent listener would only deliver stale weights.
-static bool linkReady() {
+static bool linkReady()
+{
 #if PDS_TRANSPORT_SERIAL
     return true;
 #else
@@ -114,7 +127,8 @@ static bool linkReady() {
 // ---------------------------------------------------------------------------
 // Calibration interface — see README_USB_SERIAL.md's calibration procedure:
 //   t            -> tare (zero the scale; remove all weight first)
-//   c<grams>     -> place a known reference weight, then send e.g. "c1000"
+//   c            -> guided calibration with a 1000 g reference weight
+//   c<grams>     -> guided calibration with a known reference weight
 //                   for a 1 kg weight to compute + persist calibration_factor
 //   id           -> re-emit the hello/identity frame (USB build only)
 //
@@ -122,61 +136,103 @@ static bool linkReady() {
 // requires watching its output while you adjust it, and a second channel would
 // mean the operator could not see both at once.
 // ---------------------------------------------------------------------------
-static void handleCommand(const String& line) {
-    if (line == "t") {
+static void handleCommand(const String &line)
+{
+    if (line == "t")
+    {
+        calibrationPending = false;
         scale.tare();
-        emitLog("Tared.");
+        emitLog("TARE COMPLETE");
+        emitLog("WEIGHT: 0.00 g");
         lastSentGrams = INT32_MIN; // force an immediate post-tare reading
         return;
     }
 
-    if (line == "id") {
+    if (line == "id")
+    {
 #if PDS_TRANSPORT_SERIAL
-        link.sendHello(isCalibrated(), scale.getCalibrationFactor());
+        serialLink.sendHello(isCalibrated(), scale.getCalibrationFactor());
 #endif
         return;
     }
 
-    if (line.startsWith("c")) {
-        const float knownGrams = line.substring(1).toFloat();
-        if (knownGrams <= 0) {
-            emitLog("Usage: c<grams>, e.g. c1000 for a 1kg weight");
-            return;
-        }
-        if (knownGrams > PDS_LOAD_CELL_RATED_GRAMS) {
+    if (line == "c" || line.startsWith("c"))
+    {
+        const String knownText = line.substring(1);
+        const float knownGrams = knownText.length() == 0 ? 1000.0f : knownText.toFloat();
+        if (knownGrams <= 0 || knownGrams > PDS_LOAD_CELL_RATED_GRAMS)
+        {
             // Refusing is the safety-relevant behaviour: accepting it would
             // ask the operator to place a weight above the cell's rating on the
             // cell, permanently deforming the strain gauge.
-            emitLog("Refused: reference weight exceeds the load cell's rated capacity");
+            emitLog("CALIBRATION REFUSED: known weight must be greater than 0 g and no more than 5000 g");
             return;
         }
 
-        const long raw = scale.readRawAverage(10);
-        const float factor = raw / knownGrams;
-        scale.setCalibrationFactor(factor);
-
         char message[96];
-        snprintf(message, sizeof(message), "Calibrated: raw=%ld known=%.1fg factor=%.4f (saved to NVS)",
-                 raw, knownGrams, factor);
+        snprintf(message, sizeof(message), "CALIBRATION STARTED: place exactly %.0f g now; reading starts in 5 seconds",
+                 knownGrams);
         emitLog(message);
-        lastSentGrams = INT32_MIN;
+        calibrationKnownGrams = knownGrams;
+        calibrationPending = true;
+        calibrationDueMs = millis() + 5000;
         return;
     }
 
-    emitLog("Unknown command. Use 't' to tare, 'c<grams>' to calibrate, 'id' for identity.");
+    emitLog("Unknown command. Use 't' to tare, 'c' for guided 1000 g calibration, or 'id' for identity.");
 }
 
-static void pollCommands() {
+static void completeCalibrationIfDue()
+{
+    if (!calibrationPending || millis() < calibrationDueMs)
+        return;
+
+    calibrationPending = false;
+    const long raw = scale.readRawAverage(10);
+    const long tareAdjusted = scale.readTareAdjustedAverage(10);
+
+    char rawMessage[120];
+    snprintf(rawMessage, sizeof(rawMessage), "CALIBRATION READING: raw ADC=%ld tare-adjusted=%ld known=%.0f g",
+             raw, tareAdjusted, calibrationKnownGrams);
+    emitLog(rawMessage);
+
+    if (tareAdjusted == 0)
+    {
+        emitLog("CALIBRATION FAILED: reading is zero; check the weight, wiring, and tare, then retry");
+        return;
+    }
+
+    const float factor = (float)tareAdjusted / calibrationKnownGrams;
+    if (!isfinite(factor) || fabsf(factor) < 0.000001f)
+    {
+        emitLog("CALIBRATION FAILED: calculated factor is invalid; check the load cell wiring and retry");
+        return;
+    }
+
+    scale.setCalibrationFactor(factor);
+
+    char message[128];
+    snprintf(message, sizeof(message), "CALIBRATION COMPLETE: factor=%.4f saved to NVS; final weight=%.2f g",
+             factor, (float)tareAdjusted / factor);
+    emitLog(message);
+    lastSentGrams = INT32_MIN;
+}
+
+static void pollCommands()
+{
 #if PDS_TRANSPORT_SERIAL
     String line;
-    if (link.readCommand(line)) {
+    if (serialLink.readCommand(line))
+    {
         handleCommand(line);
     }
 #else
-    if (!Serial.available()) return;
+    if (!Serial.available())
+        return;
     String line = Serial.readStringUntil('\n');
     line.trim();
-    if (line.length() > 0) {
+    if (line.length() > 0)
+    {
         handleCommand(line);
     }
 #endif
@@ -184,9 +240,10 @@ static void pollCommands() {
 
 // ---------------------------------------------------------------------------
 
-void setup() {
+void setup()
+{
 #if PDS_TRANSPORT_SERIAL
-    link.begin(PDS_SERIAL_BAUD);
+    serialLink.begin(PDS_SERIAL_BAUD);
 #else
     Serial.begin(PDS_SERIAL_BAUD);
     delay(200);
@@ -199,10 +256,11 @@ void setup() {
     // The identity frame is the first thing on the wire, so a bridge attaching
     // at any moment after boot learns the device UID and firmware version
     // without having to ask. (It can still ask, with `id`.)
-    link.sendHello(isCalibrated(), scale.getCalibrationFactor());
-    if (!isCalibrated()) {
-        link.sendError("NOT_CALIBRATED",
-                       "calibration_factor is 1.0 - run the calibration procedure before dispensing");
+    serialLink.sendHello(isCalibrated(), scale.getCalibrationFactor());
+    if (!isCalibrated())
+    {
+        serialLink.sendError("NOT_CALIBRATED",
+                             "calibration_factor is 1.0 - run the calibration procedure before dispensing");
     }
 #else
     Serial.printf("[Boot] Loaded calibration_factor=%.4f from NVS (1.0 means uncalibrated)\n",
@@ -211,33 +269,40 @@ void setup() {
 #endif
 }
 
-void loop() {
+void loop()
+{
     pollCommands();
+    completeCalibrationIfDue();
 
 #if !PDS_TRANSPORT_SERIAL
     wifiManager.loop();
 
-    if (!wifiManager.isConnected()) {
+    if (!wifiManager.isConnected())
+    {
         wsStarted = false; // force a fresh WS handshake once WiFi comes back
         return;
     }
 
-    if (!timeSynced) {
+    if (!timeSynced)
+    {
         // ESP32 has no battery-backed RTC, so epoch time is only meaningful
         // once NTP has synced. Blocks for at most ~5 s, once, right after the
         // first WiFi connection.
         configTime(0, 0, "pool.ntp.org", "time.nist.gov");
         struct timeval tv;
-        for (uint8_t attempt = 0; attempt < 20; attempt++) {
+        for (uint8_t attempt = 0; attempt < 20; attempt++)
+        {
             gettimeofday(&tv, nullptr);
-            if (tv.tv_sec > 8 * 3600 * 2) break; // plausible post-1970 epoch
+            if (tv.tv_sec > 8 * 3600 * 2)
+                break; // plausible post-1970 epoch
             delay(250);
         }
         timeSynced = true;
         Serial.println("[Time] NTP sync attempt finished");
     }
 
-    if (!wsStarted) {
+    if (!wsStarted)
+    {
         wsClient.begin(BACKEND_HOST, BACKEND_PORT, BACKEND_WS_PATH, DEVICE_ID, DEVICE_TOKEN);
         wsStarted = true;
     }
@@ -251,26 +316,49 @@ void loop() {
     // so last_seen_at keeps advancing on the backend. A heartbeat is not a
     // measurement and is never persisted as one.
 #if PDS_TRANSPORT_SERIAL
-    if (now - lastHeartbeatMs >= PDS_HEARTBEAT_INTERVAL_MS) {
-        link.sendHeartbeat(now);
+    if (now - lastHeartbeatMs >= PDS_HEARTBEAT_INTERVAL_MS)
+    {
+        serialLink.sendHeartbeat(now);
         lastHeartbeatMs = now;
+
+        // Never expose an uncalibrated ADC count as a grams reading. During the
+        // guided calibration window, also suppress the old factor's readings so
+        // the bridge sees only the final factor after calibration completes.
+        if (calibrationPending)
+        {
+            return;
+        }
+
+        if (!isCalibrated())
+        {
+            if (now - lastSafetyLogMs >= PDS_SAFETY_LOG_INTERVAL_MS)
+            {
+                emitError("NOT_CALIBRATED", "run tare, then guided calibration with a known weight before dispensing");
+                lastSafetyLogMs = now;
+            }
+            return;
+        }
     }
 #endif
 
-    if (now - lastSampleMs < PDS_SAMPLE_INTERVAL_MS) {
+    if (now - lastSampleMs < PDS_SAMPLE_INTERVAL_MS)
+    {
         return; // non-blocking: just skip this iteration, never delay()
     }
     lastSampleMs = now;
 
-    if (!scale.isReady()) {
+    if (!scale.isReady())
+    {
         return;
     }
 
     int grams = scale.readGrams();
 
     // ---- Hardware safety gate, before the value is treated as a measurement.
-    if (grams > PDS_LOAD_CELL_RATED_GRAMS) {
-        if (!sensorFault || now - lastSafetyLogMs >= PDS_SAFETY_LOG_INTERVAL_MS) {
+    if (grams > PDS_LOAD_CELL_RATED_GRAMS)
+    {
+        if (!sensorFault || now - lastSafetyLogMs >= PDS_SAFETY_LOG_INTERVAL_MS)
+        {
             char detail[120];
             snprintf(detail, sizeof(detail),
                      "%d g exceeds the %d g rated capacity - remove weight immediately, sustained overload "
@@ -284,8 +372,10 @@ void loop() {
         return;                    // never transmit an over-range value
     }
 
-    if (grams < PDS_UNDERRANGE_FAULT_GRAMS) {
-        if (!sensorFault || now - lastSafetyLogMs >= PDS_SAFETY_LOG_INTERVAL_MS) {
+    if (grams < PDS_UNDERRANGE_FAULT_GRAMS)
+    {
+        if (!sensorFault || now - lastSafetyLogMs >= PDS_SAFETY_LOG_INTERVAL_MS)
+        {
             char detail[120];
             snprintf(detail, sizeof(detail),
                      "%d g is far below zero - check the load cell is connected and wired the right way "
@@ -301,20 +391,24 @@ void loop() {
 
     // Fault clears only once the load is a clear margin below the rating, so a
     // cell resting near the trip point cannot oscillate in and out of it.
-    if (sensorFault) {
-        if (grams > PDS_OVERLOAD_CLEAR_GRAMS) {
+    if (sensorFault)
+    {
+        if (grams > PDS_OVERLOAD_CLEAR_GRAMS)
+        {
             return; // still in the hysteresis band — stay suspended, stay quiet
         }
         sensorFault = false;
         emitLog("Load is back within the safe range. Weighing resumed.");
     }
 
-    if (grams < 0) grams = 0; // load cell noise can dip slightly negative at rest
+    if (grams < 0)
+        grams = 0; // load cell noise can dip slightly negative at rest
 
     const bool deltaExceeded = abs(grams - lastSentGrams) > PDS_SEND_DELTA_THRESHOLD_G;
     const bool intervalElapsed = (now - lastSentMs) >= PDS_SEND_MAX_INTERVAL_MS;
 
-    if (linkReady() && (deltaExceeded || intervalElapsed)) {
+    if (linkReady() && (deltaExceeded || intervalElapsed))
+    {
         emitReading(grams, now);
         lastSentGrams = grams;
         lastSentMs = now;

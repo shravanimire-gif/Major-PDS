@@ -12,6 +12,7 @@ public:
     void tare();
     void setCalibrationFactor(float factor); // also persists to NVS
     float getCalibrationFactor() const { return _calibrationFactor; }
+    bool hasTareOffset() const { return _hasTareOffset; }
     bool isReady();
     int readGrams();                                    // applies calibration_factor + tare offset, rounds to nearest integer gram
     long readRawAverage(uint8_t samples = 10);          // raw ADC counts before tare offset and calibration
@@ -20,5 +21,6 @@ public:
 private:
     HX711 _hx711;
     float _calibrationFactor = 1.0f;
+    bool _hasTareOffset = false;
     void loadCalibrationFactor();
 };

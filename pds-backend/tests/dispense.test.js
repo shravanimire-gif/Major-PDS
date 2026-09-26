@@ -123,6 +123,22 @@ const createSession = async (rcId, sId, userId, expiresInMs = 60000) => {
     return sessionId;
 };
 
+// Helper: seed verified IoT sessions for rice and wheat
+const seedVerifiedSessions = async (rcId, sId) => {
+    const riceSessionId = crypto.randomUUID();
+    const wheatSessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 60000);
+
+    await pool.query(
+        `INSERT INTO dispense_sessions (id, shop_id, ration_card_id, commodity, entitled_grams, tolerance_grams, state, expires_at)
+         VALUES ($1, $3, $2, 'rice', 3000, 30, 'committed', $4),
+                ($5, $3, $2, 'wheat', 2000, 20, 'committed', $4)`,
+        [riceSessionId, rcId, sId, expiresAt, wheatSessionId],
+    );
+
+    return { riceSessionId, wheatSessionId };
+};
+
 // Reset wallet before each test
 beforeEach(async () => {
     await pool.query(
@@ -135,16 +151,26 @@ beforeEach(async () => {
     );
     await pool.query(`DELETE FROM transactions`);
     await pool.query(`DELETE FROM qr_sessions`);
+    await pool.query(`DELETE FROM dispense_records`);
+    await pool.query(`DELETE FROM dispense_sessions`);
 });
 
 describe('POST /api/shopkeeper/dispense', () => {
     test('1. valid dispense → 200 + wallet deducted', async () => {
         const sessionId = await createSession(rationCardId, shopId, shopkeeperId);
+        const { riceSessionId, wheatSessionId } = await seedVerifiedSessions(rationCardId, shopId);
 
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2 });
+            .send({
+                ration_card_id: rationCardId,
+                session_id: sessionId,
+                rice_session_id: riceSessionId,
+                wheat_session_id: wheatSessionId,
+                rice_qty_kg: 3,
+                wheat_qty_kg: 2,
+            });
 
         expect(res.status).toBe(200);
         expect(res.body.remaining_wallet.rice_balance_kg).toBe(0); // whole allocation
@@ -153,38 +179,36 @@ describe('POST /api/shopkeeper/dispense', () => {
         expect(txRes.rows.length).toBe(1);
     });
 
-    test('2. qty exceeds balance → 400, wallet unchanged', async () => {
+    test('2. missing IoT sessions → 400 rejection', async () => {
         const sessionId = await createSession(rationCardId, shopId, shopkeeperId);
 
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 999, wheat_qty_kg: 0 });
+            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2 });
 
         expect(res.status).toBe(400);
+        expect(res.body.error).toContain('IoT scale');
 
         const walletRes = await pool.query(`SELECT rice_balance_kg FROM wallets WHERE ration_card_id=$1`, [rationCardId]);
         expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
     });
 
-    test('3. all quantities are 0 → 400 validation error', async () => {
-        const sessionId = await createSession(rationCardId, shopId, shopkeeperId);
-
-        const res = await request(app)
-            .post('/api/shopkeeper/dispense')
-            .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 0, wheat_qty_kg: 0 });
-
-        expect(res.status).toBe(400);
-    });
-
-    test('4. ration card from different shop → 403, wallet unchanged', async () => {
+    test('3. ration card from different shop → 403, wallet unchanged', async () => {
         const sessionId = await createSession(rationCard2Id, shopId, shopkeeperId);
+        const { riceSessionId, wheatSessionId } = await seedVerifiedSessions(rationCard2Id, shop2Id);
 
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCard2Id, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 0 });
+            .send({
+                ration_card_id: rationCard2Id,
+                session_id: sessionId,
+                rice_session_id: riceSessionId,
+                wheat_session_id: wheatSessionId,
+                rice_qty_kg: 3,
+                wheat_qty_kg: 2,
+            });
 
         expect(res.status).toBe(403);
 
@@ -192,22 +216,30 @@ describe('POST /api/shopkeeper/dispense', () => {
         expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(3);
     });
 
-    test('5. invalid ration_card_id format → 400', async () => {
+    test('4. invalid ration_card_id format → 400', async () => {
         const res = await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: 'not-a-uuid', rice_qty: 3, wheat_qty: 0 });
+            .send({ ration_card_id: 'not-a-uuid', session_id: 'some-session', rice_qty_kg: 3, wheat_qty_kg: 2 });
 
         expect(res.status).toBe(400);
     });
 
-    test('6. dispense creates transaction record with correct fields', async () => {
+    test('5. dispense creates single transaction record with correct fields', async () => {
         const sessionId = await createSession(rationCardId, shopId, shopkeeperId);
+        const { riceSessionId, wheatSessionId } = await seedVerifiedSessions(rationCardId, shopId);
 
         await request(app)
             .post('/api/shopkeeper/dispense')
             .set('Authorization', `Bearer ${shopkeeperToken}`)
-            .send({ ration_card_id: rationCardId, session_id: sessionId, rice_qty_kg: 3, wheat_qty_kg: 2 });
+            .send({
+                ration_card_id: rationCardId,
+                session_id: sessionId,
+                rice_session_id: riceSessionId,
+                wheat_session_id: wheatSessionId,
+                rice_qty_kg: 3,
+                wheat_qty_kg: 2,
+            });
 
         const txRes = await pool.query(
             `SELECT * FROM transactions WHERE ration_card_id=$1`,
@@ -216,5 +248,7 @@ describe('POST /api/shopkeeper/dispense', () => {
         expect(txRes.rows.length).toBe(1);
         expect(txRes.rows[0].shop_id).toBe(shopId);
         expect(txRes.rows[0].served_by).toBe(shopkeeperId);
+        expect(Number(txRes.rows[0].rice_qty_kg)).toBe(3);
+        expect(Number(txRes.rows[0].wheat_qty_kg)).toBe(2);
     });
 });

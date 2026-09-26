@@ -289,12 +289,11 @@ const dispense = async (req, res, next) => {
       ration_card_id: rationCardId,
       session_id: sessionId,
       beneficiary_user_id: beneficiaryUserId,
-      rice_qty_kg: riceQtyRaw = 0,
-      wheat_qty_kg: wheatQtyRaw = 0,
+      rice_session_id: riceSessionId,
+      wheat_session_id: wheatSessionId,
+      rice_qty_kg: riceQtyRaw,
+      wheat_qty_kg: wheatQtyRaw,
     } = req.body;
-
-    const riceQty = Number(riceQtyRaw);
-    const wheatQty = Number(wheatQtyRaw);
 
     if (!rationCardId || !sessionId) {
       return res
@@ -302,37 +301,13 @@ const dispense = async (req, res, next) => {
         .json({ error: "ration_card_id and session_id are required" });
     }
 
-    if (
-      !Number.isFinite(riceQty) ||
-      !Number.isFinite(wheatQty)
-    ) {
-      return res.status(400).json({ error: "Quantities must be valid numbers" });
-    }
-
-    if (riceQty < 0 || wheatQty < 0) {
-      return res.status(400).json({ error: "Quantities must be >= 0" });
-    }
-
-    if (riceQty === 0 && wheatQty === 0) {
-      return res
-        .status(400)
-        .json({ error: "At least one quantity must be greater than zero" });
+    if (!riceSessionId || !wheatSessionId) {
+      return res.status(400).json({
+        error: "Both Rice and Wheat must be successfully verified by IoT scale before final dispense.",
+      });
     }
 
     await client.query("BEGIN");
-
-    // Monthly eligibility, per commodity, INSIDE the transaction. This used to
-    // run on `pool` (a separate connection) before BEGIN, which made it a
-    // time-of-check/time-of-use race: two concurrent requests both saw zero
-    // and both inserted. The partial unique indexes from migration 025 are the
-    // real guarantee; this check exists to return a clean 400 rather than a
-    // constraint violation, and the 23505 handler in the catch covers the
-    // request that loses the race.
-    const requestedCommodities = [];
-    if (riceQty > 0) requestedCommodities.push("rice");
-    if (wheatQty > 0) requestedCommodities.push("wheat");
-    await assertClaimable(client, rationCardId, requestedCommodities);
-    await assertCompleteAllocation(client, rationCardId, { rice: riceQty, wheat: wheatQty });
 
     const shop = await getAssignedShop(client, req.user.id);
     if (!shop) {
@@ -383,6 +358,61 @@ const dispense = async (req, res, next) => {
       await client.query("ROLLBACK");
       return res.status(401).json({ error: "QR session expired" });
     }
+
+    // Verify Rice IoT session
+    const riceSessionResult = await client.query(
+      `SELECT id, shop_id, ration_card_id, commodity, entitled_grams, state
+       FROM dispense_sessions WHERE id = $1 FOR UPDATE`,
+      [riceSessionId],
+    );
+    if (riceSessionResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Rice IoT weighing session not found" });
+    }
+    const riceSession = riceSessionResult.rows[0];
+    if (riceSession.ration_card_id !== rationCardId || riceSession.shop_id !== shop.id) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Rice IoT session does not match ration card or shop" });
+    }
+    if (riceSession.commodity !== "rice") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Invalid commodity for Rice session" });
+    }
+    if (riceSession.state !== "committed") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Rice weighing has not been successfully verified by IoT scale" });
+    }
+
+    // Verify Wheat IoT session
+    const wheatSessionResult = await client.query(
+      `SELECT id, shop_id, ration_card_id, commodity, entitled_grams, state
+       FROM dispense_sessions WHERE id = $1 FOR UPDATE`,
+      [wheatSessionId],
+    );
+    if (wheatSessionResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Wheat IoT weighing session not found" });
+    }
+    const wheatSession = wheatSessionResult.rows[0];
+    if (wheatSession.ration_card_id !== rationCardId || wheatSession.shop_id !== shop.id) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Wheat IoT session does not match ration card or shop" });
+    }
+    if (wheatSession.commodity !== "wheat") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Invalid commodity for Wheat session" });
+    }
+    if (wheatSession.state !== "committed") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Wheat weighing has not been successfully verified by IoT scale" });
+    }
+
+    const riceQty = riceQtyRaw !== undefined ? Number(riceQtyRaw) : (riceSession.entitled_grams / 1000);
+    const wheatQty = wheatQtyRaw !== undefined ? Number(wheatQtyRaw) : (wheatSession.entitled_grams / 1000);
+
+    // Monthly eligibility check for both commodities inside transaction
+    await assertClaimable(client, rationCardId, ["rice", "wheat"]);
+    await assertCompleteAllocation(client, rationCardId, { rice: riceQty, wheat: wheatQty });
 
     const walletResult = await client.query(
       `
@@ -456,6 +486,13 @@ const dispense = async (req, res, next) => {
       `,
       [rationCardId, shop.id, riceQty, wheatQty, req.user.id],
     );
+    const transactionId = txResult.rows[0].id;
+
+    // Link dispense_records for both sessions to this ONE transaction
+    await client.query(
+      `UPDATE dispense_records SET transaction_id = $1 WHERE session_id IN ($2, $3)`,
+      [transactionId, riceSessionId, wheatSessionId],
+    );
 
     await client.query(
       `
@@ -470,11 +507,9 @@ const dispense = async (req, res, next) => {
 
     await client.query("COMMIT");
 
-    logger.info('Dispense success', { ration_card_id: rationCardId, rice_qty: riceQty, wheat_qty: wheatQty });
+    logger.info('Dispense success', { ration_card_id: rationCardId, rice_qty: riceQty, wheat_qty: wheatQty, transaction_id: transactionId });
 
     // ── Blockchain recording (fire-and-forget after DB commit) ──────────────
-    // Runs asynchronously — blockchain failure NEVER rolls back the DB transaction
-    // and NEVER blocks the HTTP response.
     const txRow = txResult.rows[0];
     recordDispense({
       transactionId: txRow.id,
@@ -485,7 +520,6 @@ const dispense = async (req, res, next) => {
       timestamp: Math.floor(new Date(txRow.created_at).getTime() / 1000),
     }).then(({ success, txHash, error }) => {
       if (success) {
-        // Persist the hash asynchronously — best effort
         pool.query(
           "UPDATE transactions SET blockchain_tx_hash = $1 WHERE id = $2",
           [txHash, txRow.id]
@@ -525,9 +559,6 @@ const dispense = async (req, res, next) => {
       // Ignore rollback failures and surface original error.
     }
 
-    // Either the in-transaction pre-check found an existing claim, or the
-    // database's partial unique index rejected a concurrent one. Both mean the
-    // same thing to the caller, so both produce the same 400.
     const claimError = error instanceof MonthlyClaimError ? error : asMonthlyClaimError(error);
     if (claimError) {
       return res.status(400).json({ error: claimError.message, detail: claimError.detail });

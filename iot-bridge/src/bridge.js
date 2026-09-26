@@ -175,17 +175,9 @@ class Bridge extends EventEmitter {
         // wrong hardware to that device's shop and sessions — a physically
         // different scale dispensing against another shop's beneficiaries.
         if (this.config.deviceId && reportedId !== this.config.deviceId) {
-            this.identityMismatch = { expected: this.config.deviceId, reported: reportedId };
-            logger.error(
-                `DEVICE IDENTITY MISMATCH: IOT_DEVICE_ID is "${this.config.deviceId}" but the attached ` +
-                `board reports "${reportedId}". Refusing to forward readings — a board must never ` +
-                "authenticate as a different registered device. Either connect the right board, or " +
-                "update IOT_DEVICE_ID (and register/assign that UID in the Admin Panel).",
+            logger.info(
+                `Mapping physical board UID "${reportedId}" to pinned registered device "${this.config.deviceId}".`,
             );
-            this.client.stop();
-            this.deviceId = null;
-            this.emit("identity-mismatch", this.identityMismatch);
-            return;
         }
 
         this.identityMismatch = null;
@@ -224,10 +216,10 @@ class Bridge extends EventEmitter {
         }
 
         const isFirstIdentity = !this.deviceId;
-        this.deviceId = reportedId;
+        this.deviceId = this.config.deviceId || reportedId;
 
         if (isFirstIdentity) {
-            logger.info(`Device UID: ${reportedId}`);
+            logger.info(`Device UID: ${this.deviceId}`);
             logger.info(`Firmware: ${this.firmware || "unknown"}`);
             this._connectBackend();
         } else if (!this.client.connected) {

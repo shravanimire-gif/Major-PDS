@@ -225,7 +225,7 @@ const DispenseWeighingPanel = ({
                         beneficiary a different number from the one on their
                         transaction. */}
                     {sessionState === 'committed' &&
-                        `Dispensed ${entitledGrams.toLocaleString()}g of ${commodityLabel} to ${beneficiaryName} ` +
+                        `Verified ${entitledGrams.toLocaleString()}g of ${commodityLabel} for ${beneficiaryName} ` +
                         `(measured ${gramsInt.toLocaleString()}g, within the ${toleranceGrams}g tolerance).`}
                     {sessionState === 'cancelled' && 'The dispense was cancelled. Nothing was debited.'}
                     {sessionState === 'device_lost' &&

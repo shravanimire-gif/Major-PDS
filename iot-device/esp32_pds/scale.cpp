@@ -5,6 +5,7 @@ namespace
 {
     const char *NVS_NAMESPACE = "scale";
     const char *NVS_KEY_CAL_FACTOR = "cal_factor";
+    const char *NVS_KEY_TARE_OFFSET = "tare_offset";
 }
 
 void Scale::begin(uint8_t dtPin, uint8_t sckPin)
@@ -21,6 +22,11 @@ void Scale::loadCalibrationFactor()
     // Defaults to 1.0 (i.e. uncalibrated) until setCalibrationFactor() has
     // been called at least once — see the README's calibration procedure.
     _calibrationFactor = prefs.getFloat(NVS_KEY_CAL_FACTOR, 1.0f);
+    if (prefs.isKey(NVS_KEY_TARE_OFFSET))
+    {
+        _hx711.set_offset(prefs.getLong(NVS_KEY_TARE_OFFSET, 0));
+        _hasTareOffset = true;
+    }
     prefs.end();
 }
 
@@ -38,6 +44,12 @@ void Scale::setCalibrationFactor(float factor)
 void Scale::tare()
 {
     _hx711.tare();
+
+    Preferences prefs;
+    prefs.begin(NVS_NAMESPACE, /* readOnly = */ false);
+    prefs.putLong(NVS_KEY_TARE_OFFSET, _hx711.get_offset());
+    prefs.end();
+    _hasTareOffset = true;
 }
 
 bool Scale::isReady()
@@ -59,8 +71,11 @@ long Scale::readTareAdjustedAverage(uint8_t samples)
 
 int Scale::readGrams()
 {
-    // get_units() averages a few raw samples and applies both the tare
-    // offset and calibration_factor set above.
-    float grams = _hx711.get_units(5);
+    // Keep the signed raw-count-to-gram conversion explicit. The calibration
+    // factor can be negative when the load-cell signal polarity is reversed;
+    // raw counts and factor then have the same sign and the result is still a
+    // positive physical weight.
+    const long tareAdjusted = _hx711.get_value(5);
+    const float grams = (float)tareAdjusted / _calibrationFactor;
     return (int)round(grams);
 }

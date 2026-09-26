@@ -197,10 +197,6 @@ const createSession = async ({ shopId, rationCardId, commodity, entitledGrams, q
         );
         const session = sessionResult.rows[0];
 
-        await client.query(`UPDATE qr_sessions SET is_used = true, used_at = NOW() WHERE session_id = $1`, [
-            qrSessionId,
-        ]);
-
         const jti = crypto.randomUUID();
         const sessionJwt = jwt.sign({ sessionId: session.id, jti }, process.env.JWT_SECRET, {
             expiresIn: Math.floor(SESSION_TTL_MS / 1000),
@@ -567,56 +563,6 @@ const commitSession = async (sessionId, measuredGrams) => {
         // Debiting the allocation fixes both and is the only option of the
         // three that preserves one-allocation/one-complete-transaction:
         //   (A) debit the allocation      <- chosen
-        //   (B) debit measured + remainder -> the stranded-balance bug above
-        //   (C) reject unless exact        -> defeats tolerance entirely; no
-        //                                     physical scale lands on 3000 g
-        // The allocation is a multiple of ALLOCATION_GRAMS_STEP, so gramsToKg
-        // is exact and the wallet lands on 0.00 with no residue.
-        //
-        // authorised_debit === entitled_grams, always. measured_grams is
-        // preserved verbatim on dispense_records for audit and for anomaly
-        // detection to see systematic over/under-filling.
-        const authorizedKg = gramsToKg(entitledGrams);
-
-        // No row lock here — deliberate: the WHERE clause is the concurrency
-        // guard for the wallet debit, and it also makes a negative balance
-        // impossible.
-        const walletUpdate = await client.query(
-            `UPDATE wallets SET ${columnName} = ${columnName} - $1, updated_at = NOW()
-       WHERE ration_card_id = $2 AND ${columnName} >= $1`,
-            [authorizedKg, session.ration_card_id],
-        );
-
-        if (walletUpdate.rowCount === 0) {
-            await client.query("ROLLBACK");
-            await pool.query(`UPDATE dispense_sessions SET state = 'failed_insufficient_balance' WHERE id = $1`, [
-                sessionId,
-            ]);
-            dispenseSessionBus.publish(sessionId, { type: "state", state: "failed_insufficient_balance" });
-            return { success: false, reason: "insufficient_balance" };
-        }
-
-        // The canonical business transaction. `transactions` models a
-        // dispense as per-commodity kg columns, so the session's single
-        // commodity fills its own column and the other stays 0 — the exact
-        // shape shopkeeperController.dispense already writes for a
-        // single-commodity manual dispense, so every downstream consumer
-        // (analytics, anomaly detection, activity feed) treats the two paths
-        // identically with no query changes.
-        const txResult = await client.query(
-            `INSERT INTO transactions (ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id`,
-            [
-                session.ration_card_id,
-                session.shop_id,
-                session.shopkeeper_id,
-                session.commodity === "rice" ? authorizedKg : 0,
-                session.commodity === "wheat" ? authorizedKg : 0,
-            ],
-        );
-        const transactionId = txResult.rows[0].id;
-
         // buildRowHash's input is deliberately unchanged — transaction_id is
         // not hashed. The per-shop chain must stay verifiable against records
         // written before this link existed.
@@ -630,10 +576,11 @@ const commitSession = async (sessionId, measuredGrams) => {
         };
         const rowHash = buildRowHash(prevHash, fields);
 
+        // Record the verified measurement. transaction_id remains NULL until the final multi-commodity dispense transaction.
         const recordResult = await client.query(
             `INSERT INTO dispense_records
          (session_id, ration_card_id, shop_id, commodity, entitled_grams, measured_grams, prev_hash, row_hash, transaction_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL)
        RETURNING id`,
             [
                 session.id,
@@ -644,7 +591,6 @@ const commitSession = async (sessionId, measuredGrams) => {
                 measuredGrams,
                 prevHash,
                 rowHash,
-                transactionId,
             ],
         );
 
@@ -655,19 +601,15 @@ const commitSession = async (sessionId, measuredGrams) => {
         await client.query("COMMIT");
 
         const dispenseRecordId = recordResult.rows[0].id;
-        enqueueAnchor(dispenseRecordId).catch((err) =>
-            logger.error("[IoT] enqueueAnchor threw", { message: err.message, dispenseRecordId }),
-        );
 
         dispenseSessionBus.publish(sessionId, {
             type: "state",
             state: "committed",
             measuredGrams,
             dispenseRecordId,
-            transactionId,
         });
 
-        return { success: true, dispenseRecordId, transactionId };
+        return { success: true, dispenseRecordId };
     } catch (err) {
         try {
             await client.query("ROLLBACK");
