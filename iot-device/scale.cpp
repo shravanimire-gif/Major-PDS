@@ -1,4 +1,5 @@
 #include "scale.h"
+#include "pds_config.h"
 #include <Preferences.h>
 
 namespace
@@ -12,15 +13,14 @@ void Scale::begin(uint8_t dtPin, uint8_t sckPin)
     _hx711.begin(dtPin, sckPin);
     loadCalibrationFactor();
     _hx711.set_scale(_calibrationFactor);
+    _hx711.set_offset((long)PDS_DEFAULT_ZERO_RAW);
 }
 
 void Scale::loadCalibrationFactor()
 {
     Preferences prefs;
     prefs.begin(NVS_NAMESPACE, /* readOnly = */ true);
-    // Defaults to 1.0 (i.e. uncalibrated) until setCalibrationFactor() has
-    // been called at least once — see the README's calibration procedure.
-    _calibrationFactor = prefs.getFloat(NVS_KEY_CAL_FACTOR, 1.0f);
+    _calibrationFactor = prefs.getFloat(NVS_KEY_CAL_FACTOR, PDS_DEFAULT_CALIBRATION_FACTOR);
     prefs.end();
 }
 
@@ -59,8 +59,19 @@ long Scale::readTareAdjustedAverage(uint8_t samples)
 
 int Scale::readGrams()
 {
-    // get_units() averages a few raw samples and applies both the tare
-    // offset and calibration_factor set above.
     float grams = _hx711.get_units(5);
+    if (grams < 0 && grams > -20.0f)
+    {
+        grams = 0.0f;
+    }
+    if (grams < 0)
+    {
+        grams = 0.0f;
+    }
+    if (grams > PDS_LOAD_CELL_RATED_GRAMS)
+    {
+        grams = (float)PDS_LOAD_CELL_RATED_GRAMS;
+    }
     return (int)round(grams);
 }
+

@@ -6,7 +6,9 @@ const pool = new Pool({
 });
 
 const createSchema = async () => {
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+    try {
+        await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+    } catch (_) {}
 
     await pool.query(`DO $$ BEGIN
     CREATE TYPE user_role AS ENUM ('admin', 'shopkeeper', 'beneficiary');
@@ -28,9 +30,9 @@ const createSchema = async () => {
     CREATE TABLE IF NOT EXISTS policies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       category ration_category NOT NULL UNIQUE,
-      rice_per_card_grams INTEGER NOT NULL DEFAULT 2000
+      rice_per_card_grams INTEGER NOT NULL DEFAULT 1000
         CHECK (rice_per_card_grams > 0 AND rice_per_card_grams <= 4000 AND rice_per_card_grams % 10 = 0),
-      wheat_per_card_grams INTEGER NOT NULL DEFAULT 1500
+      wheat_per_card_grams INTEGER NOT NULL DEFAULT 700
         CHECK (wheat_per_card_grams > 0 AND wheat_per_card_grams <= 4000 AND wheat_per_card_grams % 10 = 0),
       created_at TIMESTAMP DEFAULT NOW()
     )

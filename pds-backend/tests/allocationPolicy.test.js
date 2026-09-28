@@ -27,7 +27,7 @@ jest.setTimeout(30000);
 const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL });
 const JWT_SECRET = process.env.JWT_SECRET || 'test_secret';
 
-const PER_CARD = { APL: [2000, 1500], BPL: [3000, 2000], AAY: [4000, 3000] };
+const PER_CARD = { APL: [1000, 700], BPL: [3000, 2000], AAY: [4000, 3000] };
 
 let areaId, shopId, shopkeeperId, shopkeeperToken, adminToken;
 
@@ -61,7 +61,7 @@ const seedCard = async (cardNumber, category, memberCount) => {
 beforeAll(async () => {
     await pool.query(`
     INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
-      ('APL', 2000, 1500), ('BPL', 3000, 2000), ('AAY', 4000, 3000)
+      ('APL', 1000, 700), ('BPL', 3000, 2000), ('AAY', 4000, 3000)
     ON CONFLICT (category) DO UPDATE
       SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
           wheat_per_card_grams = EXCLUDED.wheat_per_card_grams

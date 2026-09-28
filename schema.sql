@@ -438,7 +438,7 @@ CREATE INDEX IF NOT EXISTS idx_anomaly_flags_resolved_at_auto_resolved_at
 --      card's whole allocation for a commodity completes in one transaction.
 INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams, validity_days)
 VALUES
-    ('APL', 2000, 1500, 30),
+    ('APL', 1000, 700, 30),
     ('BPL', 3000, 2000, 30),
     ('AAY', 4000, 3000, 30)
 ON CONFLICT (category) DO NOTHING;

@@ -108,6 +108,16 @@ test("serialParser — legacy/plain sketch output", async (t) => {
         assert.equal(parseSerialLine("WEIGHT 1234").grams, 1234);
     });
 
+    await t.test("parses teammate IoT setup serial format (Raw + Weight in g and kg)", () => {
+        const line1 = "Raw: -27536    Weight: 0.0 g    0.000 kg";
+        const line2 = "Raw: -387490    Weight: 1250.5 g    1.251 kg";
+        assert.equal(parseSerialLine(line1).type, "reading");
+        assert.equal(parseSerialLine(line1).grams, 0);
+        assert.equal(parseSerialLine(line2).type, "reading");
+        assert.equal(parseSerialLine(line2).grams, 1251);
+    });
+
+
     await t.test("parses a bare number, with or without a unit suffix", () => {
         assert.equal(parseSerialLine("2487").grams, 2487);
         assert.equal(parseSerialLine("2487.4").grams, 2487);

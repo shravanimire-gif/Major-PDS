@@ -38,7 +38,7 @@ beforeAll(async () => {
     // Policies
     await pool.query(`
     INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
-      ('APL', 2000, 1500),
+      ('APL', 1000, 700),
       ('BPL', 3000, 2000),
       ('AAY', 4000, 3000)
     

@@ -46,7 +46,7 @@ beforeAll(async () => {
     await pool.query(
         `INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
       ('BPL', 3000, 2000),
-      ('APL', 1000, 1000)
+      ('APL', 1000, 700)
      ON CONFLICT (category) DO UPDATE SET rice_per_card_grams = EXCLUDED.rice_per_card_grams,
                                           wheat_per_card_grams = EXCLUDED.wheat_per_card_grams`,
     );
@@ -144,6 +144,24 @@ describe('POST /api/dispense/session', () => {
             res.body.session_id,
         ]);
         expect(sessionRow.rows[0].tolerance_grams).toBe(20);
+    });
+
+    it('creates an IoT dispense session with entitled_grams = 1000 for APL rice and entitled_grams = 700 for APL wheat', async () => {
+        const aplRc = await pool.query(
+            `INSERT INTO ration_cards (card_number, category, shop_id, area_id) VALUES ($1, 'APL', $2, $3) RETURNING id`,
+            [`APL-DS-ENTITLED-${Date.now()}`, shopId, areaId],
+        );
+        await pool.query(`INSERT INTO wallets (ration_card_id, rice_balance_kg, wheat_balance_kg) VALUES ($1, 1.0, 0.7)`, [aplRc.rows[0].id]);
+
+        const riceRes = await createSessionViaApi({ rationCardId: aplRc.rows[0].id, commodity: 'rice', entitledGrams: 1000 });
+        expect(riceRes.status).toBe(201);
+        const riceSession = await pool.query('SELECT entitled_grams FROM dispense_sessions WHERE id = $1', [riceRes.body.session_id]);
+        expect(riceSession.rows[0].entitled_grams).toBe(1000);
+
+        const wheatRes = await createSessionViaApi({ rationCardId: aplRc.rows[0].id, commodity: 'wheat', entitledGrams: 700 });
+        expect(wheatRes.status).toBe(201);
+        const wheatSession = await pool.query('SELECT entitled_grams FROM dispense_sessions WHERE id = $1', [wheatRes.body.session_id]);
+        expect(wheatSession.rows[0].entitled_grams).toBe(700);
     });
 
     it('rejects an expired QR session with 410 IOT_SESSION_EXPIRED', async () => {

@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict 8ZzZx0K9lbIO2CpXuFONsl50X5IvfGCPMCHEdmbvCYD39wehQ6Gvy2atwgMAS4b
+\restrict NTBkFQNeG0fwu1XzaESSPu1O9Am2AuLr5AWiiBdoydDfxCv9OYsIhcLYQqlM9PN
 
--- Dumped from database version 18.4
--- Dumped by pg_dump version 18.4
+-- Dumped from database version 17.11 (Homebrew)
+-- Dumped by pg_dump version 17.11 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -34,7 +34,7 @@ COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
 --
--- Name: ration_category; Type: TYPE; Schema: public; Owner: postgres
+-- Name: ration_category; Type: TYPE; Schema: public; Owner: himanshumire
 --
 
 CREATE TYPE public.ration_category AS ENUM (
@@ -44,10 +44,10 @@ CREATE TYPE public.ration_category AS ENUM (
 );
 
 
-ALTER TYPE public.ration_category OWNER TO postgres;
+ALTER TYPE public.ration_category OWNER TO himanshumire;
 
 --
--- Name: user_role; Type: TYPE; Schema: public; Owner: postgres
+-- Name: user_role; Type: TYPE; Schema: public; Owner: himanshumire
 --
 
 CREATE TYPE public.user_role AS ENUM (
@@ -57,10 +57,10 @@ CREATE TYPE public.user_role AS ENUM (
 );
 
 
-ALTER TYPE public.user_role OWNER TO postgres;
+ALTER TYPE public.user_role OWNER TO himanshumire;
 
 --
--- Name: prevent_admin_user_delete(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: prevent_admin_user_delete(); Type: FUNCTION; Schema: public; Owner: himanshumire
 --
 
 CREATE FUNCTION public.prevent_admin_user_delete() RETURNS trigger
@@ -76,14 +76,14 @@ CREATE FUNCTION public.prevent_admin_user_delete() RETURNS trigger
     $$;
 
 
-ALTER FUNCTION public.prevent_admin_user_delete() OWNER TO postgres;
+ALTER FUNCTION public.prevent_admin_user_delete() OWNER TO himanshumire;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: anomaly_events; Type: TABLE; Schema: public; Owner: postgres
+-- Name: anomaly_events; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.anomaly_events (
@@ -98,10 +98,10 @@ CREATE TABLE public.anomaly_events (
 );
 
 
-ALTER TABLE public.anomaly_events OWNER TO postgres;
+ALTER TABLE public.anomaly_events OWNER TO himanshumire;
 
 --
--- Name: anomaly_flags; Type: TABLE; Schema: public; Owner: postgres
+-- Name: anomaly_flags; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.anomaly_flags (
@@ -118,10 +118,10 @@ CREATE TABLE public.anomaly_flags (
 );
 
 
-ALTER TABLE public.anomaly_flags OWNER TO postgres;
+ALTER TABLE public.anomaly_flags OWNER TO himanshumire;
 
 --
--- Name: anomaly_rules; Type: TABLE; Schema: public; Owner: postgres
+-- Name: anomaly_rules; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.anomaly_rules (
@@ -133,10 +133,10 @@ CREATE TABLE public.anomaly_rules (
 );
 
 
-ALTER TABLE public.anomaly_rules OWNER TO postgres;
+ALTER TABLE public.anomaly_rules OWNER TO himanshumire;
 
 --
--- Name: areas; Type: TABLE; Schema: public; Owner: postgres
+-- Name: areas; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.areas (
@@ -147,10 +147,10 @@ CREATE TABLE public.areas (
 );
 
 
-ALTER TABLE public.areas OWNER TO postgres;
+ALTER TABLE public.areas OWNER TO himanshumire;
 
 --
--- Name: blockchain_logs; Type: TABLE; Schema: public; Owner: postgres
+-- Name: blockchain_logs; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.blockchain_logs (
@@ -167,26 +167,26 @@ CREATE TABLE public.blockchain_logs (
 );
 
 
-ALTER TABLE public.blockchain_logs OWNER TO postgres;
+ALTER TABLE public.blockchain_logs OWNER TO himanshumire;
 
 --
--- Name: commodity_tolerances; Type: TABLE; Schema: public; Owner: postgres
+-- Name: commodity_tolerances; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.commodity_tolerances (
     commodity character varying(20) NOT NULL,
     min_tolerance_grams integer DEFAULT 20 NOT NULL,
     tolerance_pct numeric(5,2) DEFAULT 1 NOT NULL,
-    CONSTRAINT commodity_tolerances_commodity_check CHECK (((commodity)::text = ANY ((ARRAY['rice'::character varying, 'wheat'::character varying])::text[]))),
+    CONSTRAINT commodity_tolerances_commodity_check CHECK (((commodity)::text = ANY (ARRAY[('rice'::character varying)::text, ('wheat'::character varying)::text]))),
     CONSTRAINT commodity_tolerances_min_tolerance_grams_check CHECK (((min_tolerance_grams > 0) AND (min_tolerance_grams <= 500))),
     CONSTRAINT commodity_tolerances_tolerance_pct_check CHECK (((tolerance_pct > (0)::numeric) AND (tolerance_pct <= (100)::numeric)))
 );
 
 
-ALTER TABLE public.commodity_tolerances OWNER TO postgres;
+ALTER TABLE public.commodity_tolerances OWNER TO himanshumire;
 
 --
--- Name: dispense_records; Type: TABLE; Schema: public; Owner: postgres
+-- Name: dispense_records; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.dispense_records (
@@ -206,10 +206,10 @@ CREATE TABLE public.dispense_records (
 );
 
 
-ALTER TABLE public.dispense_records OWNER TO postgres;
+ALTER TABLE public.dispense_records OWNER TO himanshumire;
 
 --
--- Name: dispense_sessions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: dispense_sessions; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.dispense_sessions (
@@ -228,10 +228,33 @@ CREATE TABLE public.dispense_sessions (
 );
 
 
-ALTER TABLE public.dispense_sessions OWNER TO postgres;
+ALTER TABLE public.dispense_sessions OWNER TO himanshumire;
 
 --
--- Name: family_members; Type: TABLE; Schema: public; Owner: postgres
+-- Name: dispense_weighings; Type: TABLE; Schema: public; Owner: himanshumire
+--
+
+CREATE TABLE public.dispense_weighings (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    session_id character varying(255) NOT NULL,
+    commodity character varying(20) NOT NULL,
+    target_qty_kg numeric(8,2) NOT NULL,
+    measured_qty_kg numeric(8,2) NOT NULL,
+    tolerance_kg numeric(5,2) DEFAULT 0.10 NOT NULL,
+    is_verified boolean DEFAULT false NOT NULL,
+    device_id character varying(100),
+    verified_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT dispense_weighings_commodity_check CHECK (((commodity)::text = ANY ((ARRAY['rice'::character varying, 'wheat'::character varying, 'sugar'::character varying])::text[]))),
+    CONSTRAINT dispense_weighings_measured_qty_kg_check CHECK ((measured_qty_kg >= (0)::numeric)),
+    CONSTRAINT dispense_weighings_target_qty_kg_check CHECK ((target_qty_kg >= (0)::numeric))
+);
+
+
+ALTER TABLE public.dispense_weighings OWNER TO himanshumire;
+
+--
+-- Name: family_members; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.family_members (
@@ -247,10 +270,10 @@ CREATE TABLE public.family_members (
 );
 
 
-ALTER TABLE public.family_members OWNER TO postgres;
+ALTER TABLE public.family_members OWNER TO himanshumire;
 
 --
--- Name: iot_audit; Type: TABLE; Schema: public; Owner: postgres
+-- Name: iot_audit; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.iot_audit (
@@ -264,10 +287,10 @@ CREATE TABLE public.iot_audit (
 );
 
 
-ALTER TABLE public.iot_audit OWNER TO postgres;
+ALTER TABLE public.iot_audit OWNER TO himanshumire;
 
 --
--- Name: iot_devices; Type: TABLE; Schema: public; Owner: postgres
+-- Name: iot_devices; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.iot_devices (
@@ -288,10 +311,10 @@ CREATE TABLE public.iot_devices (
 );
 
 
-ALTER TABLE public.iot_devices OWNER TO postgres;
+ALTER TABLE public.iot_devices OWNER TO himanshumire;
 
 --
--- Name: otp_verifications; Type: TABLE; Schema: public; Owner: postgres
+-- Name: otp_verifications; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.otp_verifications (
@@ -304,10 +327,10 @@ CREATE TABLE public.otp_verifications (
 );
 
 
-ALTER TABLE public.otp_verifications OWNER TO postgres;
+ALTER TABLE public.otp_verifications OWNER TO himanshumire;
 
 --
--- Name: pgmigrations; Type: TABLE; Schema: public; Owner: postgres
+-- Name: pgmigrations; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.pgmigrations (
@@ -317,10 +340,10 @@ CREATE TABLE public.pgmigrations (
 );
 
 
-ALTER TABLE public.pgmigrations OWNER TO postgres;
+ALTER TABLE public.pgmigrations OWNER TO himanshumire;
 
 --
--- Name: pgmigrations_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: pgmigrations_id_seq; Type: SEQUENCE; Schema: public; Owner: himanshumire
 --
 
 CREATE SEQUENCE public.pgmigrations_id_seq
@@ -332,17 +355,17 @@ CREATE SEQUENCE public.pgmigrations_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.pgmigrations_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.pgmigrations_id_seq OWNER TO himanshumire;
 
 --
--- Name: pgmigrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: pgmigrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: himanshumire
 --
 
 ALTER SEQUENCE public.pgmigrations_id_seq OWNED BY public.pgmigrations.id;
 
 
 --
--- Name: policies; Type: TABLE; Schema: public; Owner: postgres
+-- Name: policies; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.policies (
@@ -357,10 +380,10 @@ CREATE TABLE public.policies (
 );
 
 
-ALTER TABLE public.policies OWNER TO postgres;
+ALTER TABLE public.policies OWNER TO himanshumire;
 
 --
--- Name: qr_sessions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: qr_sessions; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.qr_sessions (
@@ -375,10 +398,10 @@ CREATE TABLE public.qr_sessions (
 );
 
 
-ALTER TABLE public.qr_sessions OWNER TO postgres;
+ALTER TABLE public.qr_sessions OWNER TO himanshumire;
 
 --
--- Name: ration_cards; Type: TABLE; Schema: public; Owner: postgres
+-- Name: ration_cards; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.ration_cards (
@@ -394,10 +417,10 @@ CREATE TABLE public.ration_cards (
 );
 
 
-ALTER TABLE public.ration_cards OWNER TO postgres;
+ALTER TABLE public.ration_cards OWNER TO himanshumire;
 
 --
--- Name: sensor_reading_rejections; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sensor_reading_rejections; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.sensor_reading_rejections (
@@ -407,10 +430,10 @@ CREATE TABLE public.sensor_reading_rejections (
 );
 
 
-ALTER TABLE public.sensor_reading_rejections OWNER TO postgres;
+ALTER TABLE public.sensor_reading_rejections OWNER TO himanshumire;
 
 --
--- Name: sensor_readings; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sensor_readings; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.sensor_readings (
@@ -423,10 +446,10 @@ CREATE TABLE public.sensor_readings (
 );
 
 
-ALTER TABLE public.sensor_readings OWNER TO postgres;
+ALTER TABLE public.sensor_readings OWNER TO himanshumire;
 
 --
--- Name: shops; Type: TABLE; Schema: public; Owner: postgres
+-- Name: shops; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.shops (
@@ -442,10 +465,10 @@ CREATE TABLE public.shops (
 );
 
 
-ALTER TABLE public.shops OWNER TO postgres;
+ALTER TABLE public.shops OWNER TO himanshumire;
 
 --
--- Name: transactions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: transactions; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.transactions (
@@ -457,15 +480,17 @@ CREATE TABLE public.transactions (
     wheat_qty_kg numeric(8,2) DEFAULT 0 NOT NULL,
     blockchain_tx_hash text,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
+    iot_verified boolean DEFAULT false NOT NULL,
+    iot_device_id character varying(100),
     CONSTRAINT transactions_rice_qty_kg_check CHECK ((rice_qty_kg >= (0)::numeric)),
     CONSTRAINT transactions_wheat_qty_kg_check CHECK ((wheat_qty_kg >= (0)::numeric))
 );
 
 
-ALTER TABLE public.transactions OWNER TO postgres;
+ALTER TABLE public.transactions OWNER TO himanshumire;
 
 --
--- Name: used_jtis; Type: TABLE; Schema: public; Owner: postgres
+-- Name: used_jtis; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.used_jtis (
@@ -475,10 +500,10 @@ CREATE TABLE public.used_jtis (
 );
 
 
-ALTER TABLE public.used_jtis OWNER TO postgres;
+ALTER TABLE public.used_jtis OWNER TO himanshumire;
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: postgres
+-- Name: users; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.users (
@@ -496,10 +521,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO postgres;
+ALTER TABLE public.users OWNER TO himanshumire;
 
 --
--- Name: wallets; Type: TABLE; Schema: public; Owner: postgres
+-- Name: wallets; Type: TABLE; Schema: public; Owner: himanshumire
 --
 
 CREATE TABLE public.wallets (
@@ -514,10 +539,10 @@ CREATE TABLE public.wallets (
 );
 
 
-ALTER TABLE public.wallets OWNER TO postgres;
+ALTER TABLE public.wallets OWNER TO himanshumire;
 
 --
--- Name: v_beneficiaries; Type: VIEW; Schema: public; Owner: postgres
+-- Name: v_beneficiaries; Type: VIEW; Schema: public; Owner: himanshumire
 --
 
 CREATE VIEW public.v_beneficiaries AS
@@ -544,10 +569,10 @@ CREATE VIEW public.v_beneficiaries AS
      LEFT JOIN public.wallets w ON ((w.ration_card_id = rc.id)));
 
 
-ALTER VIEW public.v_beneficiaries OWNER TO postgres;
+ALTER VIEW public.v_beneficiaries OWNER TO himanshumire;
 
 --
--- Name: v_blockchain_pending; Type: VIEW; Schema: public; Owner: postgres
+-- Name: v_blockchain_pending; Type: VIEW; Schema: public; Owner: himanshumire
 --
 
 CREATE VIEW public.v_blockchain_pending AS
@@ -568,10 +593,10 @@ CREATE VIEW public.v_blockchain_pending AS
   ORDER BY bl.submitted_at;
 
 
-ALTER VIEW public.v_blockchain_pending OWNER TO postgres;
+ALTER VIEW public.v_blockchain_pending OWNER TO himanshumire;
 
 --
--- Name: v_shop_summary; Type: VIEW; Schema: public; Owner: postgres
+-- Name: v_shop_summary; Type: VIEW; Schema: public; Owner: himanshumire
 --
 
 CREATE VIEW public.v_shop_summary AS
@@ -591,10 +616,10 @@ CREATE VIEW public.v_shop_summary AS
   GROUP BY s.id, s.shop_code, s.shop_name, a.name, u.name, u.mobile;
 
 
-ALTER VIEW public.v_shop_summary OWNER TO postgres;
+ALTER VIEW public.v_shop_summary OWNER TO himanshumire;
 
 --
--- Name: v_transactions; Type: VIEW; Schema: public; Owner: postgres
+-- Name: v_transactions; Type: VIEW; Schema: public; Owner: himanshumire
 --
 
 CREATE VIEW public.v_transactions AS
@@ -616,17 +641,17 @@ CREATE VIEW public.v_transactions AS
      LEFT JOIN public.blockchain_logs bl ON ((bl.transaction_id = t.id)));
 
 
-ALTER VIEW public.v_transactions OWNER TO postgres;
+ALTER VIEW public.v_transactions OWNER TO himanshumire;
 
 --
--- Name: pgmigrations id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: pgmigrations id; Type: DEFAULT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.pgmigrations ALTER COLUMN id SET DEFAULT nextval('public.pgmigrations_id_seq'::regclass);
 
 
 --
--- Data for Name: anomaly_events; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: anomaly_events; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.anomaly_events (id, type, severity, shop_code, transaction_id, description, created_at, resolved) FROM stdin;
@@ -634,7 +659,7 @@ COPY public.anomaly_events (id, type, severity, shop_code, transaction_id, descr
 
 
 --
--- Data for Name: anomaly_flags; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: anomaly_flags; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.anomaly_flags (id, rule_key, shop_id, device_id, dispense_record_id, severity, description, created_at, resolved_at, auto_resolved_at) FROM stdin;
@@ -649,11 +674,12 @@ adbddc86-3f54-40f7-a8a2-4c79c0441908	OFF_HOURS	148bf4bf-2817-4d6b-8be5-0a4cca73d
 044877fc-3ab3-4db1-80cd-2c8a5d4a2f91	OFF_HOURS	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	\N	420d0c78-57be-4c2b-81f6-1afdac006096	warn	Dispense committed at 23:00 Asia/Kolkata, outside 7:00–21:00	2026-08-18 23:30:00.332637	\N	\N
 efd8fae2-b326-47da-bb2f-0c96b6b89839	OFF_HOURS	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	\N	80fa9b1b-c85b-4f27-b89a-205f7fd6144f	warn	Dispense committed at 23:00 Asia/Kolkata, outside 7:00–21:00	2026-08-18 23:30:00.337355	\N	\N
 28eb1f71-bc15-412c-b86d-4e434b5e2f70	OFF_HOURS	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	\N	660ad9ce-5905-4ebc-abb3-f6c48ef536cf	warn	Dispense committed at 5:00 Asia/Kolkata, outside 7:00–21:00	2026-08-19 05:55:00.533922	\N	\N
+5fa28110-493e-4506-ad13-bb905aba0f01	DEVICE_ANOMALY	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	ESP32-AUDIT01	\N	critical	100.0% of readings rejected (sanity ceiling) in the last 24h (limit 5%)	2026-09-20 16:10:00.094376	\N	2026-09-21 17:40:00.197306
 \.
 
 
 --
--- Data for Name: anomaly_rules; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: anomaly_rules; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.anomaly_rules (rule_key, enabled, severity, params_json, created_at) FROM stdin;
@@ -665,7 +691,7 @@ DEVICE_ANOMALY	t	critical	{"window_hours": 24, "reject_pct_threshold": 5}	2026-0
 
 
 --
--- Data for Name: areas; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: areas; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.areas (id, name, is_active, created_at) FROM stdin;
@@ -676,7 +702,7 @@ b3ebf8c5-c130-4717-b406-f3087aad2bb7	Manish Nagar	t	2026-06-28 13:53:33.432444
 
 
 --
--- Data for Name: blockchain_logs; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: blockchain_logs; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.blockchain_logs (id, transaction_id, tx_hash, status, block_number, attempts, last_error, submitted_at, confirmed_at) FROM stdin;
@@ -684,7 +710,7 @@ COPY public.blockchain_logs (id, transaction_id, tx_hash, status, block_number, 
 
 
 --
--- Data for Name: commodity_tolerances; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: commodity_tolerances; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.commodity_tolerances (commodity, min_tolerance_grams, tolerance_pct) FROM stdin;
@@ -694,7 +720,7 @@ wheat	20	1.00
 
 
 --
--- Data for Name: dispense_records; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: dispense_records; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.dispense_records (id, session_id, ration_card_id, shop_id, commodity, entitled_grams, measured_grams, prev_hash, row_hash, committed_at, blockchain_tx_hash, last_anchor_error, transaction_id) FROM stdin;
@@ -718,7 +744,7 @@ a6279a33-a237-49b6-b9f6-a88f6ae505d6	1b7b126e-b49c-49c6-bcba-7fd3bd6736f0	1f34dc
 
 
 --
--- Data for Name: dispense_sessions; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: dispense_sessions; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.dispense_sessions (id, shop_id, ration_card_id, commodity, entitled_grams, tolerance_grams, device_id, state, opened_at, expires_at, attached_at, committed_at) FROM stdin;
@@ -739,11 +765,29 @@ fb780331-1454-40bc-9a96-cee4b6d06402	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	a27f9d
 e718183a-fbb5-44d6-aedf-31c633589a4d	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	5c75ee1d-ccbe-4e65-a262-fa1aca738666	rice	3000	30	ESP32-AUDIT01	committed	2026-08-18 23:19:31.790187	2026-08-18 23:20:31.795	2026-08-18 23:19:31.810313	2026-08-18 23:19:38.868932
 1b7b126e-b49c-49c6-bcba-7fd3bd6736f0	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	1f34dc13-e9c1-4e8b-8cef-f81eeba6a70b	rice	3000	30	ESP32-AUDIT01	committed	2026-08-18 23:21:58.632037	2026-08-18 23:22:58.645	2026-08-18 23:21:58.658868	2026-08-18 23:22:05.528091
 f7b796fe-ec80-4c9d-9d0a-79673ff25b61	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	02299d9c-beee-40ff-bc1a-976e174435e8	rice	3000	30	ESP32-AUDIT01	committed	2026-08-18 23:23:48.927506	2026-08-18 23:24:48.934	2026-08-18 23:23:48.960057	2026-08-18 23:23:53.445656
+80e602a7-4178-4e67-88bf-b2461669c161	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	cancelled	2026-09-20 16:24:25.803295	2026-09-20 16:25:25.811	2026-09-20 16:24:25.847573	\N
+6ac89a1d-0649-429a-9485-495352c40079	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	cancelled	2026-09-20 16:26:25.044628	2026-09-20 16:27:25.049	2026-09-20 16:26:25.06075	\N
+6b6e0cbd-e3ac-410c-8ac4-1351fc6e452a	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	device_lost	2026-09-20 16:27:42.381848	2026-09-20 16:28:42.384	2026-09-20 16:27:42.438541	\N
+597b4d9f-6716-4b03-8e9a-413d5836386f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	device_lost	2026-09-20 16:35:13.750656	2026-09-20 16:36:13.768	2026-09-20 16:35:13.783704	\N
+0655b0b5-b059-4326-ba45-c27bf2b66301	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	cancelled	2026-09-20 16:36:36.883834	2026-09-20 16:37:36.888	2026-09-20 16:36:36.931921	\N
+d409dfeb-06d7-4a4c-885f-20fff5ee789b	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	2000	20	ESP32-AUDIT01	device_lost	2026-09-26 10:35:35.915074	2026-09-26 10:36:35.925	2026-09-26 10:35:35.945848	\N
+6c932c7d-3444-4bfc-9cc6-d510f278c3f3	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	1000	20	ESP32-AUDIT01	device_lost	2026-09-26 20:03:10.239408	2026-09-26 20:04:10.249	2026-09-26 20:03:10.266035	\N
+e9b6a9d4-9226-42be-8b68-b7af07ebda8d	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	1000	20	ESP32-AUDIT01	device_lost	2026-09-26 20:06:16.584754	2026-09-26 20:07:16.59	2026-09-26 20:06:16.608737	\N
+dc6fbf4c-e179-4b55-964a-bb9a105371e1	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	1000	20	ESP32-AUDIT01	cancelled	2026-09-26 20:10:07.776605	2026-09-26 20:11:07.779	2026-09-26 20:10:07.789514	\N
+e72c20cf-1670-462d-91b5-119ce3e0c179	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	rice	1000	20	ESP32-AUDIT01	cancelled	2026-09-26 20:12:49.055574	2026-09-26 20:13:49.06	2026-09-26 20:12:49.103175	\N
 \.
 
 
 --
--- Data for Name: family_members; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: dispense_weighings; Type: TABLE DATA; Schema: public; Owner: himanshumire
+--
+
+COPY public.dispense_weighings (id, session_id, commodity, target_qty_kg, measured_qty_kg, tolerance_kg, is_verified, device_id, verified_at, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: family_members; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.family_members (id, ration_card_id, user_id, name, age, is_head, created_at, relationship) FROM stdin;
@@ -857,25 +901,31 @@ b974ee0e-9cb6-42c9-ad71-37d9879742f3	c6288a74-f2eb-4139-bd18-fa6a3a4b5596	897679
 
 
 --
--- Data for Name: iot_audit; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: iot_audit; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.iot_audit (id, actor_type, actor_id, action, target, at_time, meta_json) FROM stdin;
+d9025c5d-cc80-4a46-920d-d631b12b3879	admin	9f902a04-c282-4e4f-96b7-a9a1e44415de	rotate_token	ESP32-AUDIT01	2026-09-20 15:38:37.518337	{"graceExpiresAt": "2026-09-20T10:13:37.513Z"}
+dd37f984-6214-478c-a24b-2fe8afe46732	shopkeeper	b3a9d263-dbf7-4f66-87eb-b296177b80d1	cancel_session	80e602a7-4178-4e67-88bf-b2461669c161	2026-09-20 16:26:02.8762	{"shopId": "148bf4bf-2817-4d6b-8be5-0a4cca73dbdc"}
+c1d4225a-bb3c-4bdf-92e2-b46c9d27e6c7	shopkeeper	b3a9d263-dbf7-4f66-87eb-b296177b80d1	cancel_session	6ac89a1d-0649-429a-9485-495352c40079	2026-09-20 16:27:25.975165	{"shopId": "148bf4bf-2817-4d6b-8be5-0a4cca73dbdc"}
+4d097e96-0e55-46a3-942e-02d01bda5243	shopkeeper	b3a9d263-dbf7-4f66-87eb-b296177b80d1	cancel_session	0655b0b5-b059-4326-ba45-c27bf2b66301	2026-09-20 16:37:14.306738	{"shopId": "148bf4bf-2817-4d6b-8be5-0a4cca73dbdc"}
+0112333e-ca92-4fd0-a46d-5831d2d08c16	shopkeeper	b3a9d263-dbf7-4f66-87eb-b296177b80d1	cancel_session	dc6fbf4c-e179-4b55-964a-bb9a105371e1	2026-09-26 20:12:33.751992	{"shopId": "148bf4bf-2817-4d6b-8be5-0a4cca73dbdc"}
+a8989b98-8add-44ae-a9c9-4d10e409e733	shopkeeper	b3a9d263-dbf7-4f66-87eb-b296177b80d1	cancel_session	e72c20cf-1670-462d-91b5-119ce3e0c179	2026-09-26 20:18:27.652014	{"shopId": "148bf4bf-2817-4d6b-8be5-0a4cca73dbdc"}
 \.
 
 
 --
--- Data for Name: iot_devices; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: iot_devices; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.iot_devices (id, device_id, device_token_hash, shop_id, status, token_expires_at, last_seen_at, created_at, needs_recalibration, calibrated_at, previous_token_hash, previous_token_expires_at, device_name, firmware_version) FROM stdin;
 89873d85-6aa2-4af6-85d5-a1fedb1bbdd9	esp32-verify-01	$2b$10$u6L/ZjbjtpPYtgVX4RUoL.cOlaPZFIA0CDFZkI/d9JEg3QidpP8fm	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	inactive	\N	\N	2026-08-17 22:15:09.766331	f	\N	\N	\N	\N	\N
-8589c025-9666-4593-b422-6c7f99061ea4	ESP32-AUDIT01	$2b$10$0muedMNk3ZyEVtqUere8next0fe2ZED.OqLJ6QMVP7Xf6WUoRfq2G	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	active	\N	2026-08-19 05:55:51.461991	2026-08-18 22:52:48.448347	f	\N	\N	\N	Acceptance audit scale	simulated
+8589c025-9666-4593-b422-6c7f99061ea4	ESP32-AUDIT01	$2b$10$fjP9yM.rbBQyYPen1ZfV7.Qil9finAaoEihsJM20clfxXEOoD5HtW	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	active	\N	2026-09-26 20:53:35.6134	2026-08-18 22:52:48.448347	t	\N	$2b$10$0muedMNk3ZyEVtqUere8next0fe2ZED.OqLJ6QMVP7Xf6WUoRfq2G	2026-09-20 15:43:37.513	Acceptance audit scale	2.1.0-serial
 \.
 
 
 --
--- Data for Name: otp_verifications; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: otp_verifications; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.otp_verifications (id, mobile, status, is_used, expires_at, created_at) FROM stdin;
@@ -883,7 +933,7 @@ COPY public.otp_verifications (id, mobile, status, is_used, expires_at, created_
 
 
 --
--- Data for Name: pgmigrations; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: pgmigrations; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.pgmigrations (id, name, run_on) FROM stdin;
@@ -913,22 +963,23 @@ COPY public.pgmigrations (id, name, run_on) FROM stdin;
 25	024_commodity_tolerance_integrity	2026-08-17 23:20:41.500553
 26	025_monthly_claim_unique_indexes	2026-08-17 23:20:41.500553
 27	026_iot_device_identity_and_assignment	2026-08-18 10:59:43.176526
+28	027_update_apl_entitlement	2026-09-26 10:45:26.856111
 \.
 
 
 --
--- Data for Name: policies; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: policies; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.policies (id, category, validity_days, updated_at, rice_per_card_grams, wheat_per_card_grams) FROM stdin;
-a61cd9af-4ed0-4ee5-9312-f70c8fbfad76	APL	30	2026-06-28 13:33:42.651198	1000	700
 b904ce53-edc2-41cc-b164-f8641940ed86	BPL	30	2026-06-28 13:33:42.651198	3000	2000
 9730ca57-400e-457d-afd1-bd690c4a9aba	AAY	30	2026-06-28 13:33:42.651198	4000	3000
+a61cd9af-4ed0-4ee5-9312-f70c8fbfad76	APL	30	2026-06-28 13:33:42.651198	1000	700
 \.
 
 
 --
--- Data for Name: qr_sessions; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: qr_sessions; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.qr_sessions (session_id, ration_card_id, shop_id, issued_to_user_id, expires_at, is_used, used_at, created_at) FROM stdin;
@@ -976,11 +1027,108 @@ b232f571166b2bdcd7073b5f150b815d	51af64a5-7904-40b2-9914-d8b9071e5436	148bf4bf-2
 2fe311fe42be6a4a05a96e4620d7293f	c6288a74-f2eb-4139-bd18-fa6a3a4b5596	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	94407d43-3b62-49bb-a9b0-8811b290467b	2026-08-18 23:33:30.075	f	\N	2026-08-18 23:28:30.076376
 0e32069785df7f52ef1ab357c74b69a5	da681ac5-fc04-454f-9476-684d628f062f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	475a9c74-dc6e-4f86-bc89-aaa5dedfe9a3	2026-08-19 05:59:20.97	t	2026-08-19 05:54:28.434309	2026-08-19 05:54:20.972647
 76a3726ff92589f97e8f37067fa5b56a	0944244e-b10e-486c-adeb-5cd16a643c7e	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	2fbadc3a-e9b0-4ace-868f-4976a2e6a97e	2026-08-19 05:59:43.688	f	\N	2026-08-19 05:54:43.690901
+cdfd01f8d60b2753f66139910a4e15b8953956ad35c0b6c1889147e1cfd2aa06	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:19:26.698	f	\N	2026-09-20 14:18:26.698675
+4668cea8c1145bb0f1c26a18ec3aa04bd2f1de79dc596a94a7b63e7ef0972104	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:20:26.846	f	\N	2026-09-20 14:19:26.847085
+30984a536ed84fbe92df65182497e012944aa71205727460281b5ee522705837	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:21:26.93	f	\N	2026-09-20 14:20:26.930792
+7cc82cf6a0ee622cfb93d0d6e8bb44907f274c56f7b214f274875942c86fb31d	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:22:27.285	f	\N	2026-09-20 14:21:27.285181
+c764ff6febbd548748f527676c49bf5e8b824ead4c84d4c9c8cc20379710ab2e	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:23:27.443	f	\N	2026-09-20 14:22:27.443556
+20006e2a03072f50594911a871f55efac0fc126f6cefc5c719ca604271597bb7	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:24:27.585	f	\N	2026-09-20 14:23:27.585333
+687b9ee80d0df63fe805ee1a76a5c05d5bcbcface9d040c8fbcbb183d6ce5cc6	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:25:27.752	f	\N	2026-09-20 14:24:27.752818
+93f76c31aaef999ca23360386ba51b99487902112a6f3e4f26f5eb6d8913324c	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 14:26:27.858	f	\N	2026-09-20 14:25:27.858978
+4a25980f4e9e942a3c35feb9f23eb573e9b4cb4e693912b58bf9f6df92a28b13	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 15:27:59.556	f	\N	2026-09-20 15:26:59.556721
+7af252463c091fe22565ec0c4f78047c2c3739af1f0ac18510bf24bea0bd3ab0	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 15:28:52.817	f	\N	2026-09-20 15:27:52.817595
+7ba2765bddb84970ab8025f92b76d22a2b46a88580d280d297fd505686db18fa	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 15:29:09.432	f	\N	2026-09-20 15:28:09.432622
+d4415572da806086c1e14669d8b255375735a799c30ad9ef2ff5f5c2df605fe8	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 15:59:00.1	f	\N	2026-09-20 15:58:00.100792
+907bec3f31c83ca4a1ec9775c85e26fd5502c68d09dc0e39527e2e31ea3780d2	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:00:00.398	f	\N	2026-09-20 15:59:00.399148
+014500d0e5d9c1e891782638e0f8713cf820425d26a5f786dbc3c73274eb73cd	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:00:02.508	f	\N	2026-09-20 15:59:02.50905
+766107fd7d644226734a1b99997091aa185bc624b771df33742a69da1ccb6523	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:00:02.708	f	\N	2026-09-20 15:59:02.709083
+e1dad1ada6a5f7241753cb4e3002b3cbafacf0b30078189a0d4a16978526261e	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:00:02.987	f	\N	2026-09-20 15:59:02.988653
+793ff89eda0690f0778b3cd52cc639555ff28729b1d789e02664a7fd88b1ec15	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:01:03.1	f	\N	2026-09-20 16:00:03.100386
+ecafb8d2e67cc87840af4c0bca2a37c8a338ee0d6725331a36fe310fe9564a46	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:02:03.243	f	\N	2026-09-20 16:01:03.244341
+db45854930b5d3c73b2ff151c2693583bdaaa7f38504be62afb99525fab5d5da	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:23:28.159	f	\N	2026-09-20 16:22:28.159737
+601bf24201362b511d57c11523e7eb2aef14ec9a706dda3007aedf57af2c675b	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:24:28.26	f	\N	2026-09-20 16:23:28.260633
+c35e5119b307a8210d13a49e77b66417ca3a82601f138364c4e5978e50d63750	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:25:28.303	f	\N	2026-09-20 16:24:28.303605
+6a99d746e29f362c81208639d96b7d51446b220e95f777f18592533fc3d49900	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:26:28.42	f	\N	2026-09-20 16:25:28.420414
+c7bfbbdd1a5cbf6b648e8efb147e19d577e2264a1852d25a526e93d71d03e463	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:27:28.486	f	\N	2026-09-20 16:26:28.486423
+2e9ca8db541e0988566b2bab98de572272c21f488a7f2f2ccf4126ecdc7652ed	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:28:28.621	f	\N	2026-09-20 16:27:28.62178
+9189946bb845f6371d08cb830aeda505ee351e159b65648802125126a9d77ccf	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:28:33.538	f	\N	2026-09-20 16:27:33.539075
+16061072669e766c278474e4f32b28128cab842305e8f5505c74a859e6304a63	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:29:33.698	f	\N	2026-09-20 16:28:33.698734
+1eff34c9852b45b89341b318700c57a6c1166b7a317c29cccd9c060957540107	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:30:33.781	f	\N	2026-09-20 16:29:33.782643
+a0198a9aa11aced815dbd999a9bdde678c395be9a8ad3ce22c23d55a4f999c5f	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:31:33.837	f	\N	2026-09-20 16:30:33.837386
+b056fc4d2dce931f7f62bee303c1972f5c55734e2d2ebdba1350b0f1a7ce042c	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:32:33.933	f	\N	2026-09-20 16:31:33.9334
+d238e66aa820aa900a9d590e8772bb87bb6ad989fc3f691265fcb713bf8b67fa	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:33:34.063	f	\N	2026-09-20 16:32:34.063321
+b007c369793693881372f69913edf729d08dfcb593feb5f282bca77e757179f0	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:34:34.19	f	\N	2026-09-20 16:33:34.190393
+b3b26446f2ccd5aae77da7198a374bf968da02af30abd865fa0547aadbb479ed	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:35:34.264	f	\N	2026-09-20 16:34:34.264143
+e019e627cf914abb54125948698c4ca2c390836cdab17bb29457492883d90408	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:36:01.024	f	\N	2026-09-20 16:35:01.024681
+20b051cffffa925a2316f2cb660495280ce1e1afd6a4a2705fd983da92a04d22	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:37:01.089	f	\N	2026-09-20 16:36:01.08961
+bb46ddbcba95976e960ac952d0a6dfc88205fb3e1c81a3e1b0fb8137a27c8156	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:37:26.831	f	\N	2026-09-20 16:36:26.831804
+97569a161d3a557b77268451e49c3a1cabb6b71b6f18115013c71cb001ac0bd5	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:38:27.264	f	\N	2026-09-20 16:37:27.264438
+9f137515f97a891579559808fee230ad7f0e963d8cdfa219597cf8acab4ef180	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:39:27.44	f	\N	2026-09-20 16:38:27.440582
+f24c5a0dd2f5c39afdaf3eec5ad955fc4c11e9fb9aa69c2c2caa2420f075defc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:40:27.514	f	\N	2026-09-20 16:39:27.515252
+7a94914074b2076611d056a64d7d9b9d307566c0f077b9d8604bc9b8d93e4987	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:41:27.622	f	\N	2026-09-20 16:40:27.622797
+ca6dace651e27eabc2a3e13136b32f997fa050a9f235ae65182941172850e5e4	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:42:27.658	f	\N	2026-09-20 16:41:27.658998
+eab25278281ee5af13de53b6479e22f1c4e0f127129d67b71c4996857e326fd7	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:43:27.743	f	\N	2026-09-20 16:42:27.743392
+1082cc13d449c88d30506c57c64db6d9fa17f2f35a982b7b0a73318584b7f8bb	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:44:28.01	f	\N	2026-09-20 16:43:28.010242
+65fd24904d86493bc201a4cb968c8980286c38e6060b89394ebb904965c4fcc5	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:45:28.581	f	\N	2026-09-20 16:44:28.581818
+e1bcb1723fa287a14ac6ce4ec3f32435b314f51852270578344b887b4fae2259	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:46:28.955	f	\N	2026-09-20 16:45:28.955262
+6a07e9a643ae6d38d469c75d5f32b2c7586e4a94e7223a510dc8fa0a8af3df9f	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:47:29.207	f	\N	2026-09-20 16:46:29.20752
+c2f43810c4979c69e6b35c2e1b238be30f10eae4d790d9f0afb55a6cec772259	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:48:29.345	f	\N	2026-09-20 16:47:29.345299
+05664fa8619d5335ec36f00134885b260cf1ecea1ca91546a836abcb4127807d	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-20 16:49:29.423	f	\N	2026-09-20 16:48:29.423587
+8f4363e4080c1e20387d53a4cb437564678d561be07e93277e169753516b6412	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 09:53:05.29	f	\N	2026-09-26 09:52:05.291407
+0e41f0437a97cf2cb1dc754352fd3bdb03b37108fd2c69f643f7835fd9457098	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 09:55:38.186	f	\N	2026-09-26 09:54:38.18774
+47926204568ee258457f5554379ed98bb8078f97ea44eb9dcf058df6ac62931a	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:35:56.35	f	\N	2026-09-26 10:34:56.350756
+44cb287c7fe32a967eecdcdf66e191782a40ae1cf0bd756b4b3833b4d6c9bb69	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:36:56.557	f	\N	2026-09-26 10:35:56.557353
+04b4811477d4526e96549e1f5cc5a2890c5cf3de46bce437ea719bed3a80ca8e	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:37:56.654	f	\N	2026-09-26 10:36:56.655602
+42974f9af36873d8f185b9d61792f1044df6b6ae4485d1d1121a57073b11b1ba	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:38:56.829	f	\N	2026-09-26 10:37:56.829764
+f145a7417e1e052194f2abc3946012eab3304ee490af198bdc828d9b2e1a42c4	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:39:56.925	f	\N	2026-09-26 10:38:56.925713
+b5bae65ce9cf1d6334c89cd24d13b6b6eb6c0a23ccc2f94e9fd191dbd0ad9ed8	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:40:57.034	f	\N	2026-09-26 10:39:57.036378
+dd676e59f077a40654f0cf7d1857daaaef3b9a82f710058027319e23abf85c69	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:41:57.299	f	\N	2026-09-26 10:40:57.299782
+08f60bd1acc689a5188659a70ac8ff562a0041996c7eb2cc312aabb4196889c9	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:42:57.499	f	\N	2026-09-26 10:41:57.499631
+aec949ad8557ad8f87efae785fa9ab3445b61a4f461b0b280fc6a0d500aa6621	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:43:57.645	f	\N	2026-09-26 10:42:57.645683
+cf6369665595dfe913cad3e0415c8bb32458db489d0db152f97d3f34a6cdc46a	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:44:57.817	f	\N	2026-09-26 10:43:57.817347
+76179d51914d887bf2e4229b674fb4dcb650b2efc2e8af61e02090f34a071130	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:45:57.962	f	\N	2026-09-26 10:44:57.962973
+ede9abc4d78163483ccb31d6797b35ffa9f8a426ca9a9d4336f3daba2fc52585	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:46:58.135	f	\N	2026-09-26 10:45:58.135803
+784069ce762ef7ed8b207e3acc38dbbf6b3b416df93b77661fe4e9ee369953b5	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:47:58.297	f	\N	2026-09-26 10:46:58.29771
+d5ff5b33a0d8d6a1ab0385059526de4141fe0729068aa235a376515313127d07	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:48:58.496	f	\N	2026-09-26 10:47:58.496602
+eab65d3142c102463e57a99ebff01cb490823860737e8c0ac4f39ec28bddf1b4	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:49:58.633	f	\N	2026-09-26 10:48:58.633817
+f2c78aba7933703d1f118ce8fc1e166a9ddfef2d078edb48c1d1a524ef1f7333	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:50:59.721	f	\N	2026-09-26 10:49:59.721775
+b81730cd9f4dbf2a5c0e1a3a8b71ebb60f4e6aecd429c575245df75ffb977ce1	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:51:59.961	f	\N	2026-09-26 10:50:59.961929
+215bbf800acb7ad9eda9c6c30d8f126ffced996a10c697ac9c9cf476cece5073	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:53:00.282	f	\N	2026-09-26 10:52:00.282746
+19c28c1939d7655ee4ad39bed5ded7df95fb47dc8f6df8a18c7d2dd91ca0dded	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:54:00.437	f	\N	2026-09-26 10:53:00.437729
+f5ff3ea658d6b7fdabd3edc8b7635792e7dfbb2f869fcebe8d4ce4e186091c11	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:55:00.728	f	\N	2026-09-26 10:54:00.728859
+2af54d75d1c96853e05f30f8df25362a451cfd8d019ffcacfac07d6d4fcde6cb	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:56:01.022	f	\N	2026-09-26 10:55:01.022912
+c29726277f05e554cef63c58ca339093ffd5a855f81d2bd49aa7153be8a29d67	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:57:01.361	f	\N	2026-09-26 10:56:01.361155
+c8868947e32b94c471cc91b7d98cce8a42ee44a1d491905a0c528b7f0e4e7b45	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:58:01.635	f	\N	2026-09-26 10:57:01.63605
+d3b896e25c23641978dee5c34163335464a28fc5b2bccc33f07e9ee4456fc6ff	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 10:59:01.939	f	\N	2026-09-26 10:58:01.939202
+df6c71815595ee76fe9e4c9ccdd2d80c3e8546adc0f9371759825c3b68cc0241	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:00:02.218	f	\N	2026-09-26 10:59:02.218902
+d410c9090ec93a31e67cef0f1afa09e4556d48334abcab24b9c8acd7aa38cbdd	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:01:02.629	f	\N	2026-09-26 11:00:02.629301
+a507a2e6d91209615bde5d8fd362ab6dd93103a0e07bd94c18ba27c2d4465a1b	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:02:02.96	f	\N	2026-09-26 11:01:02.960794
+3331a31dbfa5c3cafad65a9303cd3e313efd663dd4e496720abea062ea89b659	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:03:03.175	f	\N	2026-09-26 11:02:03.175381
+a5344dc6afd86d1a55f4da90b09072fe064d2441f15313984318ed700dfc9af2	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:04:03.446	f	\N	2026-09-26 11:03:03.447106
+b62e643ac268c5d5cc63081b7c83f6f2948664d478fe1f7c19bc9f542903a2d3	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:05:03.721	f	\N	2026-09-26 11:04:03.721251
+5ca7f01000d420a32dd45f1f30ee9039805fb03f394c5e018a19ee9f7116b58f	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:06:03.961	f	\N	2026-09-26 11:05:03.962124
+d2d3d1ae01ba801871b71a475703c5ee8d6ac9edc2422d7fce0f78b7774c24fd	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:07:04.174	f	\N	2026-09-26 11:06:04.175137
+ef3e5dbdd05b278dc2552d69d8faa9a714c100995664aebf29a9d06c3b1ee02a	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:08:04.364	f	\N	2026-09-26 11:07:04.364922
+b10c15dbf8f782dc6b42ee1c4d5d06d8c3fad0bb9d48b96b3f1683bbf08374cc	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 11:09:04.935	f	\N	2026-09-26 11:08:04.935367
+10bc75f08976927adbf2726019dd0f2ea2d19d9d1d4b57a652ffb149b786d8b2	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:02:57.833	f	\N	2026-09-26 20:01:57.83831
+354c366097cb744c813379d8a210a1674d542ebfa7bfff3e21574586526fceaa	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:03:40.886	f	\N	2026-09-26 20:02:40.886288
+9247f9505c0cb0232e24acdf1d71ca73db9773a0dddb5e9d97231f2ff5b65d61	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:04:41.773	f	\N	2026-09-26 20:03:41.773991
+2eab5e29a5a054bf14012295ba004e3691ce43e5f98c20912d0e682a31319c87	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:05:42.545	f	\N	2026-09-26 20:04:42.545273
+bb6774a47228855407aba13159a698e857093720f7276e13738ee2bdd3d9e910	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:06:43.088	f	\N	2026-09-26 20:05:43.088974
+cba111e9596f8edc4977218a943563682ef08a6e2596e171265a9d0621ed0400	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:07:06.523	f	\N	2026-09-26 20:06:06.523716
+b4d2f91ebd042abbafe1d1368a001c86ec1a3a9e2937fc8375f37744355803b8	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:08:07.128	f	\N	2026-09-26 20:07:07.128692
+32f0e684f9282d7868327fece810bbe02243bb9015ddeaf3f6148816623a94ed	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:09:07.762	f	\N	2026-09-26 20:08:07.762299
+90ed633fcc70671d89fcd82a167153baf399d04e5cf1d2c43d75c383e62be587	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:10:08.335	f	\N	2026-09-26 20:09:08.335175
+519479706514a9ea3565aa55e423c0544866e2ca8a42e560f63e6ad7f985f560	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:11:00.308	f	\N	2026-09-26 20:10:00.308222
+17d2cdf939afe536702502956d7c519226e613f74dc133ee7fb3ed6b644ec3f8	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:12:00.924	f	\N	2026-09-26 20:11:00.924808
+7cdb179ba30cdb1b16141bc7c25b0d3320efa358d226e05b94a207b8b27c7031	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:13:01.417	f	\N	2026-09-26 20:12:01.419126
+1bca39944e5670df6abf223a8dd21068fcac8606d513a4b5fd91757461af406a	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:13:38.899	f	\N	2026-09-26 20:12:38.900135
+3756c5388f249e4c70c9e29b417ea56842dfe89916926a59c4f641ec96356518	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	941aca8b-100f-4c38-af25-321d03d783c8	2026-09-26 20:14:39.402	f	\N	2026-09-26 20:13:39.403124
 \.
 
 
 --
--- Data for Name: ration_cards; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: ration_cards; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.ration_cards (id, card_number, category, head_user_id, shop_id, area_id, is_active, created_at, address) FROM stdin;
@@ -1043,15 +1191,1373 @@ da681ac5-fc04-454f-9476-684d628f062f	DEMO-AUDIT-375019	BPL	475a9c74-dc6e-4f86-bc
 
 
 --
--- Data for Name: sensor_reading_rejections; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: sensor_reading_rejections; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.sensor_reading_rejections (id, device_id, rejected_at) FROM stdin;
+60b89750-a2c9-4c98-a52c-dc04ca302776	ESP32-AUDIT01	2026-09-20 16:09:47.70104
+9b84772f-9005-48c8-8325-21ba56cc4d8f	ESP32-AUDIT01	2026-09-20 16:09:48.994226
+d37f848e-6ce0-4531-9099-8887d71da677	ESP32-AUDIT01	2026-09-20 16:09:50.311322
+5029a217-dc6a-4d63-866d-f9030fdcffee	ESP32-AUDIT01	2026-09-20 16:09:51.588288
+92c40fd6-144a-47ca-8b71-0b78d491562a	ESP32-AUDIT01	2026-09-20 16:09:52.884881
+31de11e7-fa66-4ffc-8117-4879748ab0a5	ESP32-AUDIT01	2026-09-20 16:09:54.177322
+ad7eeb55-327c-4c51-8898-992bae2e37b5	ESP32-AUDIT01	2026-09-20 16:09:55.472713
+1ee767c3-23fa-4993-87e1-0be96e0096d9	ESP32-AUDIT01	2026-09-20 16:09:56.767176
+57876758-591b-403b-b7a5-38d20603bfd3	ESP32-AUDIT01	2026-09-20 16:09:58.075887
+a183c851-9b88-4417-b317-203b38f9d229	ESP32-AUDIT01	2026-09-20 16:09:59.358529
+556249e2-aa22-4eed-8485-6a8a262839e1	ESP32-AUDIT01	2026-09-20 16:10:00.656499
+b7b12ddb-0295-4a0b-bc6d-5dbbb057369e	ESP32-AUDIT01	2026-09-20 16:10:01.950468
+9ba13636-cb9a-4665-a415-f0117bd23b2b	ESP32-AUDIT01	2026-09-20 16:10:03.261635
+16623f76-967f-4596-842c-f1acb5d9769a	ESP32-AUDIT01	2026-09-20 16:10:04.541346
+9e9cb06e-c22a-44bf-8c19-a367bfef8cc5	ESP32-AUDIT01	2026-09-20 16:10:05.839234
+9dd4afa4-287a-49dd-821a-7fa4d707464f	ESP32-AUDIT01	2026-09-20 16:10:07.137466
+5d404b19-7c17-41fb-af91-33ba3156e946	ESP32-AUDIT01	2026-09-20 16:10:08.43692
+23ad64fc-6b99-4d94-8dea-14040a23bbf2	ESP32-AUDIT01	2026-09-20 16:10:09.72345
+58b9d933-fd71-41b1-aec7-7182fbdf2ab5	ESP32-AUDIT01	2026-09-20 16:10:11.018672
+f7848b9f-e65a-44f6-8e71-89fbea56e744	ESP32-AUDIT01	2026-09-20 16:10:12.314348
+d3c95bb2-8502-4e01-942b-11d98b54cbc1	ESP32-AUDIT01	2026-09-20 16:10:13.620718
+8ac43c65-db30-4f75-a4ff-2b0ef2a09043	ESP32-AUDIT01	2026-09-20 16:10:14.917433
+80340cb6-763c-4b0e-9587-0281a410f1b2	ESP32-AUDIT01	2026-09-20 16:10:16.202459
+1794c791-6c1f-41be-b20a-975d58964246	ESP32-AUDIT01	2026-09-20 16:10:17.500567
+6bd95030-fbeb-4107-944b-0b59733bacd5	ESP32-AUDIT01	2026-09-20 16:10:18.79261
+deb3c186-6d88-4cf1-b47d-9085ff86959b	ESP32-AUDIT01	2026-09-20 16:10:20.090483
+2dce75ac-3ed9-451c-98e4-15ab11ecc422	ESP32-AUDIT01	2026-09-20 16:10:21.385561
+c27a6034-50f8-44cc-b512-4bcf76b88129	ESP32-AUDIT01	2026-09-20 16:10:22.681027
+a2bf18db-b690-4582-8d39-444e2a406cb7	ESP32-AUDIT01	2026-09-20 16:10:23.975312
+ed575946-d6b8-461b-b78e-38a4c2f999c2	ESP32-AUDIT01	2026-09-20 16:10:25.280309
+1b7a72e8-09a3-41c0-8b70-8302ad23309d	ESP32-AUDIT01	2026-09-20 16:10:26.566522
+2513b5bb-666d-49e2-9bec-27870f6bf933	ESP32-AUDIT01	2026-09-20 16:10:27.861546
+b7ae059c-4985-4ad4-8b27-482c32554973	ESP32-AUDIT01	2026-09-20 16:10:29.15766
+31fc8ee7-82a3-4809-8e46-b2593dbee397	ESP32-AUDIT01	2026-09-20 16:10:30.456852
+af1ccb5b-e5bc-471a-959c-618b882ee100	ESP32-AUDIT01	2026-09-20 16:10:31.748656
+c5256a24-cfa7-48a5-b1ff-342921d60c59	ESP32-AUDIT01	2026-09-20 16:10:33.044272
+60e0082b-3592-4fb4-951b-db5f7f9a9a54	ESP32-AUDIT01	2026-09-20 16:10:34.342345
+b6e6d8da-abc2-454c-b679-a93833188f56	ESP32-AUDIT01	2026-09-20 16:10:35.635544
+013a31f4-09a1-4072-ae2e-e15769e261ca	ESP32-AUDIT01	2026-09-20 16:10:36.933534
+5d3026f1-2a0c-45b0-a94f-3c66691edca0	ESP32-AUDIT01	2026-09-20 16:10:38.227609
+38dbb0bc-49bb-4a33-af31-2763db8dca99	ESP32-AUDIT01	2026-09-20 16:10:39.528773
+9403a44f-0d5d-4dad-9181-512c808c7678	ESP32-AUDIT01	2026-09-20 16:10:40.817948
+78e29366-5f96-439d-9cf9-e2504a1a2fed	ESP32-AUDIT01	2026-09-20 16:10:42.113531
+23274d20-8289-438f-b872-9aa80c374b8a	ESP32-AUDIT01	2026-09-20 16:10:43.414238
+0effedb7-9fb5-4a47-865f-439ed98a4d2d	ESP32-AUDIT01	2026-09-20 16:10:44.706815
+1839d37c-6f0a-478e-acdd-3d0a65ba61cf	ESP32-AUDIT01	2026-09-20 16:10:46.000224
+3e90a0cf-bea5-4130-b172-e9ecbd5bfa74	ESP32-AUDIT01	2026-09-20 16:10:47.296016
+b34d67cb-e0fe-4ac0-a622-ba4c46fada10	ESP32-AUDIT01	2026-09-20 16:10:48.592735
+9eff22b7-f0ac-40e5-82da-d5e79aa1be77	ESP32-AUDIT01	2026-09-20 16:10:49.887603
+512d9f15-bd1d-4be5-9ef1-b1182c81dc92	ESP32-AUDIT01	2026-09-20 16:10:51.18293
+876fcffa-20a2-4eea-ab55-731b74d02418	ESP32-AUDIT01	2026-09-20 16:10:52.478981
+8b34dff8-4576-493d-9a87-977dbe3d542f	ESP32-AUDIT01	2026-09-20 16:10:53.77396
+a3952e59-5cd7-46be-9ea4-60b9127a3a8b	ESP32-AUDIT01	2026-09-20 16:10:55.069361
+d63fb695-a08d-414c-ad2a-13ef6c740ed0	ESP32-AUDIT01	2026-09-20 16:10:56.366716
+e3a1c193-54e5-4f00-9f6a-8bfae0a8ae20	ESP32-AUDIT01	2026-09-20 16:10:57.660814
+8eb334aa-1164-4c9e-aa4a-94f406ae0938	ESP32-AUDIT01	2026-09-20 16:10:58.957912
+e1696acc-faef-476f-a576-9270e3223bc3	ESP32-AUDIT01	2026-09-20 16:11:00.254234
+cfae33cf-831b-4c2d-8502-47c2195f9942	ESP32-AUDIT01	2026-09-20 16:11:01.548409
+df6f6e27-f371-4473-aa10-37bb9e7223a2	ESP32-AUDIT01	2026-09-20 16:11:02.84345
+e81d9cdb-d1ed-4310-a1d6-8fb4dea5b5c4	ESP32-AUDIT01	2026-09-20 16:11:04.139468
+af9114b5-bb34-4f35-bb41-2d9adc775dba	ESP32-AUDIT01	2026-09-20 16:11:05.449138
+a2905a53-6599-4c3a-83b2-7165e04fc327	ESP32-AUDIT01	2026-09-20 16:11:06.732643
+5e22cd02-9057-4672-a79d-76ba99c968bc	ESP32-AUDIT01	2026-09-20 16:11:08.028904
+469c95c5-008c-43e5-b8ff-452965d279f4	ESP32-AUDIT01	2026-09-20 16:11:09.324727
+ff2ee102-ba26-4024-96fe-50fad904a104	ESP32-AUDIT01	2026-09-20 16:11:10.617353
+3b5e8697-d182-4b9e-8ff7-43a1b16a9ce1	ESP32-AUDIT01	2026-09-20 16:11:11.917999
+6767ffed-96fc-4562-87cb-7912e1c81700	ESP32-AUDIT01	2026-09-20 16:11:13.208495
+a0a3241a-503c-4b21-b130-61a414149ce3	ESP32-AUDIT01	2026-09-20 16:11:14.505466
+8e196713-6b21-45b5-b89a-791f0f136a90	ESP32-AUDIT01	2026-09-20 16:11:15.80746
+5d54bf37-94df-459b-abf5-da3956b9a926	ESP32-AUDIT01	2026-09-20 16:11:17.096359
+1a0e5337-0300-4104-8c80-0cb01b3f43d3	ESP32-AUDIT01	2026-09-20 16:11:18.393
+e732c570-fc58-4de7-997e-8f723acb0c55	ESP32-AUDIT01	2026-09-20 16:11:19.689784
+acc3fb7e-847a-4f5b-a570-513b92d3d0c6	ESP32-AUDIT01	2026-09-20 16:11:20.984906
+3ac6c49a-d8d6-4e36-ba44-5deb45e44e45	ESP32-AUDIT01	2026-09-20 16:11:22.279291
+1bfa5253-8f70-4159-b4f2-13a1378167f8	ESP32-AUDIT01	2026-09-20 16:11:23.575112
+8fb482e3-5a0f-4f32-9267-8212f371a557	ESP32-AUDIT01	2026-09-20 16:11:24.87084
+618cc8fd-27df-4630-82dc-f5b794f9e0bd	ESP32-AUDIT01	2026-09-20 16:11:26.166564
+9bea844c-76b1-4634-93ea-e2eb383969c0	ESP32-AUDIT01	2026-09-20 16:11:27.463478
+1339640d-9588-41ac-bcb9-64756e506d45	ESP32-AUDIT01	2026-09-20 16:11:28.758891
+e0510c1a-c1fc-416d-9f7e-6036ce91a554	ESP32-AUDIT01	2026-09-20 16:11:30.053488
+7d276358-f9a0-4e04-9c1e-8df47e6d7431	ESP32-AUDIT01	2026-09-20 16:11:31.35061
+4b38b670-3c1a-4939-831c-561bc0f92fa9	ESP32-AUDIT01	2026-09-20 16:11:32.657601
+2f943c4f-86b9-41b8-9410-ff7ab6f78510	ESP32-AUDIT01	2026-09-20 16:11:33.941987
+2bb1e2c4-64d5-47f8-9fed-e0149a87c1ac	ESP32-AUDIT01	2026-09-20 16:11:35.240812
+dc0d91ea-f903-4f3f-9e14-87dc371fe067	ESP32-AUDIT01	2026-09-20 16:11:36.554842
+7eb6dd52-74d0-4261-bc25-321bbcb248e6	ESP32-AUDIT01	2026-09-20 16:11:37.833456
+4056f104-d5b1-48da-9b66-52047a1261e3	ESP32-AUDIT01	2026-09-20 16:11:39.12598
+b352df4b-375e-4f0b-b4e3-ff94eea1408a	ESP32-AUDIT01	2026-09-20 16:11:40.422503
+e7f4db9c-186c-48c8-bfe3-11f7bbf7fb01	ESP32-AUDIT01	2026-09-20 16:11:41.718919
+40123a12-f583-4956-9e9c-f2eafe653455	ESP32-AUDIT01	2026-09-20 16:11:43.014177
+06f0e190-089f-4510-9121-8ca29ec29ba5	ESP32-AUDIT01	2026-09-20 16:11:44.313035
+8681e8e0-85da-4b27-bf48-7a30f64addfa	ESP32-AUDIT01	2026-09-20 16:11:45.653512
+6aa6e581-998a-487a-a31f-45717b7a564d	ESP32-AUDIT01	2026-09-20 16:11:46.91758
+675fe5ec-a7eb-4b34-b0bb-081650a31e3d	ESP32-AUDIT01	2026-09-20 16:11:48.199495
+9bcd79c4-5e4f-4318-9e31-471064ca9dcc	ESP32-AUDIT01	2026-09-20 16:11:49.496174
+ddb33a96-e594-426d-aa51-56c1ee0f07f1	ESP32-AUDIT01	2026-09-20 16:11:50.791455
+c4197a10-bc35-4196-acfd-6d03541b78af	ESP32-AUDIT01	2026-09-20 16:11:52.088475
+f74fc222-8837-4709-9980-03fa4b00a04d	ESP32-AUDIT01	2026-09-20 16:11:53.386473
+ab7a17b0-ff02-405d-9724-3c0291d75161	ESP32-AUDIT01	2026-09-20 16:11:54.680592
+0a3ba4b1-e1b8-4fa2-8e57-8b4ca142fe77	ESP32-AUDIT01	2026-09-20 16:11:55.97515
+bd25cb00-8506-43d5-be5f-89cb2b08a2e4	ESP32-AUDIT01	2026-09-20 16:11:57.271856
+39f0000a-7302-44ea-b8c4-31c274853996	ESP32-AUDIT01	2026-09-20 16:11:58.567049
+7d8913ea-3823-4065-a68b-73484da0083f	ESP32-AUDIT01	2026-09-20 16:11:59.86411
+8163ba6e-ed7e-4b6b-933c-114a48cca3b0	ESP32-AUDIT01	2026-09-20 16:12:01.171174
+0808ea94-2b98-434f-b508-59f40a17363e	ESP32-AUDIT01	2026-09-20 16:12:02.456026
+d88e37b4-a661-4923-b4c1-fe392132415a	ESP32-AUDIT01	2026-09-20 16:12:03.75061
+7af04f96-ba81-4c0e-9744-17ca588e9c77	ESP32-AUDIT01	2026-09-20 16:12:05.047971
+84372de2-7b0d-40f9-9ce7-5ad329604501	ESP32-AUDIT01	2026-09-20 16:12:06.345562
+90f34a6e-6ace-466a-827e-a4cc1774df2b	ESP32-AUDIT01	2026-09-20 16:12:07.639523
+8bcef81c-1a1d-4f84-9416-247f9137e22f	ESP32-AUDIT01	2026-09-20 16:12:08.934557
+c0d08fd6-0857-4c32-ba57-6c6cef8f247d	ESP32-AUDIT01	2026-09-20 16:12:10.235217
+aadf304c-b62d-40c2-a3f7-d565ca5a3aaf	ESP32-AUDIT01	2026-09-20 16:12:11.530764
+d09e49e2-a28d-44bd-b92b-b5906facfc0e	ESP32-AUDIT01	2026-09-20 16:12:12.823673
+6522eafb-d853-4621-845a-070c9f82fa58	ESP32-AUDIT01	2026-09-20 16:12:14.137646
+9da1f725-9eac-4f32-b614-f4d8ee94b277	ESP32-AUDIT01	2026-09-20 16:12:15.41469
+0953111d-5700-4dab-adc1-1e2d41b4a41c	ESP32-AUDIT01	2026-09-20 16:12:16.711201
+4ce1a975-56f6-4192-be41-cf971845e5cf	ESP32-AUDIT01	2026-09-20 16:12:18.008809
+a6adfa2c-0370-4a98-a8fc-fd04be1eb75b	ESP32-AUDIT01	2026-09-20 16:12:19.304416
+b05fe3f2-f089-4bea-861f-f8f445cf0b54	ESP32-AUDIT01	2026-09-20 16:12:20.598085
+09bd2e68-f480-4aa4-ba4f-587c3e0b2855	ESP32-AUDIT01	2026-09-20 16:12:21.893203
+fde4ce25-3030-4610-8027-cf5e8f72c20b	ESP32-AUDIT01	2026-09-20 16:12:23.196584
+3e4e0234-de98-41e7-9b8c-ad1ea4cd7440	ESP32-AUDIT01	2026-09-20 16:12:25.781109
+dc00d441-4bf5-4f0e-ae1c-d0e00f7331b0	ESP32-AUDIT01	2026-09-20 16:12:28.374054
+8ca326c4-a25e-4dfa-990a-85f58852ec22	ESP32-AUDIT01	2026-09-20 16:12:32.261942
+717b37d3-d22f-4a5a-a4a0-549b2319b68d	ESP32-AUDIT01	2026-09-20 16:12:34.855155
+3534dddb-06e6-4762-8d88-f1389961a7ae	ESP32-AUDIT01	2026-09-20 16:12:36.149506
+7e9cebe5-c6aa-457b-a671-390c64af7df7	ESP32-AUDIT01	2026-09-20 16:12:38.738347
+0db90b5f-8b9f-49d7-8e1d-4df4be6aae38	ESP32-AUDIT01	2026-09-20 16:12:42.625884
+183d1f64-151b-417c-97b0-fe1b4bcf838e	ESP32-AUDIT01	2026-09-20 16:12:43.922523
+112df730-6afc-49e3-b985-4888d6e07c28	ESP32-AUDIT01	2026-09-20 16:12:46.513321
+78de2861-bfec-4f6a-be5e-86311c79df29	ESP32-AUDIT01	2026-09-20 16:12:49.105567
+440b6c98-6f3e-4402-b527-4d4ac934a7cb	ESP32-AUDIT01	2026-09-20 16:12:51.696494
+1f08630c-8def-4104-a6e3-7865b57aa4f0	ESP32-AUDIT01	2026-09-20 16:12:54.291771
+c3da73c1-cfe5-4e57-871e-b9e9ce7d20b3	ESP32-AUDIT01	2026-09-20 16:12:56.880594
+6b76ef84-f651-4878-99d5-8a2f2b66d2be	ESP32-AUDIT01	2026-09-20 16:12:58.176187
+86375ec0-5f8b-4abe-a477-9fafd8b57839	ESP32-AUDIT01	2026-09-20 16:13:00.775881
+5a64bfb7-4f95-417e-a9ab-6f76ff8f9ab0	ESP32-AUDIT01	2026-09-20 16:13:03.358873
+e904fe38-2c80-49c1-bd59-6c09b285f019	ESP32-AUDIT01	2026-09-20 16:13:07.250124
+9da37e5b-eb8d-4df8-974e-57bebce2426d	ESP32-AUDIT01	2026-09-20 16:13:09.838969
+765a8a3a-fe10-45aa-8d19-f4ab2fadfb6a	ESP32-AUDIT01	2026-09-20 16:13:12.429912
+5184a6e9-3e2e-4787-8830-fa178bcce570	ESP32-AUDIT01	2026-09-20 16:13:15.022133
+f2392b57-fd07-429c-a0c5-cc101e433477	ESP32-AUDIT01	2026-09-20 16:13:18.922462
+7285b027-c8e8-47f1-99eb-56aa4068eb84	ESP32-AUDIT01	2026-09-20 16:13:21.500606
+7e16abba-7484-44bd-ab50-9585bda523e9	ESP32-AUDIT01	2026-09-20 16:13:24.093299
+6a7e6911-cb91-4b56-98ff-7dfb59509c56	ESP32-AUDIT01	2026-09-20 16:13:27.983098
+db6f256d-7f06-42f7-af52-7a8e3daa210f	ESP32-AUDIT01	2026-09-20 16:13:29.275095
+f5ca3a2b-a22d-4825-9c00-17259e5c5e6d	ESP32-AUDIT01	2026-09-20 16:36:33.399782
+008267cc-c455-44ca-9777-ef40dc139172	ESP32-AUDIT01	2026-09-20 16:36:35.991044
+55ba71ed-2433-4665-8ed4-7757c89ce95e	ESP32-AUDIT01	2026-09-20 16:36:39.877522
+8775a828-f8e9-4f10-bcc1-4cf4ba71d8c7	ESP32-AUDIT01	2026-09-20 16:36:42.469282
+2d4ec326-a3aa-4959-a679-c74850706bee	ESP32-AUDIT01	2026-09-20 16:36:45.060108
+cd351167-1703-482e-9193-c526cd4454f0	ESP32-AUDIT01	2026-09-20 16:36:47.651526
+8d9d1eba-4152-4b91-90c1-4e5b6393be8d	ESP32-AUDIT01	2026-09-20 16:36:50.243898
+4dceefa6-ae73-47f7-aea2-67c702903bbf	ESP32-AUDIT01	2026-09-20 16:36:52.833868
+d0d9fecb-62a2-48b9-bf36-04c6dd2afe71	ESP32-AUDIT01	2026-09-20 16:36:55.425274
+ef816f5e-c5cd-4194-98ba-620bf7d20ed3	ESP32-AUDIT01	2026-09-20 16:36:58.016893
+b0ca9d0a-40dc-4d2b-bab1-d02dccaf8718	ESP32-AUDIT01	2026-09-20 16:36:59.319695
+5970b102-9fe0-402d-996e-621700bc9a61	ESP32-AUDIT01	2026-09-20 16:37:00.622449
+317f6658-ac63-4893-b587-4d2c6d9bf2dc	ESP32-AUDIT01	2026-09-20 16:37:03.199518
+34ea8c42-720f-41f0-b6ea-2f50764841c8	ESP32-AUDIT01	2026-09-20 16:37:05.791523
+30d21b97-8a37-4a69-870c-705fa04ad886	ESP32-AUDIT01	2026-09-20 16:37:10.973283
+d7e646aa-252f-45e8-a89a-84dc56834e4f	ESP32-AUDIT01	2026-09-20 16:37:13.564348
+d62bffdf-a4bb-4d2a-b2c8-d0d042e8816d	ESP32-AUDIT01	2026-09-20 16:37:14.860429
+47ae3375-f11e-4d06-853a-425979630b0c	ESP32-AUDIT01	2026-09-20 16:37:17.45415
+f773d1d1-f331-4be4-9d53-7f47ee71996d	ESP32-AUDIT01	2026-09-20 16:37:20.043727
+41c2665d-e9ea-4d68-a06a-e4fa83f74a50	ESP32-AUDIT01	2026-09-20 16:37:22.634835
+0bea39dc-8613-4f9d-8f54-602f47862ffe	ESP32-AUDIT01	2026-09-20 16:37:25.256488
+ba832a54-cd31-448e-b0d1-84ced357a570	ESP32-AUDIT01	2026-09-20 16:37:27.821368
+6be68216-fca0-4185-adb7-e5c03a607125	ESP32-AUDIT01	2026-09-20 16:37:30.408734
+aa9e999d-e57f-4b8f-8e15-5b9405e6d631	ESP32-AUDIT01	2026-09-20 16:37:32.999452
+2d77d45f-8d0f-4724-b3e5-d86700df6f47	ESP32-AUDIT01	2026-09-20 16:37:36.941159
+30b9a335-4890-4779-b828-2c5302211ab4	ESP32-AUDIT01	2026-09-20 16:37:38.187547
+ea064a88-482a-456e-95d1-e5a1cd233cc3	ESP32-AUDIT01	2026-09-20 16:37:40.773517
+e22a7439-4959-4a63-8eb6-0bb787d2e20c	ESP32-AUDIT01	2026-09-20 16:37:43.371363
+e9b60938-27dd-4b45-aead-6ca51d38e7b3	ESP32-AUDIT01	2026-09-20 16:37:45.956133
+e4a144e4-c42e-4f26-b11f-c3f021cea905	ESP32-AUDIT01	2026-09-20 16:37:47.251222
+489ae7d8-d3b0-4864-8d4c-22c2aab6dda9	ESP32-AUDIT01	2026-09-20 16:37:49.843195
+9c4f89da-6ba3-4713-bae4-b60ea5508794	ESP32-AUDIT01	2026-09-20 16:37:52.436605
+bb2a975c-5d0b-43fc-a90a-e1f34a8d7705	ESP32-AUDIT01	2026-09-20 16:37:55.026842
+27a422f7-d3c3-466e-9e85-5dd42876b1cc	ESP32-AUDIT01	2026-09-20 16:37:57.616763
+b8f39491-75a3-4fd3-b7fe-896cd59b8579	ESP32-AUDIT01	2026-09-20 16:38:00.208697
+8523472e-a41c-4621-9614-c516bdb94c43	ESP32-AUDIT01	2026-09-20 16:38:02.808896
+858c0949-00eb-4cbc-bad2-6fe76f4e5313	ESP32-AUDIT01	2026-09-20 16:38:05.393064
+fccc875e-1cfc-4160-b667-00c023e585cb	ESP32-AUDIT01	2026-09-20 16:38:07.987136
+57cfa4ac-8579-4ac2-8756-39d17bb9c055	ESP32-AUDIT01	2026-09-20 16:38:10.57505
+a43fc7d3-e35c-40c6-8d39-0fbdf1ac15ae	ESP32-AUDIT01	2026-09-20 16:38:13.163175
+ea029b25-ce9b-4986-9a72-4e6166188419	ESP32-AUDIT01	2026-09-20 16:38:15.75538
+caca9e47-0d21-4910-a5b6-3d1500d4ddb8	ESP32-AUDIT01	2026-09-20 16:38:18.348027
+e30cbbe3-288b-4a92-b2a1-90d40489857c	ESP32-AUDIT01	2026-09-20 16:38:19.643771
+4b2f7f68-01b0-42b8-899f-fb8b31c48f2d	ESP32-AUDIT01	2026-09-20 16:38:22.237356
+3eb4971d-ab66-448b-a37e-771969c1bf6c	ESP32-AUDIT01	2026-09-20 16:38:23.528391
+8cbe2d4d-74d9-44a8-8e43-ede926c61c26	ESP32-AUDIT01	2026-09-20 16:38:27.41589
+fd71ee7a-e535-45ec-bec3-22e8eb13793f	ESP32-AUDIT01	2026-09-20 16:38:30.009348
+fc62f437-8d72-4355-8bda-87c5a4ea26fe	ESP32-AUDIT01	2026-09-20 16:38:32.59912
+de2a2a5f-de37-4b6c-8ebc-102de2dcf307	ESP32-AUDIT01	2026-09-20 16:38:33.893629
+6e7e422e-f470-4635-83b0-005a69193384	ESP32-AUDIT01	2026-09-20 16:38:35.188832
+6a998edc-64d3-4431-8ded-dceddb3195ae	ESP32-AUDIT01	2026-09-20 16:38:37.781101
+4d6ecfd9-5b15-407a-886e-6b99dcb0f8dd	ESP32-AUDIT01	2026-09-20 16:38:41.667631
+54ab4089-8307-47c5-96c0-71b2274ddce1	ESP32-AUDIT01	2026-09-20 16:38:45.554444
+b9d419ff-efb2-4384-93f7-d1f4cf9e0a02	ESP32-AUDIT01	2026-09-20 16:39:17.947099
+ecedfaff-4722-4621-a696-fd9537aeef9f	ESP32-AUDIT01	2026-09-20 16:39:19.242614
+6cf39341-24d2-4071-a454-ead83dd7a665	ESP32-AUDIT01	2026-09-20 16:39:21.836708
+f026a983-21fa-4caf-b894-16dc69699d4a	ESP32-AUDIT01	2026-09-20 16:39:24.42825
+81222339-234c-4166-b450-f5f7566f77fc	ESP32-AUDIT01	2026-09-20 16:39:27.021385
+fa4639ab-6ff6-479f-aea7-4b4a7a36a325	ESP32-AUDIT01	2026-09-20 16:39:29.608603
+0087772f-d329-45a7-bd26-bd0349307130	ESP32-AUDIT01	2026-09-20 16:39:32.205061
+54146d4d-cf0a-4ae4-89ee-9cbd92efe16b	ESP32-AUDIT01	2026-09-20 16:39:34.791911
+9437fa66-6971-4a57-b37b-98f272a20b15	ESP32-AUDIT01	2026-09-20 16:12:24.48477
+4828a888-13c1-42f3-9dc0-652ba525a33f	ESP32-AUDIT01	2026-09-20 16:12:27.076389
+dd2c13ff-89c3-4c0c-ab8e-c0b7c4b623be	ESP32-AUDIT01	2026-09-20 16:12:29.672061
+7c0097dd-6f7e-44a5-a470-a0aebc922998	ESP32-AUDIT01	2026-09-20 16:12:30.963704
+7c340502-163b-4cac-b87c-1ba400e3d2da	ESP32-AUDIT01	2026-09-20 16:12:33.558309
+000c0243-50ab-4738-a1bc-f8142d553341	ESP32-AUDIT01	2026-09-20 16:12:37.445499
+ff563c58-ad79-4ec1-a34a-b5619b1dc720	ESP32-AUDIT01	2026-09-20 16:12:40.036051
+15d5a315-00bf-4fd6-938c-717a01114017	ESP32-AUDIT01	2026-09-20 16:12:41.338219
+cf3aa1e7-e0c4-469d-8699-5add3eb7b01c	ESP32-AUDIT01	2026-09-20 16:12:45.21782
+cdbf56d9-91cf-4ee5-adec-68e1bac8fd6e	ESP32-AUDIT01	2026-09-20 16:12:47.808984
+07c85a30-1889-4314-9085-0a5620260898	ESP32-AUDIT01	2026-09-20 16:12:50.406202
+3495a3ff-926c-4bb0-9180-3fdbc80e4217	ESP32-AUDIT01	2026-09-20 16:12:52.994541
+530d99ec-b43e-4e7d-80bf-09eab9a76a42	ESP32-AUDIT01	2026-09-20 16:12:55.584655
+3303c658-4b83-47a8-8cc4-3270b80fde2b	ESP32-AUDIT01	2026-09-20 16:12:59.471523
+3854c8d9-e8c9-4ced-826a-b5f86084684a	ESP32-AUDIT01	2026-09-20 16:13:02.06444
+57c7b22b-5f9c-4d5c-aa9f-457e904d13af	ESP32-AUDIT01	2026-09-20 16:13:04.655634
+1aea9bc6-6f7f-4206-a208-072edd5c5594	ESP32-AUDIT01	2026-09-20 16:13:05.964478
+1bc58317-1d59-49a0-9efd-e9ec6b2b76f6	ESP32-AUDIT01	2026-09-20 16:13:08.544391
+e7825e2b-6717-4231-a5a0-10c0d0873332	ESP32-AUDIT01	2026-09-20 16:13:11.135274
+4f9da28d-47fd-4dc5-acf2-7bbf8b0cc228	ESP32-AUDIT01	2026-09-20 16:13:13.725502
+77209768-8f1e-483a-95c0-13bd89fb317c	ESP32-AUDIT01	2026-09-20 16:13:16.318044
+8198bfb9-2fe8-4ae2-996d-0f6a49cc7b8b	ESP32-AUDIT01	2026-09-20 16:13:17.611965
+690bfdd6-42da-4f18-a80c-1ce2c8c898b7	ESP32-AUDIT01	2026-09-20 16:13:20.204339
+1ca6ac0c-ba51-436f-a89d-4ecc7e74e470	ESP32-AUDIT01	2026-09-20 16:13:22.795583
+f8a47c93-3ba6-40b9-b771-20b28ca88380	ESP32-AUDIT01	2026-09-20 16:13:25.387174
+c57f83fe-33df-45e2-bf69-1718c86d16b7	ESP32-AUDIT01	2026-09-20 16:13:26.684899
+13224c1f-4e1d-4753-ac66-509801790faa	ESP32-AUDIT01	2026-09-20 16:13:30.571547
+d4d140f4-1dbb-47c3-ab76-071c545d9d47	ESP32-AUDIT01	2026-09-20 16:13:31.867204
+e88c118e-5a62-48b0-9f98-70e9c7312a81	ESP32-AUDIT01	2026-09-20 16:13:33.162118
+5c7f9a1c-b8a0-4c5d-81b9-4f075684ec72	ESP32-AUDIT01	2026-09-20 16:13:34.457899
+0d9c8346-23ab-45e9-b30c-2ab5d19815fa	ESP32-AUDIT01	2026-09-20 16:13:35.75809
+fec4f8b7-e9ba-413b-944f-33b19c64b55a	ESP32-AUDIT01	2026-09-20 16:13:37.050447
+c38643fc-7165-4807-b680-912bc284225b	ESP32-AUDIT01	2026-09-20 16:13:38.345424
+3a18c36b-950b-4661-997f-726003340672	ESP32-AUDIT01	2026-09-20 16:13:39.641931
+527df540-84d2-4b56-bd43-ac8d300ca24f	ESP32-AUDIT01	2026-09-20 16:13:40.937824
+b541158c-8fe2-4522-9332-b0f2c1b6166f	ESP32-AUDIT01	2026-09-20 16:13:42.237646
+2ebb39f4-8c2f-45f0-807b-baaa6799ac56	ESP32-AUDIT01	2026-09-20 16:13:43.528622
+39f0ce44-fb42-41f2-92bb-11cb04536b8a	ESP32-AUDIT01	2026-09-20 16:13:44.825493
+7938a5d5-b08e-4329-a0a2-e2770a929421	ESP32-AUDIT01	2026-09-20 16:13:46.120483
+20022d65-c7f9-46a4-9b10-ac314d397fa1	ESP32-AUDIT01	2026-09-20 16:13:47.417115
+19b27b9a-70c5-43e0-9442-d2cad27106c7	ESP32-AUDIT01	2026-09-20 16:13:48.71209
+926e1805-0fc2-417c-8b59-db194af2eb50	ESP32-AUDIT01	2026-09-20 16:13:50.009359
+c2edb185-3e3e-49a8-a788-f107b9c3a510	ESP32-AUDIT01	2026-09-20 16:13:51.302505
+40afe7ad-7963-4178-90c8-5b85be9e4cbb	ESP32-AUDIT01	2026-09-20 16:13:52.599835
+7e9e0544-2099-4bc6-9ef3-d7d2184d2735	ESP32-AUDIT01	2026-09-20 16:13:53.895949
+77c527b4-4647-463a-86b3-b2d77a111bb9	ESP32-AUDIT01	2026-09-20 16:13:55.191084
+80c2b9bf-d44b-4e79-b2e0-7194cc9c418b	ESP32-AUDIT01	2026-09-20 16:13:56.486275
+bd8afdb9-1b0b-41d7-90e0-6245ddcf1bac	ESP32-AUDIT01	2026-09-20 16:13:57.782838
+d142ce43-c80f-4429-944d-71e9bc82df0e	ESP32-AUDIT01	2026-09-20 16:13:59.083004
+9c4be29c-cc82-40ef-8b9c-ec43c8d968a1	ESP32-AUDIT01	2026-09-20 16:14:00.377918
+659cfdcd-be42-4318-b8f8-74e03e24bd78	ESP32-AUDIT01	2026-09-20 16:14:01.671517
+1d6871bf-4902-43e7-86c2-c25170e74c51	ESP32-AUDIT01	2026-09-20 16:14:02.969045
+9532005f-6fa8-4424-b214-65b870d4208c	ESP32-AUDIT01	2026-09-20 16:14:04.260893
+3a9bbd02-93bc-461c-bd77-6a4603fd48d3	ESP32-AUDIT01	2026-09-20 16:14:05.568693
+1530a29c-1f04-4fc6-96ac-74644b007a08	ESP32-AUDIT01	2026-09-20 16:14:06.855395
+5a9b8b5e-d699-4412-98c9-74badf20de26	ESP32-AUDIT01	2026-09-20 16:14:08.153231
+11964a37-3a97-4d18-a4b4-2eaeb1adb100	ESP32-AUDIT01	2026-09-20 16:14:09.444617
+9c2c7166-0a72-45bc-8fb5-1c8994ec5aeb	ESP32-AUDIT01	2026-09-20 16:14:10.740737
+4fda4160-06d4-4144-961e-6f6ead193af3	ESP32-AUDIT01	2026-09-20 16:14:12.036838
+88e63596-8d4d-4cc0-bbb8-474cddba23c9	ESP32-AUDIT01	2026-09-20 16:14:13.344779
+440a5526-47bd-4736-a78e-ff9eeb52436e	ESP32-AUDIT01	2026-09-20 16:14:14.627706
+aa5aff65-99b5-4a20-be13-c902d0a11027	ESP32-AUDIT01	2026-09-20 16:14:15.922076
+c17f0d45-3bf3-4391-bf7a-30aded62206b	ESP32-AUDIT01	2026-09-20 16:14:17.218094
+b1d84895-e70f-4725-a15d-268ef7f1f2c1	ESP32-AUDIT01	2026-09-20 16:14:18.516469
+8f42fb45-1ce5-48a3-ba8d-7a7d575254e5	ESP32-AUDIT01	2026-09-20 16:14:19.809747
+b57bc917-6406-4fc3-a74f-4960b40773c9	ESP32-AUDIT01	2026-09-20 16:14:21.107056
+6bdf0ae7-a2f7-48b0-a808-de805a517264	ESP32-AUDIT01	2026-09-20 16:14:22.412385
+3c57767e-8cfe-4a35-966a-5d24d457cb03	ESP32-AUDIT01	2026-09-20 16:14:23.697455
+976e784d-4c8c-4a94-9bd4-3e54bdf8da33	ESP32-AUDIT01	2026-09-20 16:14:24.992805
+24729f58-1e38-4b21-9a44-3eafcd76c7f2	ESP32-AUDIT01	2026-09-20 16:14:26.288475
+2a945f5b-5f19-4819-a812-9a124ca2305f	ESP32-AUDIT01	2026-09-20 16:14:27.584328
+ac01ed2e-6ff5-4eba-b884-44f970ed9b34	ESP32-AUDIT01	2026-09-20 16:14:28.879797
+a093909a-0b2c-4f28-8487-ad3ed79d7479	ESP32-AUDIT01	2026-09-20 16:14:30.17667
+d2969ab8-d520-4441-83df-934ad57d7c81	ESP32-AUDIT01	2026-09-20 16:14:31.47177
+4aaece2d-94e8-4742-83fa-366f7fb026e9	ESP32-AUDIT01	2026-09-20 16:14:32.766815
+51c4a71d-e79e-42c8-8c21-6918864e2780	ESP32-AUDIT01	2026-09-20 16:14:34.062473
+7d05b363-6949-45e9-90ff-4e01a9f9e1fd	ESP32-AUDIT01	2026-09-20 16:14:35.358765
+640b2bdb-3511-44ce-b7c3-e400215830b4	ESP32-AUDIT01	2026-09-20 16:14:36.65441
+3f3350cb-0feb-4b91-84ae-bcd6972bd15c	ESP32-AUDIT01	2026-09-20 16:14:37.954643
+e36d8246-1f0b-4c40-b8ca-f9f7f305bf84	ESP32-AUDIT01	2026-09-20 16:14:39.245735
+3d110859-c7c2-4c54-bf2d-d7373c4ff90c	ESP32-AUDIT01	2026-09-20 16:14:40.542526
+716b580e-c85c-43a6-a788-9fcd81b080a5	ESP32-AUDIT01	2026-09-20 16:14:41.893275
+9ebdbc9d-bcbb-406d-8d73-99dda508ee43	ESP32-AUDIT01	2026-09-20 16:14:43.133777
+0ef89043-22e6-45ae-9a69-80626075626e	ESP32-AUDIT01	2026-09-20 16:14:44.430204
+f632b65a-ed25-47cf-9316-2bc0315852f3	ESP32-AUDIT01	2026-09-20 16:14:45.725706
+998ef943-7589-47d8-80fa-c842404cf0ad	ESP32-AUDIT01	2026-09-20 16:14:47.021168
+9c588f21-2d89-4e44-950d-a36752836892	ESP32-AUDIT01	2026-09-20 16:14:48.316699
+275b3c70-2c8d-4344-98e6-d4f89853959e	ESP32-AUDIT01	2026-09-20 16:14:49.613058
+0c1d1ea7-1fcb-48fd-89d3-00a44610e075	ESP32-AUDIT01	2026-09-20 16:14:50.91033
+fbb5ccb5-652c-41f6-a0c1-2363d5df5a3c	ESP32-AUDIT01	2026-09-20 16:14:52.204166
+e9d3dc2d-156e-44a5-b6d3-7b77b1eb8baa	ESP32-AUDIT01	2026-09-20 16:14:53.501543
+4b0b2a55-1025-437e-8525-5560fad38b3e	ESP32-AUDIT01	2026-09-20 16:14:54.795556
+cd516f3a-0fa6-466a-a57a-51ff8f862b54	ESP32-AUDIT01	2026-09-20 16:14:56.093507
+2c30120a-b776-4cfc-b7b5-46ed2ef72140	ESP32-AUDIT01	2026-09-20 16:14:57.449175
+20ec6645-f26e-4686-9df2-7782e1c78d3d	ESP32-AUDIT01	2026-09-20 16:14:58.692373
+a34ebeb2-719b-47a1-99b0-edc0a5a77ca0	ESP32-AUDIT01	2026-09-20 16:14:59.978631
+1c0cdf6b-aa81-49f2-9d46-c640e1ee3b33	ESP32-AUDIT01	2026-09-20 16:15:01.276026
+d28ed9ec-5db0-4270-8da6-da93b312db46	ESP32-AUDIT01	2026-09-20 16:15:02.572694
+53c88caa-eb3a-4f36-8880-0511bdaa4ead	ESP32-AUDIT01	2026-09-20 16:15:03.866423
+b8c332de-07ee-462d-8a67-3a4c564d1ee2	ESP32-AUDIT01	2026-09-20 16:15:05.16191
+df1578f6-d763-4478-8511-4dd662881c82	ESP32-AUDIT01	2026-09-20 16:15:06.457811
+581f2e73-bc9c-4a59-a91c-1e327e5c4165	ESP32-AUDIT01	2026-09-20 16:15:07.753301
+fb15c39e-5018-41de-ac4a-c8cfd4fa55f9	ESP32-AUDIT01	2026-09-20 16:15:09.051115
+221cd07a-e4bc-496e-8619-4c77e0d4e1ff	ESP32-AUDIT01	2026-09-20 16:15:10.344882
+b6c7a0c3-4219-491d-92cd-d9533e6ba3cd	ESP32-AUDIT01	2026-09-20 16:15:11.642598
+d5898580-1e84-4a88-8b3a-aac188f7dc3a	ESP32-AUDIT01	2026-09-20 16:15:12.936949
+508c8a86-3a14-4ed8-80a5-bfb0631a3128	ESP32-AUDIT01	2026-09-20 16:15:14.235023
+50c936f3-2583-4ec4-be80-61030ab4d6b4	ESP32-AUDIT01	2026-09-20 16:15:15.528979
+709d990a-e102-4de5-bfd4-b588ea548ca6	ESP32-AUDIT01	2026-09-20 16:15:16.824445
+37adf27c-37de-4fe7-b56b-a500030651c2	ESP32-AUDIT01	2026-09-20 16:15:18.119538
+c192c1a7-4cd6-49ca-a10b-5e94ef865d3e	ESP32-AUDIT01	2026-09-20 16:15:19.416289
+e22a0aa0-a971-40be-8eea-363ecc4c2f34	ESP32-AUDIT01	2026-09-20 16:15:20.718454
+58b967f1-78cc-46be-a9a1-3f20d54e571e	ESP32-AUDIT01	2026-09-20 16:15:22.009146
+c2a21974-b2b8-4ca9-9789-f8fb8f0465d7	ESP32-AUDIT01	2026-09-20 16:15:23.302544
+237c9298-81ec-4ab3-91f7-3cb6482e1538	ESP32-AUDIT01	2026-09-20 16:15:24.602144
+c447abe8-b236-483e-8706-314ac79e8f16	ESP32-AUDIT01	2026-09-20 16:15:25.894511
+3c1e8332-ad6e-46aa-85eb-e6f984847445	ESP32-AUDIT01	2026-09-20 16:15:27.190506
+5138b77b-00c2-45c2-af38-97e34bf9a039	ESP32-AUDIT01	2026-09-20 16:15:28.487652
+0a78753c-a7ea-4285-aea6-cf301166f601	ESP32-AUDIT01	2026-09-20 16:15:29.783432
+1f658600-de03-4e53-a1db-74132c0ab2c2	ESP32-AUDIT01	2026-09-20 16:15:31.077833
+3306dd99-47f3-4d69-b752-0a9deccd2c1a	ESP32-AUDIT01	2026-09-20 16:15:32.372478
+111bcdee-b46b-464e-b0e0-912ea818f658	ESP32-AUDIT01	2026-09-20 16:15:33.669145
+b4dd563e-84b1-4102-832e-6f70ef993df0	ESP32-AUDIT01	2026-09-20 16:15:34.964718
+8fd13d8f-001a-4a58-b9af-d8dab3266009	ESP32-AUDIT01	2026-09-20 16:15:36.261186
+8532f7c7-eac2-46b6-b4c4-92ecba93be9a	ESP32-AUDIT01	2026-09-20 16:15:37.557295
+e08525f0-4ce5-48dd-80eb-91adf0e44363	ESP32-AUDIT01	2026-09-20 16:15:38.852994
+dade1110-1826-403a-9f5b-cd0b06e5c355	ESP32-AUDIT01	2026-09-20 16:15:40.15205
+3dc0a875-ab69-4459-a049-c63d33d8df5e	ESP32-AUDIT01	2026-09-20 16:15:41.444837
+ee315870-cf6b-4f9b-8d23-49781e9042d0	ESP32-AUDIT01	2026-09-20 16:15:42.74119
+4f0d6f44-a7a9-4f6a-aa91-836750873fb1	ESP32-AUDIT01	2026-09-20 16:15:44.034891
+e6905419-97b5-409a-b0fc-41decd09ac9c	ESP32-AUDIT01	2026-09-20 16:15:45.332251
+a6ce2b53-5c0f-48ec-83c0-f867b648330c	ESP32-AUDIT01	2026-09-20 16:15:46.625942
+f7d335ef-889d-4bf5-838f-b3240d8f89fc	ESP32-AUDIT01	2026-09-20 16:15:47.923699
+af56398a-ab5f-44bd-9c61-8efbceab8926	ESP32-AUDIT01	2026-09-20 16:15:49.218891
+fff73390-4ce0-4899-bfb4-2c0a8fc4f841	ESP32-AUDIT01	2026-09-20 16:15:50.513355
+ec85b780-6a05-4e31-bf29-c9c386483003	ESP32-AUDIT01	2026-09-20 16:15:51.8092
+b06d6b09-d80d-4e32-be3d-4163dbf9c4af	ESP32-AUDIT01	2026-09-20 16:15:53.105609
+bbb05141-6580-47c6-bf1d-e12eeabf695a	ESP32-AUDIT01	2026-09-20 16:15:54.401983
+778e0c1c-9c4d-484e-967e-c6dde8cfc410	ESP32-AUDIT01	2026-09-20 16:15:55.696846
+2bb78e4f-6d76-4f86-af66-1686b6595366	ESP32-AUDIT01	2026-09-20 16:15:56.993755
+4ae2a8f3-ac1c-4204-9ff4-3afe35587cac	ESP32-AUDIT01	2026-09-20 16:15:58.288588
+36184838-5cbf-4bf4-9e27-632fc6956a3a	ESP32-AUDIT01	2026-09-20 16:15:59.584168
+dd846191-6e92-4ee9-a608-c03307f89059	ESP32-AUDIT01	2026-09-20 16:16:00.879408
+14906eee-0217-4fb0-997a-0b24fc9e1b91	ESP32-AUDIT01	2026-09-20 16:16:02.175963
+7dbc3c90-3c3a-433e-a95a-4d2e50a750f9	ESP32-AUDIT01	2026-09-20 16:16:03.483125
+bb0578c9-dec6-4f11-b504-f207c27e3209	ESP32-AUDIT01	2026-09-20 16:16:04.76729
+f4b15c1e-a803-46e7-9494-449e735a8b05	ESP32-AUDIT01	2026-09-20 16:16:06.062695
+f5a3f5c8-ae08-43e9-b57d-92ac1c9737f4	ESP32-AUDIT01	2026-09-20 16:16:07.358682
+828d188c-4b6a-4505-b10f-e9d7686ba813	ESP32-AUDIT01	2026-09-20 16:16:08.65419
+f25494f1-31bc-4281-82b4-c9238ae337f6	ESP32-AUDIT01	2026-09-20 16:16:09.949591
+6e6f1100-89c2-46fc-83e0-e36ddbefae0c	ESP32-AUDIT01	2026-09-20 16:16:11.245841
+6e2d5bfb-ef24-4f17-b103-587cb48b1503	ESP32-AUDIT01	2026-09-20 16:16:12.542328
+092cda5e-d6e1-4932-94fe-c5ab72d67b3b	ESP32-AUDIT01	2026-09-20 16:16:13.836939
+cba9da22-4772-45fd-b983-d0f508e0af6b	ESP32-AUDIT01	2026-09-20 16:16:15.132802
+e203b42c-db50-4f87-8a40-c905eb89ab4b	ESP32-AUDIT01	2026-09-20 16:16:16.429373
+711b53ee-87a4-4dbc-9909-7f081170581a	ESP32-AUDIT01	2026-09-20 16:16:17.725278
+e8a1e7bc-40b0-4430-b9f8-371fac5644a4	ESP32-AUDIT01	2026-09-20 16:16:19.027036
+be5b7cc4-3928-4d33-8769-6e1f3faff298	ESP32-AUDIT01	2026-09-20 16:16:20.333062
+ba625354-1a39-44a0-8cc9-23a6b5042eb8	ESP32-AUDIT01	2026-09-20 16:16:21.611471
+ba4403a0-5f82-48f9-8971-3a53cdb18b77	ESP32-AUDIT01	2026-09-20 16:16:22.908541
+2667ebf9-5f65-464c-a6f1-97e9c1952a1d	ESP32-AUDIT01	2026-09-20 16:16:24.202887
+55a63223-f4af-448a-8757-e6fc62c1b1b7	ESP32-AUDIT01	2026-09-20 16:16:25.498728
+12c0ee41-90fd-458e-bf7e-6a5b49da065a	ESP32-AUDIT01	2026-09-20 16:16:26.79439
+8430207f-c886-4b78-8f47-d9a0b2029341	ESP32-AUDIT01	2026-09-20 16:16:28.090357
+fd45fe91-c7b9-4578-86ba-516d163fee98	ESP32-AUDIT01	2026-09-20 16:16:29.386052
+d99a044c-604d-4808-9ef4-d8737483f9c6	ESP32-AUDIT01	2026-09-20 16:16:30.681246
+22761d18-8265-4e1d-9965-63e4e1130507	ESP32-AUDIT01	2026-09-20 16:16:31.977138
+c5365562-5701-4fdd-a2f8-e056cd756829	ESP32-AUDIT01	2026-09-20 16:16:33.274136
+86feb005-9e19-4286-be87-18d1e34bf32b	ESP32-AUDIT01	2026-09-20 16:16:34.569267
+f877885b-6615-4518-a3c5-3a0b218f1791	ESP32-AUDIT01	2026-09-20 16:16:35.866061
+f965cd53-24c4-4943-a914-a0efee2cb26d	ESP32-AUDIT01	2026-09-20 16:16:37.165247
+905eade8-6963-4316-b690-eaa03facae46	ESP32-AUDIT01	2026-09-20 16:16:38.458719
+57464d87-c3a8-4aa7-9a2c-a9bacbc0e859	ESP32-AUDIT01	2026-09-20 16:16:39.752633
+6aaa06d5-3e83-4cab-ac40-9b150084e5c1	ESP32-AUDIT01	2026-09-20 16:16:41.049293
+a5cdfaf9-1938-4d6a-88a1-458915ce467e	ESP32-AUDIT01	2026-09-20 16:16:42.344976
+0c801147-e6e9-4625-b84f-6e474013aea2	ESP32-AUDIT01	2026-09-20 16:16:43.639618
+fc4f0049-3e35-4027-80ac-52181dfe4342	ESP32-AUDIT01	2026-09-20 16:16:44.935686
+5b037708-9b70-4821-a445-7a2d5d3bf7a0	ESP32-AUDIT01	2026-09-20 16:16:46.233298
+1528c385-35f2-48d0-a2b7-31bb42de3dab	ESP32-AUDIT01	2026-09-20 16:16:47.527828
+1060f2c1-3d55-4bf7-a7e5-8b840891736f	ESP32-AUDIT01	2026-09-20 16:16:48.824401
+d541e3ea-2dfd-4bac-a320-da42eb58dd0c	ESP32-AUDIT01	2026-09-20 16:16:50.118915
+24bd9ba1-0cb1-44a0-bc42-7ad0fcc01318	ESP32-AUDIT01	2026-09-20 16:16:51.416199
+409a3149-4090-44e6-90bd-284480c6de19	ESP32-AUDIT01	2026-09-20 16:16:52.71098
+0d3f2e9a-b404-444c-bbd6-d6b02a8e91e3	ESP32-AUDIT01	2026-09-20 16:16:54.006401
+024db27c-f9ab-4d67-a3a6-df4ff1caf6c2	ESP32-AUDIT01	2026-09-20 16:16:55.306224
+22f90446-c21b-4bb8-a02d-a582be9e1f99	ESP32-AUDIT01	2026-09-20 16:16:56.598827
+75b92a76-ec00-4b69-92e2-a1585bc53db3	ESP32-AUDIT01	2026-09-20 16:16:57.895945
+751cde10-a20b-4138-9625-b22e3c5ab4a3	ESP32-AUDIT01	2026-09-20 16:16:59.189173
+61f7c92d-df16-4fd0-9f77-27d5cd1207c7	ESP32-AUDIT01	2026-09-20 16:17:00.486098
+51c8b12c-45af-43c0-be86-d2cf178df3c7	ESP32-AUDIT01	2026-09-20 16:17:01.780837
+ddb8877d-5ca8-4820-80dc-d4e82f164dc9	ESP32-AUDIT01	2026-09-20 16:17:03.085603
+337a74e4-0bb4-4d15-8520-3d56e9826f86	ESP32-AUDIT01	2026-09-20 16:17:04.372634
+c79c7cc6-71c8-4f3b-b9eb-5cfc1049ee35	ESP32-AUDIT01	2026-09-20 16:17:05.676508
+13515b1a-af28-43cc-8594-c65b7af69380	ESP32-AUDIT01	2026-09-20 16:17:06.96354
+2a034654-207a-4968-b787-18838c16dca0	ESP32-AUDIT01	2026-09-20 16:17:08.26051
+2662ef98-b405-41a9-a4e7-a2fa4d12e68e	ESP32-AUDIT01	2026-09-20 16:17:09.554993
+c40eb930-4734-48eb-91a3-401f91b2f698	ESP32-AUDIT01	2026-09-20 16:17:10.852536
+9ea4d15c-b07f-47b2-951e-699b0f84714a	ESP32-AUDIT01	2026-09-20 16:17:12.146485
+67b8a9dc-1a67-4644-8f24-b9332056c42a	ESP32-AUDIT01	2026-09-20 16:17:13.443764
+a8ca116e-1842-45d1-9dfb-2a2379a727f3	ESP32-AUDIT01	2026-09-20 16:17:14.738769
+2454159b-fa0a-4a58-aeb2-897f75f3cb16	ESP32-AUDIT01	2026-09-20 16:17:16.035142
+a56f4bed-c17e-4439-8b4a-5889dd3763fc	ESP32-AUDIT01	2026-09-20 16:17:17.329132
+5d863697-22d3-4e88-aa0a-61de44290834	ESP32-AUDIT01	2026-09-20 16:17:18.626829
+a3261342-83ca-4d3a-9dae-8b550f4966d8	ESP32-AUDIT01	2026-09-20 16:17:19.920562
+96fe094a-3850-4d17-ad3d-a468b4a52633	ESP32-AUDIT01	2026-09-20 16:17:21.219916
+5f31c4a5-4357-4160-9f43-cd7c38478612	ESP32-AUDIT01	2026-09-20 16:17:22.513709
+a3eeffd7-2e29-4910-8747-92a401509429	ESP32-AUDIT01	2026-09-20 16:17:23.808892
+24b9ff41-ae82-45be-9e74-2b4479aed917	ESP32-AUDIT01	2026-09-20 16:17:25.104457
+712fafb4-e2f5-4844-9dcd-aff82f439af3	ESP32-AUDIT01	2026-09-20 16:17:26.39993
+ba826490-8b0c-420d-bc5a-9a1d338112cc	ESP32-AUDIT01	2026-09-20 16:17:27.695317
+eb73cd15-4353-4347-a40a-847b9993f020	ESP32-AUDIT01	2026-09-20 16:17:29.000269
+d16685ba-be1f-43e2-80eb-5a4c14f32dd4	ESP32-AUDIT01	2026-09-20 16:17:30.287265
+dfb2e44f-6743-4fed-97f2-d028789caa58	ESP32-AUDIT01	2026-09-20 16:17:31.582802
+3529b44c-2a8c-4cb6-834a-912e61240e9e	ESP32-AUDIT01	2026-09-20 16:17:32.878116
+3ebb9ea7-043e-4c79-aa60-c21f3b2a6c01	ESP32-AUDIT01	2026-09-20 16:17:34.175997
+262dc2ec-192e-415d-bb4d-8c7287fdbf08	ESP32-AUDIT01	2026-09-20 16:17:35.470132
+580c3bf5-316d-49fb-9feb-8409ade1ee03	ESP32-AUDIT01	2026-09-20 16:17:36.76551
+00116356-ff41-4c91-93cd-e711e5d6f881	ESP32-AUDIT01	2026-09-20 16:17:38.061378
+66f52b49-254e-463c-bc76-324d4d343ff8	ESP32-AUDIT01	2026-09-20 16:17:39.364582
+dc9162b4-4394-4750-a063-a84ef7843d1b	ESP32-AUDIT01	2026-09-20 16:17:40.652544
+568563f0-b57a-4767-880f-b7519af7bfcc	ESP32-AUDIT01	2026-09-20 16:17:41.947701
+72a43122-8425-4751-a45d-034a3680d99c	ESP32-AUDIT01	2026-09-20 16:17:43.244617
+c66dfaea-12f4-4d31-b024-ea1fdb20c7a6	ESP32-AUDIT01	2026-09-20 16:17:44.540586
+77420c4c-1f67-407a-b6e2-e4f9f1ef5d68	ESP32-AUDIT01	2026-09-20 16:17:45.835176
+3577eb1c-e386-4cc6-98e7-dcbe2c21dcd6	ESP32-AUDIT01	2026-09-20 16:17:47.130741
+f3997a22-344f-4963-a849-f04d6231da2b	ESP32-AUDIT01	2026-09-20 16:17:48.426668
+778cd63d-9459-469e-93dc-44e396050b5b	ESP32-AUDIT01	2026-09-20 16:17:49.722795
+4d66293a-079e-415c-afdd-1aa6d45b99f4	ESP32-AUDIT01	2026-09-20 16:17:51.019116
+8e1a1ee9-91cb-434c-8129-00a89acef34a	ESP32-AUDIT01	2026-09-20 16:17:52.314153
+eb68e4e2-15c0-46e3-9e81-63bb1ece2f43	ESP32-AUDIT01	2026-09-20 16:17:53.614432
+eab77b24-e24f-468a-ab3c-9f4cbc1487ca	ESP32-AUDIT01	2026-09-20 16:17:54.908302
+ea8731d4-5337-4486-91ed-eae2f33be295	ESP32-AUDIT01	2026-09-20 16:17:56.202109
+5350587b-d693-468a-af22-ce504d55ef8e	ESP32-AUDIT01	2026-09-20 16:17:57.497167
+7d0ef512-e541-4cf3-bb98-619ee29f4bea	ESP32-AUDIT01	2026-09-20 16:17:58.793613
+46fffa3d-1874-43e9-9365-4b71feac8557	ESP32-AUDIT01	2026-09-20 16:18:00.089536
+b0f83053-8e35-4c73-b4bf-7372bd53f950	ESP32-AUDIT01	2026-09-20 16:18:01.384399
+e0124cea-8d76-496b-8edf-f29964e3052c	ESP32-AUDIT01	2026-09-20 16:18:02.680896
+f4b9b03b-e28c-46da-9012-e5d97956dde4	ESP32-AUDIT01	2026-09-20 16:18:03.975011
+9628a57f-2809-4469-b538-2ad5ce24c95f	ESP32-AUDIT01	2026-09-20 16:18:05.278187
+279001c4-1eb1-4402-a9c6-c96cd4ceaa49	ESP32-AUDIT01	2026-09-20 16:18:06.567857
+41714d54-9a7a-4c03-85e0-da37fffdd6f3	ESP32-AUDIT01	2026-09-20 16:18:07.862144
+fdc417f4-ee19-4078-b372-d7a23b2a2c5b	ESP32-AUDIT01	2026-09-20 16:18:10.453687
+8f758b37-e3e1-4f40-bd34-cdcde3a2983c	ESP32-AUDIT01	2026-09-20 16:18:13.045784
+e2faa9d2-c3b4-4c29-a1d1-26950462265a	ESP32-AUDIT01	2026-09-20 16:18:15.640935
+10a187c9-79e7-4d40-9808-b5c237bc4616	ESP32-AUDIT01	2026-09-20 16:18:18.228227
+d0bde35c-7b11-4e33-904d-2532078261e2	ESP32-AUDIT01	2026-09-20 16:18:20.821662
+1fb3339f-07aa-489f-bcbe-b2a6b0eb1c0c	ESP32-AUDIT01	2026-09-20 16:18:24.706447
+d603ea23-59e2-4bed-be21-858655a47a36	ESP32-AUDIT01	2026-09-20 16:18:27.2976
+906832ba-b280-45d9-9598-7883b00c8899	ESP32-AUDIT01	2026-09-20 16:18:28.593341
+f4defc42-dc0a-4522-9fcc-f0b0044b8ca5	ESP32-AUDIT01	2026-09-20 16:18:31.185167
+f3d7bdbf-55a7-41a6-ad1c-e0f5588143d7	ESP32-AUDIT01	2026-09-20 16:18:32.480688
+29f5fe09-8431-4753-aa3b-6faaa164035b	ESP32-AUDIT01	2026-09-20 16:18:35.072085
+4459a82b-d906-4410-9394-d88fa60f60a8	ESP32-AUDIT01	2026-09-20 16:18:37.663111
+1f2be7ca-fdf7-4692-a69b-4f0f2bdeb82b	ESP32-AUDIT01	2026-09-20 16:18:40.255078
+135ba160-623d-46af-8828-246d51c3472d	ESP32-AUDIT01	2026-09-20 16:18:42.846068
+119f3389-62ed-4798-961f-f7f6daf6f446	ESP32-AUDIT01	2026-09-20 16:18:45.437338
+4867f65d-95fa-4f60-acc7-d3ba2f6733a2	ESP32-AUDIT01	2026-09-20 16:18:48.028974
+91ba413d-db2f-4140-bdd9-ae10edceed2f	ESP32-AUDIT01	2026-09-20 16:18:50.621079
+33aa2a65-54d0-4c04-8b83-c562e625ea54	ESP32-AUDIT01	2026-09-20 16:18:53.212391
+71a3ccc7-8705-4727-a6cc-dbd8d35b24a0	ESP32-AUDIT01	2026-09-20 16:18:54.508267
+b78631d1-234b-446e-b569-2b949188bf35	ESP32-AUDIT01	2026-09-20 16:18:55.802321
+0da8eb79-4d9b-4f9d-8efc-d63763ddec5a	ESP32-AUDIT01	2026-09-20 16:18:57.097603
+bbfa8d2e-e54d-480d-b36a-df6f9a86637e	ESP32-AUDIT01	2026-09-20 16:18:59.688899
+46bc8e15-a683-479e-9553-64096325f59f	ESP32-AUDIT01	2026-09-20 16:19:02.280517
+c3978ed1-455d-4fce-8296-ef8113bc0ce3	ESP32-AUDIT01	2026-09-20 16:19:04.894315
+dd54e421-2a57-4fe5-951b-774d95228a06	ESP32-AUDIT01	2026-09-20 16:19:08.763049
+b8738674-5898-4ca8-a0b3-25575955c50c	ESP32-AUDIT01	2026-09-20 16:19:11.349523
+6fd41382-e2fa-4811-9c37-e001bb9fc3b7	ESP32-AUDIT01	2026-09-20 16:19:13.940614
+ee5b54f6-8b8e-45fe-a79a-2572b1ff8489	ESP32-AUDIT01	2026-09-20 16:19:15.25177
+d28697ea-82ca-4bfe-8527-205035626fe2	ESP32-AUDIT01	2026-09-20 16:19:16.540365
+16006db2-816c-45dc-b482-aab8e6f1ef9d	ESP32-AUDIT01	2026-09-20 16:19:19.129898
+91cb525d-cb6b-428b-9104-6f1a6a659628	ESP32-AUDIT01	2026-09-20 16:19:23.009471
+4f3cc0de-91ce-4734-a78c-ee06b5994644	ESP32-AUDIT01	2026-09-20 16:19:25.603032
+d408ca4d-dfd6-4616-b564-56308a93efeb	ESP32-AUDIT01	2026-09-20 16:19:26.897754
+a299433b-f91c-48b4-bd58-faa71097eb8d	ESP32-AUDIT01	2026-09-20 16:19:29.489742
+0c7b7947-2e33-4607-a888-49d9fdf0663c	ESP32-AUDIT01	2026-09-20 16:36:34.695629
+09f5475d-33b0-40d9-b249-0b67605a9f7c	ESP32-AUDIT01	2026-09-20 16:36:37.286924
+53b2fe67-f79f-4e92-9d90-c856deecee03	ESP32-AUDIT01	2026-09-20 16:36:38.582256
+6dded40c-5dc4-4f47-9f08-1abe39202b16	ESP32-AUDIT01	2026-09-20 16:36:41.174195
+43764d05-eaea-4a7b-a0f2-cdbe127f5763	ESP32-AUDIT01	2026-09-20 16:36:43.764905
+ab46ff55-3ecf-41b8-80ec-6280a9772a2e	ESP32-AUDIT01	2026-09-20 16:36:46.35603
+25c8a5d7-fd39-4192-9989-0dd6ae675530	ESP32-AUDIT01	2026-09-20 16:36:48.956345
+b90fe201-fa01-40b6-8e7a-4c251b8c35fd	ESP32-AUDIT01	2026-09-20 16:36:51.539043
+84bb291a-428d-4f24-b62a-ed620fa23200	ESP32-AUDIT01	2026-09-20 16:36:54.131019
+b1cb078e-7d8e-4750-80a8-20200a232c7b	ESP32-AUDIT01	2026-09-20 16:36:56.72309
+38c94504-4f55-4d14-a119-c9714fa57ecf	ESP32-AUDIT01	2026-09-20 16:37:01.903424
+d5077ad3-6429-4aaf-bf56-540ca3820f27	ESP32-AUDIT01	2026-09-20 16:37:04.49586
+90bace0c-a49e-4833-a810-1c028733f5ae	ESP32-AUDIT01	2026-09-20 16:37:07.086514
+8c2ef1b4-a4b9-4cc6-a2f2-d5fc33f02fe6	ESP32-AUDIT01	2026-09-20 16:37:08.381958
+ed903132-3150-4f6d-970b-32911c51edb0	ESP32-AUDIT01	2026-09-20 16:37:09.678782
+6641f8ed-e475-411b-b4c6-dbf43d704008	ESP32-AUDIT01	2026-09-20 16:37:12.269493
+7a393c4a-1ce4-4878-bd80-960971327a59	ESP32-AUDIT01	2026-09-20 16:37:16.17521
+73342fcf-b6b7-4f05-a5b8-1ac32254158a	ESP32-AUDIT01	2026-09-20 16:37:18.747516
+2cf23d73-76ea-422a-b198-bab4b3a2ceda	ESP32-AUDIT01	2026-09-20 16:37:21.338854
+1c7985cb-ed4c-41ee-a855-67185f762f65	ESP32-AUDIT01	2026-09-20 16:37:23.93414
+0ea7082c-8499-41b5-9348-97cfa448a2b7	ESP32-AUDIT01	2026-09-20 16:37:26.530149
+f1fab4ef-6191-4bcf-9745-73c93c9a4c76	ESP32-AUDIT01	2026-09-20 16:37:29.121661
+b601c93f-c41e-40a3-93e6-93931f6e506a	ESP32-AUDIT01	2026-09-20 16:37:31.704214
+7c012c3b-a9fc-4399-bb97-b5f04acbbe57	ESP32-AUDIT01	2026-09-20 16:37:34.29495
+cde35d8d-bb57-4284-9c71-026d57d721a6	ESP32-AUDIT01	2026-09-20 16:37:35.594318
+a688d104-b9bd-423e-9edd-b6ce706c6bdb	ESP32-AUDIT01	2026-09-20 16:37:39.521795
+11fad62d-313e-4590-811f-8ec8ef25abc0	ESP32-AUDIT01	2026-09-20 16:37:42.070658
+08bc75be-7731-4093-941a-623eef52251b	ESP32-AUDIT01	2026-09-20 16:37:44.662146
+7af0b32e-b76f-42a5-9858-ba8b0501d9bd	ESP32-AUDIT01	2026-09-20 16:37:48.550399
+89dcfdcb-211a-4102-975a-e23a25312dfc	ESP32-AUDIT01	2026-09-20 16:37:51.139554
+643f268b-99f9-4677-bf1c-35771643ad3c	ESP32-AUDIT01	2026-09-20 16:37:53.729943
+a09b116d-a028-4ef0-b310-97e2cc5efc25	ESP32-AUDIT01	2026-09-20 16:37:56.321741
+8e73ba80-3ee3-4cde-aac7-1eb5dd6dbe9f	ESP32-AUDIT01	2026-09-20 16:37:58.912856
+8f28c43a-8827-40f6-9ce0-4b8f4fc6e61d	ESP32-AUDIT01	2026-09-20 16:38:01.505418
+e03ea272-bbeb-43e7-9c5f-e4251bbe07a6	ESP32-AUDIT01	2026-09-20 16:38:04.102999
+5862a264-1479-4273-aadd-10822351aca1	ESP32-AUDIT01	2026-09-20 16:38:06.686063
+1d48ed46-de7d-4184-bfb9-91e04bcd97d0	ESP32-AUDIT01	2026-09-20 16:38:09.276655
+6a757d90-041c-405f-969b-427d4b139aff	ESP32-AUDIT01	2026-09-20 16:38:11.8678
+0a0b2dcb-9589-4772-8851-e3104cba9685	ESP32-AUDIT01	2026-09-20 16:38:14.459325
+d0cf873d-cbd8-48bc-8b30-ba7722f500c6	ESP32-AUDIT01	2026-09-20 16:38:17.052279
+d33ff9ca-b87b-456a-851e-f1474e64e08c	ESP32-AUDIT01	2026-09-20 16:38:20.937016
+37655f5f-1549-4e4d-8518-29c0e88492a1	ESP32-AUDIT01	2026-09-20 16:38:24.825481
+adad41bb-65c5-467e-a9e9-4618c953cc84	ESP32-AUDIT01	2026-09-20 16:38:26.119266
+6cca09bf-927c-4071-9c36-94f6fc4d7f56	ESP32-AUDIT01	2026-09-20 16:38:28.712508
+9c3782b4-95ba-46ca-8b08-245bc8f705da	ESP32-AUDIT01	2026-09-20 16:38:31.30193
+166608eb-b184-44eb-ba05-e1fc264d414d	ESP32-AUDIT01	2026-09-20 16:38:36.485193
+a4e34243-8ffd-416a-aca3-05bc6fa7af7a	ESP32-AUDIT01	2026-09-20 16:38:39.076697
+4669bfff-5234-4afa-b9b7-165fe05cfdc0	ESP32-AUDIT01	2026-09-20 16:38:40.371864
+bdcb0d8d-bab5-4003-9c00-36500ae4c393	ESP32-AUDIT01	2026-09-20 16:38:42.963979
+8f9a25ba-a6d4-4a72-ad46-8f734ad59ffa	ESP32-AUDIT01	2026-09-20 16:18:09.15889
+71c13984-246d-40ac-a2e2-78ddf1fea6a9	ESP32-AUDIT01	2026-09-20 16:18:11.750209
+916d6292-f7b4-483a-8fa0-1a5928b57217	ESP32-AUDIT01	2026-09-20 16:18:14.341465
+d66d6586-3a48-48cd-9a8e-a30b8ab59534	ESP32-AUDIT01	2026-09-20 16:18:16.932361
+fa87f104-e506-4aa9-b331-36184e5c139b	ESP32-AUDIT01	2026-09-20 16:18:19.525768
+2007680f-7288-4c14-b68d-c0ae1ede17be	ESP32-AUDIT01	2026-09-20 16:18:22.115221
+5dd37e41-bd44-4494-9708-833233449f37	ESP32-AUDIT01	2026-09-20 16:18:23.411877
+4f6b39cd-e280-47cb-8a3f-0e5d64df52cb	ESP32-AUDIT01	2026-09-20 16:18:26.002062
+c935e2a7-af8d-4164-991b-61cddea35a62	ESP32-AUDIT01	2026-09-20 16:18:29.891878
+7a51d6e7-a155-4c16-b426-eb2798c99b21	ESP32-AUDIT01	2026-09-20 16:18:33.777765
+64eb2783-4fe9-4492-b652-c465b59f567a	ESP32-AUDIT01	2026-09-20 16:18:36.370233
+21dbbf80-047d-448e-a37a-795c28ffe24e	ESP32-AUDIT01	2026-09-20 16:18:38.958517
+c31f364b-ac2e-42cf-abd3-5774705c4644	ESP32-AUDIT01	2026-09-20 16:18:41.550592
+d52f649e-65bc-46b5-80ed-72b3899ad1a0	ESP32-AUDIT01	2026-09-20 16:18:44.144845
+8092b97c-e0b2-419f-b290-f03004aab54b	ESP32-AUDIT01	2026-09-20 16:18:46.732264
+26b5914b-21a4-4cda-a798-4a64bb1a22f4	ESP32-AUDIT01	2026-09-20 16:18:49.323791
+b7666d83-f85b-46e1-812d-6a8be7182e5d	ESP32-AUDIT01	2026-09-20 16:18:51.916059
+ca38e2b1-f078-4ae7-a14b-63584455901e	ESP32-AUDIT01	2026-09-20 16:18:58.39366
+e3b687a9-b65f-4099-a830-6e7e5bb37c9d	ESP32-AUDIT01	2026-09-20 16:19:00.984506
+3330375c-27ef-4c80-90ec-4088c6050a79	ESP32-AUDIT01	2026-09-20 16:19:03.575988
+bce12b98-0a77-49de-8d6c-208e9a322cc4	ESP32-AUDIT01	2026-09-20 16:19:06.173892
+d45e603f-7f55-4069-b79d-2cd1b0d2d85c	ESP32-AUDIT01	2026-09-20 16:19:07.462542
+e625776b-5ac6-4776-aeb6-87a4ef95f4ca	ESP32-AUDIT01	2026-09-20 16:19:10.054152
+637eba14-8bf4-422a-998e-039083d31d7a	ESP32-AUDIT01	2026-09-20 16:19:12.645721
+8442337c-451f-408d-ad14-4018f221cae0	ESP32-AUDIT01	2026-09-20 16:19:17.827353
+e155378b-8b12-465a-8808-8cca8f0cb6a4	ESP32-AUDIT01	2026-09-20 16:19:20.421075
+90e380c6-9bbf-48c2-9ac4-e6a2969fd31b	ESP32-AUDIT01	2026-09-20 16:19:21.714421
+7e1f8898-e8e4-4765-a45a-ceba1e6b8cd6	ESP32-AUDIT01	2026-09-20 16:19:24.305069
+72beeeac-06c6-42a1-a2ee-f3ab0b443c11	ESP32-AUDIT01	2026-09-20 16:19:28.191728
+e9d97cd5-369d-4360-b6cb-5aeb31d6fb21	ESP32-AUDIT01	2026-09-20 16:19:30.783075
+580af4c6-ee7c-4858-b7ef-4f955483eb25	ESP32-AUDIT01	2026-09-20 16:19:32.079014
+83f5b3b5-c1ad-4800-bbd6-4d96a5bc5b4a	ESP32-AUDIT01	2026-09-20 16:19:33.380205
+d3636fd8-9e46-47e5-90ff-76079ca19787	ESP32-AUDIT01	2026-09-20 16:19:34.671435
+c0cf0cd0-0ec6-481c-98e0-78244c237163	ESP32-AUDIT01	2026-09-20 16:19:35.965347
+d5413edb-bff9-4f9e-bbd8-cb84ce82c0be	ESP32-AUDIT01	2026-09-20 16:19:37.260923
+ddfe4c02-c89f-4ad5-9e47-a0fc6e01703d	ESP32-AUDIT01	2026-09-20 16:19:38.557797
+3a4595ab-b079-4630-b0d5-467ba9f3a3b1	ESP32-AUDIT01	2026-09-20 16:19:39.852328
+20c510fb-45b8-4ad9-bda8-fb6de327278d	ESP32-AUDIT01	2026-09-20 16:19:41.147158
+685683dc-b552-4ec9-9c4e-42bea5ab8b76	ESP32-AUDIT01	2026-09-20 16:19:42.443817
+8915d5e4-697e-4c2f-88a0-9b1820cce0aa	ESP32-AUDIT01	2026-09-20 16:19:43.738542
+0227cbbc-d809-4ed1-b993-31470c8c76f9	ESP32-AUDIT01	2026-09-20 16:19:45.036884
+3cf9c8ba-b6cb-4730-b270-0076d0d37516	ESP32-AUDIT01	2026-09-20 16:19:46.329424
+4557301f-6c41-45ce-a188-b82f8c0ad932	ESP32-AUDIT01	2026-09-20 16:19:47.627421
+805e1688-d62f-4c45-9144-3bfc5e3c80f2	ESP32-AUDIT01	2026-09-20 16:19:48.921277
+7d59ad90-c0f9-4cb2-8ba0-cb756d8ee178	ESP32-AUDIT01	2026-09-20 16:19:50.216726
+0196285c-16bd-4a2b-b8fe-e950fc18a3c3	ESP32-AUDIT01	2026-09-20 16:19:51.51166
+14c739ed-5568-4023-8149-148e3632babe	ESP32-AUDIT01	2026-09-20 16:19:52.809543
+688b5b4f-f0e4-4666-b933-38331f4ce72d	ESP32-AUDIT01	2026-09-20 16:19:54.109676
+bf2e5a30-63d6-489f-af49-0c4a20546313	ESP32-AUDIT01	2026-09-20 16:19:55.402616
+3577319f-4b65-4f88-844e-41ec019eb836	ESP32-AUDIT01	2026-09-20 16:19:56.703308
+289ed01b-9500-40fd-9e5b-46002fa21574	ESP32-AUDIT01	2026-09-20 16:19:58.000381
+404457f8-f5a1-49c4-83e8-7beaa7c12357	ESP32-AUDIT01	2026-09-20 16:19:59.293947
+1421df5b-efdf-449c-9e19-afe5c748fd38	ESP32-AUDIT01	2026-09-20 16:20:00.581678
+b7a14868-1f89-4435-ad24-d63cffc4afbf	ESP32-AUDIT01	2026-09-20 16:20:01.876368
+e811a290-a3fe-4aae-8c15-4097544df5fe	ESP32-AUDIT01	2026-09-20 16:20:03.171993
+e49b1061-7b16-46ef-a720-7af2c3e89064	ESP32-AUDIT01	2026-09-20 16:20:04.478767
+0c4cc810-ef59-45da-a3d8-84e747022240	ESP32-AUDIT01	2026-09-20 16:20:05.762201
+433c88f1-86a9-4415-a9b3-5210cbeaf785	ESP32-AUDIT01	2026-09-20 16:20:07.058686
+7aeeeb50-1c41-478e-b274-61ff451495c8	ESP32-AUDIT01	2026-09-20 16:20:08.356715
+1e272db4-3464-4023-a1b9-06a80801d779	ESP32-AUDIT01	2026-09-20 16:20:09.649495
+62296e2a-02c4-4c26-b9b4-02b1b152f378	ESP32-AUDIT01	2026-09-20 16:20:10.944952
+7dbc141b-c9d3-4265-b43f-383090e92682	ESP32-AUDIT01	2026-09-20 16:20:12.240037
+40aef2b1-a722-4065-b6da-85ffe21557a5	ESP32-AUDIT01	2026-09-20 16:20:13.536491
+a3720f57-d0bd-46e2-8fdc-f19a9e7b1639	ESP32-AUDIT01	2026-09-20 16:20:14.83823
+b78c4e0e-d03a-4f96-ac02-218ac676312e	ESP32-AUDIT01	2026-09-20 16:20:16.126602
+d7cdfd13-bddf-4bf6-b7c8-bf0fb5f73f32	ESP32-AUDIT01	2026-09-20 16:20:17.422434
+48bd877d-6b5a-4e0d-b633-275b26a4d03a	ESP32-AUDIT01	2026-09-20 16:20:18.719577
+717a4cb8-1e12-4567-84f7-b723cafc69cb	ESP32-AUDIT01	2026-09-20 16:20:20.013725
+4da3f4ff-9d20-444e-954a-cb570abdc17c	ESP32-AUDIT01	2026-09-20 16:20:21.309191
+0d791e0a-2ba0-41f6-be30-c4f73e05c1a6	ESP32-AUDIT01	2026-09-20 16:20:22.604462
+6ecf227d-152a-47da-b8b2-c047d263cba8	ESP32-AUDIT01	2026-09-20 16:20:23.900207
+f85c9602-fdff-4f34-8653-bfafb7dcd1eb	ESP32-AUDIT01	2026-09-20 16:20:25.195159
+b3b590b1-8091-4f62-b9f2-146960f0b226	ESP32-AUDIT01	2026-09-20 16:20:26.490978
+25364b84-6985-464c-b71c-0ecb02add675	ESP32-AUDIT01	2026-09-20 16:20:27.787301
+d755d763-704a-4bb4-b3a3-4187ea50cb5f	ESP32-AUDIT01	2026-09-20 16:20:29.081771
+2379d574-2ce9-447f-ba41-fcf5b6382605	ESP32-AUDIT01	2026-09-20 16:20:30.377472
+06409b42-4e00-4b28-9437-645b8880e62c	ESP32-AUDIT01	2026-09-20 16:20:31.672907
+51b6b33e-a688-4479-86bc-d2502b14ae1e	ESP32-AUDIT01	2026-09-20 16:20:32.967962
+6eba0456-7d27-479e-b49b-01613010bd27	ESP32-AUDIT01	2026-09-20 16:20:34.26479
+f2bf3064-6fcf-4553-adc5-ac14b4dfbbc1	ESP32-AUDIT01	2026-09-20 16:20:35.559603
+0810e33e-035d-471f-b50c-0c583f66c413	ESP32-AUDIT01	2026-09-20 16:20:36.879295
+4519ad1f-bbc6-430e-9b34-1628e0f53a5c	ESP32-AUDIT01	2026-09-20 16:20:38.153492
+5d911f2e-7d39-4848-9856-5caf6b008da0	ESP32-AUDIT01	2026-09-20 16:20:39.447122
+0101a16d-adce-441b-9e27-a78f538dcb5c	ESP32-AUDIT01	2026-09-20 16:20:40.743967
+dbd0eb3b-a4c4-491b-a84e-18da7572ff5c	ESP32-AUDIT01	2026-09-20 16:20:42.039327
+cc12607e-efd7-4a36-b1b6-3bd88d146e14	ESP32-AUDIT01	2026-09-20 16:20:43.365729
+11a420f3-dd42-4c9d-8bec-d3528bb740e5	ESP32-AUDIT01	2026-09-20 16:20:44.635406
+a6c65113-168d-48bf-8fd1-c51450090357	ESP32-AUDIT01	2026-09-20 16:20:45.922763
+24c792ee-4dcb-45dc-a21f-c9adbb84d3b2	ESP32-AUDIT01	2026-09-20 16:20:47.218585
+2a49158e-45a4-4c99-8bd3-01e5b9aaaacb	ESP32-AUDIT01	2026-09-20 16:20:48.514754
+7858953f-61d4-4b74-b6fc-e928fcd7f0d8	ESP32-AUDIT01	2026-09-20 16:20:49.809521
+f9a02179-bae6-435b-bdb0-e9bef1403e21	ESP32-AUDIT01	2026-09-20 16:20:51.104939
+3c72288b-1743-4f08-92db-f4d730f2bc54	ESP32-AUDIT01	2026-09-20 16:20:52.401611
+9d00cb16-c564-47c1-b3c7-0cd983820032	ESP32-AUDIT01	2026-09-20 16:20:53.697012
+29082a4c-29be-4c54-b3e4-ae3d8563e936	ESP32-AUDIT01	2026-09-20 16:20:55.054685
+d764597f-75cf-47e9-a063-b17ba6363241	ESP32-AUDIT01	2026-09-20 16:20:56.28723
+b12e9c13-5fa7-4014-a9e3-e0f0df012bea	ESP32-AUDIT01	2026-09-20 16:20:57.586205
+fc114387-9262-4795-a570-7bbc61e770f5	ESP32-AUDIT01	2026-09-20 16:20:58.882363
+a0687234-4e61-4d6c-bc0e-a4f9aa95de50	ESP32-AUDIT01	2026-09-20 16:21:00.174187
+b1bdcf63-0a99-400f-bac2-651a2f3d34fa	ESP32-AUDIT01	2026-09-20 16:21:01.46947
+cdf97f9a-82fc-4c9e-81d0-e26d6fc52d45	ESP32-AUDIT01	2026-09-20 16:21:02.765697
+9fa15ea3-343e-46d4-943b-9d5166bbd2ef	ESP32-AUDIT01	2026-09-20 16:21:04.061822
+5c0f7255-4a50-441e-91ec-68588156e680	ESP32-AUDIT01	2026-09-20 16:21:05.355887
+1342a922-9626-4761-b891-2d35b39b939a	ESP32-AUDIT01	2026-09-20 16:21:06.653613
+07783c03-68ab-4050-86f4-66b4dfc1c99a	ESP32-AUDIT01	2026-09-20 16:21:07.945247
+225b3fb7-b393-4ef3-b852-c99d47e39b69	ESP32-AUDIT01	2026-09-20 16:21:09.243464
+5f83ac2a-a179-4856-9da4-85d5e436aba6	ESP32-AUDIT01	2026-09-20 16:21:10.537266
+d3d800de-330f-4c37-afd6-a93f22ac892b	ESP32-AUDIT01	2026-09-20 16:21:11.834624
+3a16155e-3578-4637-9825-cbb01412fdae	ESP32-AUDIT01	2026-09-20 16:21:13.127431
+2f729588-efe8-428e-85c7-d5a04a9fe6db	ESP32-AUDIT01	2026-09-20 16:21:14.425912
+5327ff4c-e095-4b88-8599-888d7f42ee50	ESP32-AUDIT01	2026-09-20 16:21:15.719048
+3341351c-fab3-4943-a084-aaf72ba435a7	ESP32-AUDIT01	2026-09-20 16:21:17.014503
+4cd279db-7cab-48f2-8403-faec6f57a029	ESP32-AUDIT01	2026-09-20 16:21:18.310659
+1a96f603-b2c7-408c-8151-1ef389e16f75	ESP32-AUDIT01	2026-09-20 16:21:19.604858
+7b7d5f5e-2e48-48d9-820d-a103192060a3	ESP32-AUDIT01	2026-09-20 16:21:20.900557
+af449933-9cff-4f56-a0af-a1bcc6e92528	ESP32-AUDIT01	2026-09-20 16:21:22.197335
+df69127b-33b1-40ad-a178-6c6850099c3b	ESP32-AUDIT01	2026-09-20 16:21:23.49307
+cfce66f6-8864-468b-9455-feac8e328aa9	ESP32-AUDIT01	2026-09-20 16:21:24.786674
+e3b6fe2c-7fd8-40a1-a808-912a806dd7e2	ESP32-AUDIT01	2026-09-20 16:21:26.082467
+627fd5a2-45df-422b-a88e-745a901060c8	ESP32-AUDIT01	2026-09-20 16:21:27.377639
+df4b1cc5-f52f-499a-aeff-71d00679c178	ESP32-AUDIT01	2026-09-20 16:21:28.675012
+940db1c1-48e2-45fa-aa43-ed8fc0e9a076	ESP32-AUDIT01	2026-09-20 16:21:31.266175
+437f8f73-7fd4-4afa-acf0-ca5d4ea93530	ESP32-AUDIT01	2026-09-20 16:21:35.151513
+eee8b04d-7e00-4764-81ce-ab64808816ed	ESP32-AUDIT01	2026-09-20 16:21:36.445975
+f9c0fdb9-f274-40a6-8df4-5da7cd5c6ce3	ESP32-AUDIT01	2026-09-20 16:21:39.036986
+c3a02772-12d7-4940-ab57-a2f2731f746f	ESP32-AUDIT01	2026-09-20 16:21:41.62801
+eeb1b32a-e2a1-41d9-bd35-32df7838572e	ESP32-AUDIT01	2026-09-20 16:21:44.220015
+4979619a-7cf0-4269-827b-0f28379c63a1	ESP32-AUDIT01	2026-09-20 16:21:46.809749
+920713be-80c7-4900-a99b-a4592b93903e	ESP32-AUDIT01	2026-09-20 16:21:49.400437
+04055d82-6cc1-4ae1-97b7-89f05945a13a	ESP32-AUDIT01	2026-09-20 16:21:51.991855
+0903535f-3367-47b1-902b-687d710f3b64	ESP32-AUDIT01	2026-09-20 16:21:57.172633
+8116f9c2-7df5-47ea-9d8b-9dd5e2ecfd6b	ESP32-AUDIT01	2026-09-20 16:21:59.763895
+2bcb5b79-5e62-4727-949f-9ec19eccdfe4	ESP32-AUDIT01	2026-09-20 16:22:03.652148
+c670d8ec-60ce-473b-b85f-a762cd2cf9f6	ESP32-AUDIT01	2026-09-20 16:22:11.424178
+f8353d6e-7e94-4b2b-bc33-3969bbda577c	ESP32-AUDIT01	2026-09-20 16:22:14.013401
+6fdf07dd-7260-4f32-bc76-39a73c4be216	ESP32-AUDIT01	2026-09-20 16:22:16.604517
+928b43ad-d75c-447e-aa3a-4e61f0d553c0	ESP32-AUDIT01	2026-09-20 16:22:19.195383
+516f6d14-2ca9-4797-bcc6-f18c03ffae18	ESP32-AUDIT01	2026-09-20 16:22:21.786793
+c1531f15-395f-468f-b3e6-e94f764f6377	ESP32-AUDIT01	2026-09-20 16:22:24.381234
+4d905622-8f56-4d10-8108-ab302b585e8d	ESP32-AUDIT01	2026-09-20 16:22:26.968011
+3b2739ba-2c23-4055-b233-61f1286c28f9	ESP32-AUDIT01	2026-09-20 16:22:30.854371
+de9bd8df-43b0-47b0-ab75-1524db1f79bf	ESP32-AUDIT01	2026-09-20 16:38:44.271753
+0b2cd714-9c53-4a74-a2f6-2e821db75eb8	ESP32-AUDIT01	2026-09-20 16:21:29.968952
+d98f6896-8e71-4e12-a972-f69b5f595e38	ESP32-AUDIT01	2026-09-20 16:21:32.559554
+ff4b93a0-c038-4e30-bf57-06c7050fd03a	ESP32-AUDIT01	2026-09-20 16:21:33.854916
+5d41f13d-1a0b-431c-9f24-8d8643084ace	ESP32-AUDIT01	2026-09-20 16:21:37.741701
+407f40b3-29c6-4052-a1ff-9a6e5de5cfb8	ESP32-AUDIT01	2026-09-20 16:21:40.332787
+492e5cd5-595e-4cfe-9a07-cc772a47a0f7	ESP32-AUDIT01	2026-09-20 16:21:42.923057
+a737465b-d911-4936-974a-afa77c04cacb	ESP32-AUDIT01	2026-09-20 16:21:45.513838
+c639a21b-cb11-4d95-93d5-e3fab2598be9	ESP32-AUDIT01	2026-09-20 16:21:48.105211
+7336faac-a9cd-436c-9f81-03fdbbcc0478	ESP32-AUDIT01	2026-09-20 16:21:50.70058
+9fbab93f-5ddb-47df-b9bf-c996349edd3a	ESP32-AUDIT01	2026-09-20 16:21:53.28641
+8bdf03df-bdc5-4f7a-91fe-8abf367bb14b	ESP32-AUDIT01	2026-09-20 16:21:54.581761
+5e61c286-9335-4f21-86b9-da8dfe6d0085	ESP32-AUDIT01	2026-09-20 16:21:55.877691
+b8b582b5-9500-463f-9ea0-64b3fc1f5872	ESP32-AUDIT01	2026-09-20 16:21:58.469695
+2c526b46-04c7-4c21-a5cd-d5785b04cfba	ESP32-AUDIT01	2026-09-20 16:22:01.061162
+6fe3d37e-2a4d-46ae-b7be-61ab8ba281a5	ESP32-AUDIT01	2026-09-20 16:22:02.359335
+8a1ff848-df0b-4e1d-b30c-48e0eaddd847	ESP32-AUDIT01	2026-09-20 16:22:04.946037
+1179519f-71a6-407e-9cfb-9671ef26fdf1	ESP32-AUDIT01	2026-09-20 16:22:06.242438
+62d1de05-84d8-433e-a28c-2d90372d0416	ESP32-AUDIT01	2026-09-20 16:22:07.537424
+a1f2211a-33b8-4c23-ab5a-1c51febfc6d8	ESP32-AUDIT01	2026-09-20 16:22:08.841627
+d7232496-fe71-4436-a5f5-0b9e97d59943	ESP32-AUDIT01	2026-09-20 16:22:10.126994
+14858ab5-0920-47c7-bf81-7c9e9f3817e5	ESP32-AUDIT01	2026-09-20 16:22:12.721023
+7e8ad481-10e1-4dc8-a121-9c433d7b7b5f	ESP32-AUDIT01	2026-09-20 16:22:15.309837
+c9e809ea-d85f-4d3c-8570-50eb524a4913	ESP32-AUDIT01	2026-09-20 16:22:17.899726
+d2827360-e105-4ed1-838c-d2b8757c4bbd	ESP32-AUDIT01	2026-09-20 16:22:20.493319
+e3c2670d-60de-4a2a-9d19-16827dd139fa	ESP32-AUDIT01	2026-09-20 16:22:23.081878
+103155c9-2dbe-4246-b10f-a6f9ab3b5778	ESP32-AUDIT01	2026-09-20 16:22:25.676616
+d6807954-d6cf-4e32-8b67-a50c676af9f4	ESP32-AUDIT01	2026-09-20 16:22:28.263034
+dc8025ed-827c-4f6c-9f0d-4fdb70e55013	ESP32-AUDIT01	2026-09-20 16:22:29.559001
+26e6d597-04cb-407e-ac64-4e865fcb03b2	ESP32-AUDIT01	2026-09-20 16:22:32.152971
+68ab3d57-1d20-4237-b319-b28ab572102f	ESP32-AUDIT01	2026-09-20 16:22:33.444561
+e113fb7a-7a1d-4146-acaf-8fcb7d13a51a	ESP32-AUDIT01	2026-09-20 16:22:34.744432
+c0892446-bd67-4501-b9c3-31bd92c84293	ESP32-AUDIT01	2026-09-20 16:22:36.035682
+bf1a46ec-3d9f-4e54-93a3-9cf06d58cc40	ESP32-AUDIT01	2026-09-20 16:22:37.333432
+ca5341b6-b13a-4606-a1d6-d5e961425b6c	ESP32-AUDIT01	2026-09-20 16:22:38.626238
+b77c5c5d-91cb-4f9e-9afa-40813de1e245	ESP32-AUDIT01	2026-09-20 16:22:39.958844
+4fecdef9-0a15-4ab4-95c6-abd613c7dc13	ESP32-AUDIT01	2026-09-20 16:22:41.238451
+0a359837-4fae-4b00-a06b-19537a9f762b	ESP32-AUDIT01	2026-09-20 16:22:42.512532
+f4f0c949-86e6-4bc7-a33f-86f4c052cc7c	ESP32-AUDIT01	2026-09-20 16:22:43.808417
+7a8a9c27-e6dd-4248-bb10-a35e7ee738b2	ESP32-AUDIT01	2026-09-20 16:22:45.103211
+bff84d2b-81db-4d4b-bd13-30177715507a	ESP32-AUDIT01	2026-09-20 16:22:46.402071
+0634b52b-44a7-42d5-b26a-978c36a3e533	ESP32-AUDIT01	2026-09-20 16:22:47.694451
+c960f1ec-4671-49b7-893b-2490110bc758	ESP32-AUDIT01	2026-09-20 16:22:48.990876
+fb2dde4e-034d-4430-9b6a-a15ae5a15b2e	ESP32-AUDIT01	2026-09-20 16:22:50.285993
+16c37690-fda1-4e47-8fe9-5f7e9e1ba820	ESP32-AUDIT01	2026-09-20 16:22:51.580246
+72c88e6d-7883-446d-ad68-d3acacf22844	ESP32-AUDIT01	2026-09-20 16:22:52.875613
+79a0c3de-9c7c-4b73-b2a2-e59f3a651580	ESP32-AUDIT01	2026-09-20 16:22:54.171668
+cc4a8c67-35d4-48a0-821f-d4c0ad011226	ESP32-AUDIT01	2026-09-20 16:22:55.473031
+eac89217-e85c-4afc-86f7-1ad67f9d358e	ESP32-AUDIT01	2026-09-20 16:22:56.762497
+808e3959-cc94-4f9e-a7f7-c85455d7e48c	ESP32-AUDIT01	2026-09-20 16:22:58.062977
+2dd4e851-c3b5-4544-9550-96611307419b	ESP32-AUDIT01	2026-09-20 16:22:59.354688
+4a302ed8-fe79-466d-a23e-5a494181e6df	ESP32-AUDIT01	2026-09-20 16:23:00.648813
+0740337d-6354-4a32-b971-4caddc0d3839	ESP32-AUDIT01	2026-09-20 16:23:01.954213
+ae416e27-42f2-453e-8b95-86bade7925e2	ESP32-AUDIT01	2026-09-20 16:23:03.239123
+0a98eebb-ad26-4235-97bc-b9f0220629be	ESP32-AUDIT01	2026-09-20 16:23:04.536435
+5f71c8b0-5c3e-4e88-9e2b-31184651acac	ESP32-AUDIT01	2026-09-20 16:23:05.83255
+f34174bb-7d5b-4323-86b6-de5368b0b111	ESP32-AUDIT01	2026-09-20 16:23:07.126246
+e44950c4-d46f-4cac-9811-b0db8e4f5dd3	ESP32-AUDIT01	2026-09-20 16:23:08.420529
+b636930a-4f54-4499-bcc5-7d79e1f2cb1a	ESP32-AUDIT01	2026-09-20 16:23:09.717005
+32d1eef0-3790-42e4-b8e0-828192566076	ESP32-AUDIT01	2026-09-20 16:23:11.011407
+84dee8fd-2f37-4aa9-ba23-fb13fb4be306	ESP32-AUDIT01	2026-09-20 16:23:12.310099
+d5323e89-3dba-4a11-8221-296e64c1f0cb	ESP32-AUDIT01	2026-09-20 16:23:13.602947
+b4f6a032-8626-42b6-b49a-b101275fa2be	ESP32-AUDIT01	2026-09-20 16:23:14.897464
+a3102e6b-56a0-463f-9b3b-7a841e45bf4a	ESP32-AUDIT01	2026-09-20 16:23:16.193357
+16bbc108-c7ec-4cf2-a5a8-3c653c0ac97e	ESP32-AUDIT01	2026-09-20 16:23:17.488832
+e8e5f6e2-07a7-4e64-a8e8-34f977e549ba	ESP32-AUDIT01	2026-09-20 16:23:18.784786
+afb31d15-5f16-4a5e-8f35-12b8428ab04d	ESP32-AUDIT01	2026-09-20 16:23:20.079442
+7c14786a-bfa3-489b-ae00-d4acea604181	ESP32-AUDIT01	2026-09-20 16:23:21.376106
+7f915eeb-9ccf-4ffe-b002-48bb55ef1a23	ESP32-AUDIT01	2026-09-20 16:23:22.670777
+2c7037f9-f5d4-43aa-a831-661f15984d75	ESP32-AUDIT01	2026-09-20 16:23:23.969079
+84124857-a885-4641-b943-ed3eb601cf22	ESP32-AUDIT01	2026-09-20 16:23:25.261202
+719977e2-7ebf-4c45-8482-79212d9197b2	ESP32-AUDIT01	2026-09-20 16:23:26.558169
+a1ce3597-acfd-4c66-b25f-1201f2d62588	ESP32-AUDIT01	2026-09-20 16:23:27.852233
+7a25b9d3-b4cd-4118-9d1c-0dc2cd25b869	ESP32-AUDIT01	2026-09-20 16:23:29.147555
+5d01eedc-09b1-480c-b81e-47b95ade93f8	ESP32-AUDIT01	2026-09-20 16:23:30.443424
+4ff9a7cf-50bb-4aa2-9f95-353cd08f0d64	ESP32-AUDIT01	2026-09-20 16:23:31.743615
+2535fe04-7328-47df-9a5f-83bf4c71ffa1	ESP32-AUDIT01	2026-09-20 16:23:33.034978
+df2a3cb3-91c0-4241-bbb4-cfc0d3c847cf	ESP32-AUDIT01	2026-09-20 16:23:34.329464
+3abebd78-103a-457c-9acb-0d97c0e337ec	ESP32-AUDIT01	2026-09-20 16:23:35.626704
+57e4e90f-d6d6-4b7b-866e-53624eb17fc3	ESP32-AUDIT01	2026-09-20 16:23:36.919763
+cc095136-8817-4da3-aa57-308a702f3f49	ESP32-AUDIT01	2026-09-20 16:23:38.218188
+f9b67c2f-ae11-4792-919a-1fb8038d9f83	ESP32-AUDIT01	2026-09-20 16:23:39.51194
+d403bfd2-549c-4dde-a32f-8c8fa6d09667	ESP32-AUDIT01	2026-09-20 16:23:40.80693
+263947d4-f520-4012-afea-fd28eec420c1	ESP32-AUDIT01	2026-09-20 16:23:42.101863
+9f4ebc64-7047-474f-b7da-e74462c9ff06	ESP32-AUDIT01	2026-09-20 16:23:43.398589
+c389a1fe-dcce-4fe2-a5f8-9d873afa7155	ESP32-AUDIT01	2026-09-20 16:23:44.692999
+9c8b6aef-9226-4a1d-b021-22b9fe6c68df	ESP32-AUDIT01	2026-09-20 16:23:45.988196
+105bce81-a3c4-4bcc-a706-a21e8192a0b9	ESP32-AUDIT01	2026-09-20 16:23:47.283768
+be7747d5-6d9f-42af-abdb-d60d3b5465b8	ESP32-AUDIT01	2026-09-20 16:23:48.579124
+f07fb361-afd1-47e0-b83b-f09c5ac9e939	ESP32-AUDIT01	2026-09-20 16:23:49.875138
+8e92b9ae-40ef-411e-90c6-f26f2bdced99	ESP32-AUDIT01	2026-09-20 16:23:51.169734
+ea35e1e5-2011-474d-8dea-7f4af5572ad6	ESP32-AUDIT01	2026-09-20 16:23:52.465329
+8d5bf548-a850-4133-b628-4897e9db1bea	ESP32-AUDIT01	2026-09-20 16:23:53.760655
+c40bb548-098b-4112-ae6d-8cd2ea4cae77	ESP32-AUDIT01	2026-09-20 16:23:55.059788
+8287a2b9-03b1-44de-a319-12206293da45	ESP32-AUDIT01	2026-09-20 16:23:56.353442
+1f734ed6-265e-4ccc-aa45-efda1431ddc9	ESP32-AUDIT01	2026-09-20 16:23:57.64725
+6f520370-cc15-4ba7-8025-28f67ea11722	ESP32-AUDIT01	2026-09-20 16:23:58.942727
+6c65313d-6603-4fdd-8746-6bc959a6ce06	ESP32-AUDIT01	2026-09-20 16:24:00.237888
+f844ea00-6f99-47fb-8384-1a7dd24568d0	ESP32-AUDIT01	2026-09-20 16:24:01.53362
+e8e00373-4784-4f01-9397-f9ce9c4876fe	ESP32-AUDIT01	2026-09-20 16:24:02.829324
+fe00194e-570b-4067-930a-38a22d5a72cf	ESP32-AUDIT01	2026-09-20 16:24:04.124442
+f7b924e6-1476-4b2d-8a29-387188f86709	ESP32-AUDIT01	2026-09-20 16:24:05.420672
+725e9487-f51b-492c-827d-af875b403ca3	ESP32-AUDIT01	2026-09-20 16:24:06.71739
+abbed099-2066-4b7e-83ec-5ee4208dd558	ESP32-AUDIT01	2026-09-20 16:24:08.012362
+cad3cf02-d02b-47fb-b6b3-f50bcdc765e3	ESP32-AUDIT01	2026-09-20 16:24:09.306653
+e1ed9186-7893-4e4c-8858-9eaac57d8c2c	ESP32-AUDIT01	2026-09-20 16:24:10.602382
+3e21f16f-2921-40bd-8c58-a7c8807202b4	ESP32-AUDIT01	2026-09-20 16:24:11.896989
+0df75580-0443-4a50-98dd-40d3ed643f90	ESP32-AUDIT01	2026-09-20 16:24:13.198097
+14fc3896-02c0-48b4-8d6a-da8acfd205ad	ESP32-AUDIT01	2026-09-20 16:24:14.487811
+c7e20556-a3f0-4f97-ad70-90b5a49aa257	ESP32-AUDIT01	2026-09-20 16:24:15.784149
+a94c9cf3-2063-4a50-b992-d68f3e1e2bce	ESP32-AUDIT01	2026-09-20 16:24:17.08037
+57a5435e-3fd4-4164-9fc3-4f9940bb03b1	ESP32-AUDIT01	2026-09-20 16:24:18.374856
+a77c6d87-9248-4039-874a-27d2ff3be1f6	ESP32-AUDIT01	2026-09-20 16:24:19.669718
+4423ac03-bd81-497e-9237-aca0511a7e60	ESP32-AUDIT01	2026-09-20 16:24:20.965511
+2a25bf2f-03f5-4e3b-b53a-f355b0d3c7d1	ESP32-AUDIT01	2026-09-20 16:24:22.260735
+13ded478-2a29-421c-b0dd-e2c4841ab707	ESP32-AUDIT01	2026-09-20 16:24:23.557821
+f0255dcd-4871-49f2-a4df-858cb14813ae	ESP32-AUDIT01	2026-09-20 16:24:24.851963
+b7c5809d-2040-4780-815a-23d1b76174bc	ESP32-AUDIT01	2026-09-20 16:24:26.147226
+835a780b-23b6-4fb0-ac1f-0ae07fa570c1	ESP32-AUDIT01	2026-09-20 16:24:27.443069
+c8d4620b-ef03-40fa-877a-871f510f20ed	ESP32-AUDIT01	2026-09-20 16:24:28.73822
+8b1c39d7-47b4-4aea-a8c7-ad5fa295949b	ESP32-AUDIT01	2026-09-20 16:24:30.033953
+ad90c7e6-01f3-4a5e-b3da-177136a371ca	ESP32-AUDIT01	2026-09-20 16:24:31.329877
+f631e24b-35a5-48f2-b647-4089f0ab2f1a	ESP32-AUDIT01	2026-09-20 16:24:33.921178
+64083222-c38b-4023-b4e1-00caa37a1561	ESP32-AUDIT01	2026-09-20 16:24:37.808084
+eb0b53d0-df09-4a54-8fd4-ae05c4a666e5	ESP32-AUDIT01	2026-09-20 16:24:40.400518
+e2c931dc-1032-4a72-b46d-6de9c0386fe8	ESP32-AUDIT01	2026-09-20 16:24:43.420529
+1ddebe16-b3b9-4281-bd56-2a75d74cb337	ESP32-AUDIT01	2026-09-20 16:24:46.011869
+683fa31b-b618-4462-a4bf-efccc4b61614	ESP32-AUDIT01	2026-09-20 16:24:48.604235
+a021c1ce-bb81-4df1-a1a4-a3a18d023568	ESP32-AUDIT01	2026-09-20 16:24:49.899323
+527b0414-ce67-4d5d-9032-f110a626230e	ESP32-AUDIT01	2026-09-20 16:24:52.491141
+00091a6d-0686-46f9-ba74-1096d58a6082	ESP32-AUDIT01	2026-09-20 16:24:53.784806
+db2e0cb8-5dfe-4909-b114-4eef8bf9cf1e	ESP32-AUDIT01	2026-09-20 16:24:56.375486
+9797156e-cf1b-4e84-8a77-99f2219b3ce1	ESP32-AUDIT01	2026-09-20 16:24:58.979766
+ddc6ee39-d6ae-44d1-8ab2-43464a2218f9	ESP32-AUDIT01	2026-09-20 16:39:16.666805
+0341ec0a-1bd6-43b1-bd14-fbc4835e9830	ESP32-AUDIT01	2026-09-20 16:39:20.538415
+a2b5fc14-563b-4b19-9e3a-118e8d0f3916	ESP32-AUDIT01	2026-09-20 16:39:23.12946
+2a836f0f-cace-4f73-ba34-e5f36082a338	ESP32-AUDIT01	2026-09-20 16:39:25.737202
+30ff7e5c-385f-4c36-bcaf-4957709640c3	ESP32-AUDIT01	2026-09-20 16:39:28.312513
+b4fa2666-c69d-4d5a-ac46-f96e396eba90	ESP32-AUDIT01	2026-09-20 16:39:30.905944
+a9117bcb-da6f-480b-a467-7afdaab3ccc5	ESP32-AUDIT01	2026-09-20 16:39:33.496828
+36f80c29-c343-43ea-9aa6-4cbc3ea34976	ESP32-AUDIT01	2026-09-20 16:39:36.090225
+076807b9-768d-4519-86fe-9d379db4c769	ESP32-AUDIT01	2026-09-20 16:24:32.625023
+5379ef22-5dd1-41db-bde7-2062299b4b96	ESP32-AUDIT01	2026-09-20 16:24:35.218237
+c3a82c3f-af88-4e0e-ade0-a977e00f0861	ESP32-AUDIT01	2026-09-20 16:24:36.511661
+7b9524ee-bf4d-49c1-a63f-117bc73a39c4	ESP32-AUDIT01	2026-09-20 16:24:39.104803
+42e57cc9-55a2-48d3-af29-76955c778881	ESP32-AUDIT01	2026-09-20 16:24:41.694121
+0aa9c2fa-9262-4bb8-bc5c-dbfaec3a728a	ESP32-AUDIT01	2026-09-20 16:24:44.716413
+65e5399e-3844-4470-a0ba-b52366bedca1	ESP32-AUDIT01	2026-09-20 16:24:47.309279
+5dccfc0c-7ca9-458a-8c8c-dee2275a0ba4	ESP32-AUDIT01	2026-09-20 16:24:51.193536
+66d77d45-f66e-41cf-9d1f-c51ab2052d9d	ESP32-AUDIT01	2026-09-20 16:24:55.080041
+568d91d1-9605-4cb4-9888-127eedce019f	ESP32-AUDIT01	2026-09-20 16:24:57.670606
+b13b4a11-37f8-4768-a415-4429ef6f03ae	ESP32-AUDIT01	2026-09-20 16:25:00.261983
+0e901c84-9f91-4d04-934b-1a78a12986ee	ESP32-AUDIT01	2026-09-20 16:25:01.557932
+12a5683c-dc1d-4336-b42f-10a7f2239fdb	ESP32-AUDIT01	2026-09-20 16:25:02.852724
+9d99f4ce-aa8e-48f4-8e46-f0bf319ddb8c	ESP32-AUDIT01	2026-09-20 16:25:04.148613
+ddde6b7c-caef-484a-a4f1-9e4e65cc7471	ESP32-AUDIT01	2026-09-20 16:25:05.459682
+53942eba-a42d-4753-81c4-4a7317840ca1	ESP32-AUDIT01	2026-09-20 16:25:06.740541
+97d1629d-31ad-4f1e-bc38-86ac65d16334	ESP32-AUDIT01	2026-09-20 16:25:08.034522
+e47890d1-6226-4150-b575-278073e0870a	ESP32-AUDIT01	2026-09-20 16:25:09.330456
+ecac58b7-1823-47df-b236-52d3d45335d2	ESP32-AUDIT01	2026-09-20 16:25:10.628059
+d7cb3b30-acd7-4d1d-9fb3-6690055bb8a2	ESP32-AUDIT01	2026-09-20 16:25:11.921159
+b2099a08-8d66-4ba0-aa95-5c0b10fa1ddc	ESP32-AUDIT01	2026-09-20 16:25:13.216888
+b342aa89-5b8c-4cac-bb8c-8d99da195e15	ESP32-AUDIT01	2026-09-20 16:25:14.512143
+ea22a652-ff5d-47e1-847f-78c31a6e4675	ESP32-AUDIT01	2026-09-20 16:25:15.809426
+0569124d-aa71-42b4-8cd4-ae4c9f9faea4	ESP32-AUDIT01	2026-09-20 16:25:17.103251
+ca3bb906-e46e-4191-8222-81bcaf27d0b6	ESP32-AUDIT01	2026-09-20 16:25:18.399794
+10d550f2-dce4-44c5-9193-182523ed0b3b	ESP32-AUDIT01	2026-09-20 16:25:19.693918
+7993bd7f-c542-41e3-bcd0-284e6ddc2ba7	ESP32-AUDIT01	2026-09-20 16:25:20.993133
+2ec8d189-f41a-42c0-8fbd-286b8ec4df43	ESP32-AUDIT01	2026-09-20 16:25:22.28756
+29f7c5f0-68a2-42c1-ab9b-499debfe2284	ESP32-AUDIT01	2026-09-20 16:25:23.581434
+700dba12-09fc-4d71-b556-1a74185d3cd1	ESP32-AUDIT01	2026-09-20 16:25:24.87868
+9ef71693-add7-4d5c-9bef-5bd750ef1a57	ESP32-AUDIT01	2026-09-20 16:25:26.171515
+0bc09b59-315e-4568-a760-a06f060b24bf	ESP32-AUDIT01	2026-09-20 16:25:27.467282
+3e3f4ae5-e0c2-4d47-b8ff-a4fd496e025d	ESP32-AUDIT01	2026-09-20 16:25:28.76363
+d7fb659e-eec4-4b58-b6b9-b7d413aa706d	ESP32-AUDIT01	2026-09-20 16:25:30.058478
+aba353ee-7515-4c2d-8815-9e4bddbd524b	ESP32-AUDIT01	2026-09-20 16:25:31.353646
+323341e2-9d88-47ed-bc4b-430665c67dd8	ESP32-AUDIT01	2026-09-20 16:25:32.650166
+0edd3dd7-be80-45cd-9306-9a07f6b7208d	ESP32-AUDIT01	2026-09-20 16:25:33.947169
+d3c1897a-b76b-46df-a872-3425cb9a42ba	ESP32-AUDIT01	2026-09-20 16:25:35.241338
+32c0e578-14e0-46cb-8e86-f537ff80830c	ESP32-AUDIT01	2026-09-20 16:25:36.536366
+6b14f100-89e1-44f1-bf44-e523ebd01a8a	ESP32-AUDIT01	2026-09-20 16:25:37.832504
+29ff03df-3d5c-450d-91a5-5d05e2615356	ESP32-AUDIT01	2026-09-20 16:25:39.126922
+2fb5d7ba-ed49-4f7c-9e5d-a5a8d0e20d20	ESP32-AUDIT01	2026-09-20 16:25:40.423268
+b4db743e-9b7e-41ea-9a00-8369859508a4	ESP32-AUDIT01	2026-09-20 16:25:41.718079
+ce78ae50-9a43-4f41-870b-f8bdb4e08553	ESP32-AUDIT01	2026-09-20 16:25:43.014145
+8b954c6a-e297-4659-8108-7b46dc470d58	ESP32-AUDIT01	2026-09-20 16:25:44.310308
+7638438f-f248-489a-a3c1-f94011011919	ESP32-AUDIT01	2026-09-20 16:25:45.605155
+650b65a7-8f82-4c4e-a04a-0c9500c7610d	ESP32-AUDIT01	2026-09-20 16:25:46.900655
+1d662f98-821b-4554-8494-4df63a7ee4d2	ESP32-AUDIT01	2026-09-20 16:25:48.197181
+bbbbdfb3-fb1a-40f3-a499-aa04944eb812	ESP32-AUDIT01	2026-09-20 16:25:49.491507
+4f1a66ba-47ef-4128-b41c-2af44d30ec5e	ESP32-AUDIT01	2026-09-20 16:25:50.788574
+783d3e11-7d1b-41c2-983f-77e8754d7b2c	ESP32-AUDIT01	2026-09-20 16:25:52.084112
+1be4a2cb-9be8-4f3d-ab5a-d1bb2a9a72d2	ESP32-AUDIT01	2026-09-20 16:25:53.378435
+fb30f5ae-77a5-4dd8-aa69-8a821f7d0c59	ESP32-AUDIT01	2026-09-20 16:25:54.67422
+1deec4be-1988-4f03-a2a2-eb8f7a83cab7	ESP32-AUDIT01	2026-09-20 16:25:55.97022
+dfadd98a-844c-40d6-b3f2-8191baa65976	ESP32-AUDIT01	2026-09-20 16:25:57.26511
+4e0dc456-654c-4c17-8649-40ec0879883e	ESP32-AUDIT01	2026-09-20 16:25:58.560459
+05be6328-290f-4c12-97ac-96ae3ecbc5a9	ESP32-AUDIT01	2026-09-20 16:25:59.856739
+1fc415eb-53f5-4570-aea4-3d4117a61acf	ESP32-AUDIT01	2026-09-20 16:26:01.151894
+f7c6dd65-e202-46b5-b45a-014159e8799f	ESP32-AUDIT01	2026-09-20 16:26:02.448811
+6ae48d10-c055-4291-a26e-12b767fec378	ESP32-AUDIT01	2026-09-20 16:26:03.743499
+78edc9e2-3b1a-4e49-af5f-f458e0405355	ESP32-AUDIT01	2026-09-20 16:26:05.038834
+534ad632-1683-4545-ba54-f7b62f5aebae	ESP32-AUDIT01	2026-09-20 16:26:06.334404
+b52dc2fb-2444-42e4-a0aa-c1ff327d8c79	ESP32-AUDIT01	2026-09-20 16:26:07.630071
+c9f58903-418b-4bec-a0a0-ff8da52f4c64	ESP32-AUDIT01	2026-09-20 16:26:08.924686
+d6fe8ca8-e6d1-4401-8361-ab3c9a2dc338	ESP32-AUDIT01	2026-09-20 16:26:10.220452
+05773df0-3926-445e-9355-c76c273d986a	ESP32-AUDIT01	2026-09-20 16:26:11.517535
+791da73a-9b8e-45af-8131-f83f77dd1d8b	ESP32-AUDIT01	2026-09-20 16:26:12.81179
+b006207d-cbbf-4974-87ad-a8d0e0f17db6	ESP32-AUDIT01	2026-09-20 16:26:14.107678
+ef2379cf-bedb-480c-9ac2-f83a0844bd4d	ESP32-AUDIT01	2026-09-20 16:26:15.403403
+ee62fa38-f496-4ae4-9706-f25d7a200660	ESP32-AUDIT01	2026-09-20 16:26:16.698923
+ddd57028-2ea1-46ac-b534-b26385cbc7c5	ESP32-AUDIT01	2026-09-20 16:26:17.993747
+3208d66a-3a49-446c-a203-59f551d00874	ESP32-AUDIT01	2026-09-20 16:26:19.289696
+749e4d1d-58da-4abe-ba10-3b182b6c0fb5	ESP32-AUDIT01	2026-09-20 16:26:20.590988
+9268f18c-0ad7-43da-bbbf-48bd6e867de7	ESP32-AUDIT01	2026-09-20 16:26:21.881771
+0fbca521-9c77-41d2-96fa-cdc271407d62	ESP32-AUDIT01	2026-09-20 16:26:23.177932
+407a00c7-6bc8-4c3b-8d9f-76439bf9dc72	ESP32-AUDIT01	2026-09-20 16:26:24.472949
+6f6a0082-599f-49c3-a236-45c286ede7e5	ESP32-AUDIT01	2026-09-20 16:26:25.769252
+c0ba0436-bb15-46dc-8f03-95c2db127106	ESP32-AUDIT01	2026-09-20 16:26:27.063574
+de166d9d-ad94-4629-8224-2e56a157223f	ESP32-AUDIT01	2026-09-20 16:26:28.359515
+23c6882b-18ca-4ec8-82c2-4f1837560f1f	ESP32-AUDIT01	2026-09-20 16:26:29.654316
+5ba05c6f-2459-4f12-ba58-c556d19dcd0e	ESP32-AUDIT01	2026-09-20 16:26:30.951332
+b8f1cd4e-2357-4aff-b7a0-d6cda47834cd	ESP32-AUDIT01	2026-09-20 16:26:32.246466
+e3039895-3982-4767-aa47-15cd23330f44	ESP32-AUDIT01	2026-09-20 16:26:33.542052
+64951e48-ecdb-41b7-9179-317522aaced3	ESP32-AUDIT01	2026-09-20 16:26:34.838487
+e431545d-52d8-41a7-ad8d-e892896525ea	ESP32-AUDIT01	2026-09-20 16:26:36.13619
+40141753-fe13-4efe-ade8-5d5397faa2e6	ESP32-AUDIT01	2026-09-20 16:26:37.428411
+84ad24a7-fa3a-4512-8b99-5ef08756a3d4	ESP32-AUDIT01	2026-09-20 16:26:38.739528
+f8f89d21-00ca-4255-ac1c-3033c7a91c4c	ESP32-AUDIT01	2026-09-20 16:26:40.027182
+26d93a6c-ad4d-4c9c-a853-7c8c95e3c642	ESP32-AUDIT01	2026-09-20 16:26:41.316208
+450fac21-5702-4079-b98f-aa842b43c315	ESP32-AUDIT01	2026-09-20 16:26:42.610725
+ba428a5f-be07-47dd-902a-9ef2042c7a48	ESP32-AUDIT01	2026-09-20 16:26:43.907026
+0075321f-0ba1-47bf-a0cc-591ee443a660	ESP32-AUDIT01	2026-09-20 16:26:45.202467
+4607360d-f9e9-46dc-bd69-e5c2ad67b8ea	ESP32-AUDIT01	2026-09-20 16:26:46.501112
+59ef78a5-6bad-465b-94ca-4c5e8ee5cf4c	ESP32-AUDIT01	2026-09-20 16:26:47.794906
+ec8eb2d7-5a34-45c2-8ada-b50a1de39617	ESP32-AUDIT01	2026-09-20 16:26:49.089571
+b2ea5837-03cd-4b60-9296-899df07a226b	ESP32-AUDIT01	2026-09-20 16:26:50.386195
+f51873af-ef8b-4374-b618-6590adf826cd	ESP32-AUDIT01	2026-09-20 16:26:51.681508
+cde7727a-ed64-4288-8e26-c4cd2638d69a	ESP32-AUDIT01	2026-09-20 16:26:52.97565
+6be1e102-7a09-47bb-bef6-aaa711213819	ESP32-AUDIT01	2026-09-20 16:26:54.271981
+92a7ebaa-999b-42ce-a4c6-b7d89eadae92	ESP32-AUDIT01	2026-09-20 16:26:55.567953
+aae6cf15-edbc-4f1a-951e-7681bc544293	ESP32-AUDIT01	2026-09-20 16:26:56.865133
+570c85c4-8a7e-4d1f-9c69-279af443b745	ESP32-AUDIT01	2026-09-20 16:26:58.159826
+344c5c32-721c-42b6-94f2-1afc610e4535	ESP32-AUDIT01	2026-09-20 16:26:59.455007
+ca0895d3-20cf-4021-9a5a-c7f794d20adc	ESP32-AUDIT01	2026-09-20 16:27:00.749901
+2529ad4d-99aa-4bc0-8f58-b2bed47e2e21	ESP32-AUDIT01	2026-09-20 16:27:02.050858
+4dc7ef21-fa65-4b4a-91e2-2d1145638ad1	ESP32-AUDIT01	2026-09-20 16:27:03.342668
+89a37aef-8500-430f-99bb-56d70819fd3f	ESP32-AUDIT01	2026-09-20 16:27:04.636888
+cc1efebc-2cfd-432a-9468-c792de577e03	ESP32-AUDIT01	2026-09-20 16:27:05.943834
+457a55ab-0e1e-438c-8c55-41f0e7049141	ESP32-AUDIT01	2026-09-20 16:27:07.231211
+a3bac0e1-cbb3-480e-9347-4afb5bcbe51b	ESP32-AUDIT01	2026-09-20 16:27:08.524782
+36b8ec09-9d32-4294-b36a-e793dfcc4341	ESP32-AUDIT01	2026-09-20 16:27:09.819311
+df8405d3-9461-44e4-95d2-cae75647d4aa	ESP32-AUDIT01	2026-09-20 16:27:11.11502
+44cd6e87-295c-4fc3-ab28-47ba2c3e0a55	ESP32-AUDIT01	2026-09-20 16:27:12.411777
+a61f22ec-2dba-4ebc-837a-676c33700073	ESP32-AUDIT01	2026-09-20 16:27:13.708166
+c4f24112-6df4-4788-808c-392e9abee44c	ESP32-AUDIT01	2026-09-20 16:27:15.038992
+84f18503-5b0d-4467-9209-86ab6662fbc7	ESP32-AUDIT01	2026-09-20 16:27:16.300109
+fe661aae-d486-40b5-a945-a856b4b69422	ESP32-AUDIT01	2026-09-20 16:27:17.594606
+d0275bd9-1105-4a0f-9738-779e08984a24	ESP32-AUDIT01	2026-09-20 16:27:18.888966
+da099423-8c81-48fa-b5a8-d840bc225f6a	ESP32-AUDIT01	2026-09-20 16:27:20.183923
+81b777a7-0215-4114-a71f-7a23e72fb3bf	ESP32-AUDIT01	2026-09-20 16:27:21.480392
+87af77c3-a6dc-4106-b837-dd26b50298db	ESP32-AUDIT01	2026-09-20 16:27:22.775115
+7220faae-2bdf-4db2-99af-f9dc802480ec	ESP32-AUDIT01	2026-09-20 16:27:26.661379
+245dc4cb-77e3-4ebf-ad78-ef15d3aa5f56	ESP32-AUDIT01	2026-09-20 16:27:27.956543
+b3ccf8c0-9444-4b95-a345-2688e25a44d2	ESP32-AUDIT01	2026-09-20 16:27:30.548234
+887e2205-d4b9-4f04-b612-c35734e14ced	ESP32-AUDIT01	2026-09-20 16:27:33.142965
+fc468aec-61b7-4a0f-b56e-89df473935c7	ESP32-AUDIT01	2026-09-20 16:27:37.033547
+0798ea3e-c78f-4bdc-9fef-474105229bea	ESP32-AUDIT01	2026-09-20 16:27:39.617902
+475292a0-cbb4-4602-b0f6-6c1285ef4a94	ESP32-AUDIT01	2026-09-20 16:27:40.915131
+4996245b-1165-477c-a0fe-b515efc498e2	ESP32-AUDIT01	2026-09-20 16:27:44.801496
+c4f3aaa6-ef06-4ecf-9763-b74f87db079b	ESP32-AUDIT01	2026-09-20 16:27:46.097181
+d268ef48-42cf-43ef-84be-3bd467953205	ESP32-AUDIT01	2026-09-20 16:27:48.776111
+26b6c8ce-e3e3-45a2-a27c-dd135877f0bb	ESP32-AUDIT01	2026-09-20 16:27:51.295659
+2edf9d9b-e06f-4783-aed9-b2e86cc5d32c	ESP32-AUDIT01	2026-09-20 16:27:52.642865
+038efb8e-c943-4265-a834-0af5f94b5331	ESP32-AUDIT01	2026-09-20 16:27:53.883723
+d5c6f13d-4472-4fbd-be32-fe5a7bf8559b	ESP32-AUDIT01	2026-09-20 16:27:56.463792
+2daf0c83-7642-4270-9e77-5be68e2e6b12	ESP32-AUDIT01	2026-09-20 16:27:59.056445
+74efb5a3-6708-4f8a-8c6a-8aaa43e2af02	ESP32-AUDIT01	2026-09-20 16:28:01.646822
+c4d2eb57-d42e-489a-8973-f4308ac1cca3	ESP32-AUDIT01	2026-09-20 16:28:02.943761
+f9308f82-1401-4f2c-9bdd-9f35691d2d1d	ESP32-AUDIT01	2026-09-20 16:28:05.544067
+113a7258-95f3-4553-8cbc-598dab912b36	ESP32-AUDIT01	2026-09-20 16:28:08.125031
+c0c88455-0651-402e-bfd1-06b2b0dd8ff0	ESP32-AUDIT01	2026-09-20 16:28:10.717797
+8ba9757b-bb99-4fea-8aed-54e97a4516f0	ESP32-AUDIT01	2026-09-20 16:28:13.306577
+41c68c52-4e2c-4f58-b8f0-7d9ae4c1447f	ESP32-AUDIT01	2026-09-20 16:28:15.898131
+f2b272c5-67bf-4074-9a24-d21e7b41cdb7	ESP32-AUDIT01	2026-09-20 16:28:18.490142
+b038c05b-174f-43e1-acf8-f631a99bda96	ESP32-AUDIT01	2026-09-20 16:28:21.088607
+890ce7cf-784c-4bf5-82b0-a1d84d4855b3	ESP32-AUDIT01	2026-09-20 16:28:23.672143
+6f1b16ae-36f5-474b-a896-f8a217bea5a7	ESP32-AUDIT01	2026-09-20 16:28:26.263274
+dc4c6bca-3244-448f-86d8-c861efad2ba2	ESP32-AUDIT01	2026-09-20 16:28:27.560081
+c71517f8-c2ef-4a62-ab1b-81efbce22527	ESP32-AUDIT01	2026-09-20 16:28:31.445595
+5f7ff153-7df8-4449-9537-86db0b51c110	ESP32-AUDIT01	2026-09-20 16:27:24.070581
+efe4f1d8-0b26-47f3-b1d5-d5e1e1b41fa6	ESP32-AUDIT01	2026-09-20 16:27:25.366399
+eb22e96b-aa33-4b02-982d-994a0e3c49c0	ESP32-AUDIT01	2026-09-20 16:27:29.253197
+ab0fc938-acfc-4005-aec3-7b10db5e4170	ESP32-AUDIT01	2026-09-20 16:27:31.848864
+3bceaf63-eba8-4f55-b99f-96a698719e6b	ESP32-AUDIT01	2026-09-20 16:27:34.434908
+6b655108-4420-4d9f-a8df-37d3fbe81567	ESP32-AUDIT01	2026-09-20 16:27:35.733448
+1cca1984-e4eb-43f1-9e8b-4cec12c518bf	ESP32-AUDIT01	2026-09-20 16:27:38.322342
+8a505287-482d-4311-83dc-1b34e9393e53	ESP32-AUDIT01	2026-09-20 16:27:42.218169
+26045e27-196e-4367-a584-a56508c3b315	ESP32-AUDIT01	2026-09-20 16:27:43.506858
+ce4505bc-643d-445f-b591-6c2bf61b6268	ESP32-AUDIT01	2026-09-20 16:27:47.393686
+b2cd2730-9289-49d0-b4a8-c3cb9bcec03b	ESP32-AUDIT01	2026-09-20 16:27:50.031162
+517ab3a5-fca3-467a-bf9f-2e642be53ba4	ESP32-AUDIT01	2026-09-20 16:27:55.167715
+27c1585f-bc47-4bda-ba62-b7bce8767339	ESP32-AUDIT01	2026-09-20 16:27:57.759797
+75f7c483-0d21-4cdf-b9af-96977a3f05df	ESP32-AUDIT01	2026-09-20 16:28:00.352512
+727181e0-a02c-4197-b93c-99b3b83ce9c2	ESP32-AUDIT01	2026-09-20 16:28:04.237322
+e2538c30-3f5c-414b-95f4-e8ceba0511c8	ESP32-AUDIT01	2026-09-20 16:28:06.82931
+3a3b6618-811a-4e65-8358-05ffcf63b3b0	ESP32-AUDIT01	2026-09-20 16:28:09.421868
+11c6d1ba-6743-4f94-bc1b-a10d1872c64f	ESP32-AUDIT01	2026-09-20 16:28:12.014064
+5c9d5ec4-31e9-49ed-82c2-a3ae249236bb	ESP32-AUDIT01	2026-09-20 16:28:14.602456
+61fb06b3-2926-42cd-ae27-d452d7d951fd	ESP32-AUDIT01	2026-09-20 16:28:17.193642
+cbbaec5a-cd0a-4e1b-b151-29d3afc882c2	ESP32-AUDIT01	2026-09-20 16:28:19.787153
+549e8b82-e053-4cca-97cf-526b94ec836a	ESP32-AUDIT01	2026-09-20 16:28:22.37654
+9d54c8d6-fdca-441a-b2e1-18b1d1ec43aa	ESP32-AUDIT01	2026-09-20 16:28:24.968214
+9107c6e8-bc19-45d9-8ea0-7c417f8ddde6	ESP32-AUDIT01	2026-09-20 16:28:28.858068
+64bd707c-5755-41ef-9bed-6da94b913a8a	ESP32-AUDIT01	2026-09-20 16:28:30.151031
+b1c77a48-a533-45ad-ba7b-fa706c2025a2	ESP32-AUDIT01	2026-09-20 16:28:32.740903
+bae84c82-675f-4092-81ce-39e6350f7b94	ESP32-AUDIT01	2026-09-20 16:28:34.038297
+8081e3e8-26c9-4b3c-ad52-7c856ae4932b	ESP32-AUDIT01	2026-09-20 16:28:35.333915
+5ed6681e-08dd-43af-886e-5c0537bf9f06	ESP32-AUDIT01	2026-09-20 16:28:36.632213
+3429b272-9225-48d3-8daa-b4c86b433162	ESP32-AUDIT01	2026-09-20 16:28:37.923476
+9a2e005c-cedc-4a2f-9dc5-3b72e41d608c	ESP32-AUDIT01	2026-09-20 16:28:39.219498
+7e1559b5-c026-4b08-8267-e4164853861b	ESP32-AUDIT01	2026-09-20 16:28:40.514352
+854bbedd-f23d-47f4-8696-f559022156d8	ESP32-AUDIT01	2026-09-20 16:28:41.812512
+a9c4e1d7-88c7-434b-a08e-05dbce2f1428	ESP32-AUDIT01	2026-09-20 16:28:43.105779
+10537956-5c54-43e6-b5ae-827638418d29	ESP32-AUDIT01	2026-09-20 16:28:44.402901
+75f11835-3608-445b-a6f3-8ae85618aeb4	ESP32-AUDIT01	2026-09-20 16:28:45.696918
+7d55b695-2687-4897-a5ef-9431645a45a6	ESP32-AUDIT01	2026-09-20 16:28:46.992051
+9564d027-7e62-4689-8fb0-7fc305291b57	ESP32-AUDIT01	2026-09-20 16:28:48.288331
+290fa3f4-5efb-4672-8966-5067a3b1b646	ESP32-AUDIT01	2026-09-20 16:28:49.583137
+5b5113e2-6d61-4e6d-8bd4-f4a5d100367e	ESP32-AUDIT01	2026-09-20 16:28:50.998752
+fc0cf4c2-6400-4398-be99-3f2b1b8ce473	ESP32-AUDIT01	2026-09-20 16:28:52.17398
+a1006940-b149-4a09-8638-38b7e311fdbe	ESP32-AUDIT01	2026-09-20 16:28:53.472198
+7aff0a2e-4e61-46a1-b975-108b699b78f7	ESP32-AUDIT01	2026-09-20 16:28:54.765328
+c87b0b79-5aa1-4d82-a746-f00572dee91f	ESP32-AUDIT01	2026-09-20 16:28:56.066357
+a56bae1b-5265-40b8-9e17-7718ace31928	ESP32-AUDIT01	2026-09-20 16:28:57.356952
+3bd902d4-bdfb-4bd8-ae9d-8a816685a9f9	ESP32-AUDIT01	2026-09-20 16:28:58.659146
+18cabd60-0304-4122-9c45-3d0ee79d1c3b	ESP32-AUDIT01	2026-09-20 16:28:59.948686
+d0a8e107-2929-4cfd-8cc1-b21ab47a0213	ESP32-AUDIT01	2026-09-20 16:29:01.245263
+58ea93ef-e643-49dc-bcad-f1225f9251e7	ESP32-AUDIT01	2026-09-20 16:29:02.543339
+7b657946-44af-4166-9eb0-84dadafa25a5	ESP32-AUDIT01	2026-09-20 16:29:03.836282
+fd380583-5ee6-483f-a048-5ca10563ccca	ESP32-AUDIT01	2026-09-20 16:29:05.130721
+f736eb19-b7ff-4fae-bb16-58bd7a021511	ESP32-AUDIT01	2026-09-20 16:29:06.440392
+a9e84cf9-b2a3-4979-8598-2c75a2d56a61	ESP32-AUDIT01	2026-09-20 16:29:07.72162
+832a52be-6f71-4340-8d61-623a02457e59	ESP32-AUDIT01	2026-09-20 16:29:09.016903
+d9ef5504-2370-443f-b23d-ecc41a14eee8	ESP32-AUDIT01	2026-09-20 16:29:10.312227
+350c0190-859e-4564-a7d9-5047b34c8b0c	ESP32-AUDIT01	2026-09-20 16:29:11.608316
+4857bbcf-f5ce-414b-82fa-cc4ed6624a84	ESP32-AUDIT01	2026-09-20 16:29:12.903065
+8a0f57eb-0b1f-4779-971b-7204bc5d684b	ESP32-AUDIT01	2026-09-20 16:29:14.198287
+d0ed97ba-d8e1-448a-b0da-2363039ded87	ESP32-AUDIT01	2026-09-20 16:29:15.496284
+b3aaaf8b-3bcc-4b3d-bc8d-4c26de640113	ESP32-AUDIT01	2026-09-20 16:29:16.789963
+9894f3dc-3545-46ae-b3c6-973a051e3302	ESP32-AUDIT01	2026-09-20 16:29:18.084505
+4cbbce3b-d6b4-44e0-8d0b-ad2a92fec4b2	ESP32-AUDIT01	2026-09-20 16:29:19.388579
+a310960f-00a7-453c-8b72-3752229da0bd	ESP32-AUDIT01	2026-09-20 16:29:20.676329
+62391da5-cc5e-43bb-b654-3a25e119d869	ESP32-AUDIT01	2026-09-20 16:29:21.972689
+bb512f4f-5839-41c1-9ed4-a4f492269135	ESP32-AUDIT01	2026-09-20 16:29:23.268203
+5e999f09-2a98-44a9-8838-f750a03a7889	ESP32-AUDIT01	2026-09-20 16:29:24.562387
+9851b417-357d-40fd-bf29-60c401a068b2	ESP32-AUDIT01	2026-09-20 16:29:25.858917
+c6abf56a-be42-42d4-87a2-d15e031e8ee3	ESP32-AUDIT01	2026-09-20 16:29:27.154138
+5ffc31d4-99de-4f24-a1a8-cde7a98ae838	ESP32-AUDIT01	2026-09-20 16:29:28.453264
+8b27820e-ad5b-41f8-81f9-f94644d9425f	ESP32-AUDIT01	2026-09-20 16:29:29.750218
+d1d3fd14-46d8-4faf-bc95-901e750ab429	ESP32-AUDIT01	2026-09-20 16:29:31.047432
+6d74810c-6c4c-4915-8f59-1a9cbeeeedb2	ESP32-AUDIT01	2026-09-20 16:29:32.335923
+c5b50503-9882-4588-8864-aedc3975b2b9	ESP32-AUDIT01	2026-09-20 16:29:33.636064
+72321cfd-31f0-4cca-8b25-0c5e037867df	ESP32-AUDIT01	2026-09-20 16:29:34.926837
+51171db8-346f-4456-9db8-07290b5acb9a	ESP32-AUDIT01	2026-09-20 16:29:36.222829
+7d76641a-e4ce-45a6-b571-dadecff54ee4	ESP32-AUDIT01	2026-09-20 16:29:37.53066
+550c8951-0438-4f6d-8114-5ee373e60183	ESP32-AUDIT01	2026-09-20 16:29:38.815916
+7cf92418-8731-47f9-b85b-e3db441f855f	ESP32-AUDIT01	2026-09-20 16:29:40.122591
+e086c6cc-43eb-457a-8ab5-64a02c26cda4	ESP32-AUDIT01	2026-09-20 16:29:41.406217
+98330d53-9938-42d3-9b34-134fd0381348	ESP32-AUDIT01	2026-09-20 16:29:42.704322
+30af7c03-2ba8-4d86-8f80-ab3ab629494a	ESP32-AUDIT01	2026-09-20 16:29:44.00192
+2e37e777-513f-4992-aadd-782c83a85c45	ESP32-AUDIT01	2026-09-20 16:29:45.291073
+8dff1785-f4f0-4e31-9c84-b7c2074a2ce1	ESP32-AUDIT01	2026-09-20 16:29:46.587827
+e90d0862-533c-4453-860e-e7c67972da74	ESP32-AUDIT01	2026-09-20 16:29:47.885398
+cede0c5f-4e3c-45a3-8efa-babddd22e9a1	ESP32-AUDIT01	2026-09-20 16:29:49.178053
+daf13018-2222-4482-bffb-0dc810e6cda8	ESP32-AUDIT01	2026-09-20 16:29:50.473448
+e61ac9bb-45c8-4648-bf4e-35bf81237ff7	ESP32-AUDIT01	2026-09-20 16:29:51.78198
+78d444f4-dc22-4d08-a18e-f160334cc08f	ESP32-AUDIT01	2026-09-20 16:29:53.064368
+47cefd38-2556-4e51-8b92-42f686732899	ESP32-AUDIT01	2026-09-20 16:29:54.361206
+c201ba99-4662-43ab-8fd9-4a301b65e01e	ESP32-AUDIT01	2026-09-20 16:29:55.657237
+3c5cb88e-38c6-47e0-8149-7d58a0831cb4	ESP32-AUDIT01	2026-09-20 16:29:56.951605
+877505d0-3e68-4e05-996f-fb6e45d3ca59	ESP32-AUDIT01	2026-09-20 16:29:58.247483
+a7f905c8-b616-42d4-a708-3a3a61ab9370	ESP32-AUDIT01	2026-09-20 16:29:59.542729
+460a851f-80f0-4c43-9aff-895e8eff354f	ESP32-AUDIT01	2026-09-20 16:30:00.840093
+76a01822-017c-4fbd-ab0a-6f1ae4af91da	ESP32-AUDIT01	2026-09-20 16:30:02.144401
+b4fcb57b-e5b4-414e-a483-9ad493b80fcb	ESP32-AUDIT01	2026-09-20 16:30:03.431927
+c246e0b1-2a72-4b74-9a0c-0b24a14cc50a	ESP32-AUDIT01	2026-09-20 16:30:04.731908
+381dc1e7-44d0-4214-8661-6221c2a2c4cb	ESP32-AUDIT01	2026-09-20 16:30:06.02566
+6e1471c5-4ba8-49c4-9bf6-fc3c93139b74	ESP32-AUDIT01	2026-09-20 16:30:07.317245
+be88c27b-389c-4953-bd98-b6ac94cfdabb	ESP32-AUDIT01	2026-09-20 16:30:08.611492
+6d3b26a3-4288-4f10-b26e-1effe095ebaf	ESP32-AUDIT01	2026-09-20 16:30:09.907222
+e2e763b1-64ca-4b52-87a9-bbbe846faaec	ESP32-AUDIT01	2026-09-20 16:30:11.211604
+e159d52d-bec3-4fd6-93ae-d4496cb40180	ESP32-AUDIT01	2026-09-20 16:30:12.501667
+27508548-2b16-4b09-856e-81053ac15664	ESP32-AUDIT01	2026-09-20 16:30:13.794066
+be52e536-1acc-4209-b41a-7ae7672378ea	ESP32-AUDIT01	2026-09-20 16:30:15.0907
+8ac15e30-cc8e-4c40-8c53-77aba7ab2b8f	ESP32-AUDIT01	2026-09-20 16:30:16.384703
+cad82aee-ccd8-44e9-8e79-63aff1b9e863	ESP32-AUDIT01	2026-09-20 16:30:17.681245
+dfed1c56-df78-4678-a62a-2beaae725270	ESP32-AUDIT01	2026-09-20 16:30:18.976186
+68562541-24d3-48c8-8921-da5040572faf	ESP32-AUDIT01	2026-09-20 16:30:20.275627
+5ed361d5-516e-4532-8a6c-67dd1d88cdb0	ESP32-AUDIT01	2026-09-20 16:30:21.569109
+69fb020c-0445-4076-9f53-06d730586964	ESP32-AUDIT01	2026-09-20 16:30:22.867822
+a19943f6-0d7d-4c9e-bffb-d40ceb680bae	ESP32-AUDIT01	2026-09-20 16:30:24.166025
+4d4ccbdb-1d41-4566-b454-158b2f89d95d	ESP32-AUDIT01	2026-09-20 16:30:25.454385
+bef44ae8-37e4-445a-b585-2b572be1bd4e	ESP32-AUDIT01	2026-09-20 16:30:26.750588
+2a336c14-f850-4eb4-9460-732efc61d8a2	ESP32-AUDIT01	2026-09-20 16:30:28.051284
+0e54d15f-c0aa-4036-987c-dbaacfb8196a	ESP32-AUDIT01	2026-09-20 16:30:29.343853
+bd6d98ce-3e8c-45df-9324-604c71560f8d	ESP32-AUDIT01	2026-09-20 16:30:30.635627
+b08e047a-369f-49ed-86f7-975ab2d364cc	ESP32-AUDIT01	2026-09-20 16:30:31.931963
+e8d71a23-b3a3-46ca-bf5e-5027aad5289a	ESP32-AUDIT01	2026-09-20 16:30:33.227718
+5248ccde-eb0b-405f-a75f-bf64c9dcff2d	ESP32-AUDIT01	2026-09-20 16:30:34.522548
+28c8b627-1b8d-4190-b12e-df15d9602eac	ESP32-AUDIT01	2026-09-20 16:30:35.818771
+36086c27-af3c-4c11-a1bb-1dd3a87d6364	ESP32-AUDIT01	2026-09-20 16:30:38.409178
+e76a47df-075e-4126-8b4e-53f8106f82d3	ESP32-AUDIT01	2026-09-20 16:30:41.001151
+f24a3559-b496-4ea0-bc6f-67002ec43412	ESP32-AUDIT01	2026-09-20 16:30:43.59202
+0f2cad70-694f-437a-b6b9-a5e9c2304b36	ESP32-AUDIT01	2026-09-20 16:30:46.183347
+159e0d70-90a3-414a-8940-13cd3617c5d3	ESP32-AUDIT01	2026-09-20 16:30:48.774605
+7c768f94-a393-4904-a71c-91e369a41b4a	ESP32-AUDIT01	2026-09-20 16:30:52.664561
+97b65c93-4984-45e3-b814-5f2a7d65262c	ESP32-AUDIT01	2026-09-20 16:30:55.251621
+db9702b7-4384-413c-979d-2492089ba64c	ESP32-AUDIT01	2026-09-20 16:30:57.843304
+83868830-4ce8-4f6c-8529-2ddf69f26b76	ESP32-AUDIT01	2026-09-20 16:30:59.140123
+c90702c7-ec13-427d-87d1-458e91fa46dd	ESP32-AUDIT01	2026-09-20 16:31:00.496208
+88af8176-c015-44b1-bff0-a2cf404d7f68	ESP32-AUDIT01	2026-09-20 16:31:03.024958
+87d8cff1-269e-4880-9d88-0d6eb0308eb5	ESP32-AUDIT01	2026-09-20 16:31:06.915847
+19f1fe94-274e-46d4-b93d-52eeac86b5a1	ESP32-AUDIT01	2026-09-20 16:31:09.503306
+b7f5e07e-b55e-482d-b121-75d2f000c0c0	ESP32-AUDIT01	2026-09-20 16:31:13.390316
+6f15ebc6-b660-41d8-bedb-3f9ae5311e5d	ESP32-AUDIT01	2026-09-20 16:31:14.687653
+2b5e0eff-5dcf-435b-b0ba-f4c22131c290	ESP32-AUDIT01	2026-09-20 16:31:17.276857
+9b6eacf3-9303-4370-ab36-bdebffd39321	ESP32-AUDIT01	2026-09-20 16:31:19.868041
+29ee06bb-1cb6-4262-9011-e6ab8e7a67cf	ESP32-AUDIT01	2026-09-20 16:31:22.458869
+24548303-8f22-4da4-b3a6-c44559b5cf57	ESP32-AUDIT01	2026-09-20 16:31:25.050317
+e5d07565-1d21-48e4-a1ae-7baa160dc695	ESP32-AUDIT01	2026-09-20 16:31:27.64367
+8411fac8-0287-4010-9b00-97a1789f4194	ESP32-AUDIT01	2026-09-20 16:31:34.119787
+f85b1e65-5199-462e-9093-df604b72703b	ESP32-AUDIT01	2026-09-20 16:31:36.710873
+3e6b7b53-7e2a-4e89-94c9-d989f14b2f3d	ESP32-AUDIT01	2026-09-20 16:31:39.301293
+9af53f31-a597-4f58-9047-7ae1c55936f3	ESP32-AUDIT01	2026-09-20 16:31:43.188726
+3f3d8aa7-e6a5-4106-8a15-5657ec181b0f	ESP32-AUDIT01	2026-09-20 16:31:44.483915
+6330699d-8b94-4480-bfba-3a32ed9f8ab8	ESP32-AUDIT01	2026-09-20 16:31:45.780448
+8d3ac031-6183-40f4-9f9f-df36dced9e51	ESP32-AUDIT01	2026-09-20 16:31:48.370977
+1f544a46-69bd-4e5f-a7e9-68c1309824ba	ESP32-AUDIT01	2026-09-20 16:31:50.964462
+94e0d31a-4353-497f-bce3-cdceb863eb88	ESP32-AUDIT01	2026-09-20 16:30:37.114351
+9c7e5a7f-38c0-47c4-9945-ff16656205d3	ESP32-AUDIT01	2026-09-20 16:30:39.708872
+9c57087a-f11b-4da9-9ac2-494149a345ca	ESP32-AUDIT01	2026-09-20 16:30:42.297095
+4dc93653-abf2-4a5f-97d6-efe3976cbcb3	ESP32-AUDIT01	2026-09-20 16:30:44.888033
+5676de3f-dad8-4409-a7d2-5e92b43ec70a	ESP32-AUDIT01	2026-09-20 16:30:47.480461
+e7e80722-5f90-4285-abdc-4ec00a8a62de	ESP32-AUDIT01	2026-09-20 16:30:50.069937
+be93f787-703a-4d6a-bd3d-64d6864759ef	ESP32-AUDIT01	2026-09-20 16:30:51.368884
+24109ac1-79d8-487c-ac9b-78fbcc36a497	ESP32-AUDIT01	2026-09-20 16:30:53.957875
+d0e148bb-edc1-4834-9480-c6b4d2437946	ESP32-AUDIT01	2026-09-20 16:30:56.548934
+a4a02c5d-bedd-4ab8-b6ba-43329fb1f0c8	ESP32-AUDIT01	2026-09-20 16:31:01.731932
+e9e11f56-de7f-4247-860c-d4dffe1cd224	ESP32-AUDIT01	2026-09-20 16:31:04.320519
+bea221b3-4798-4fbb-aecd-0c9d740490d7	ESP32-AUDIT01	2026-09-20 16:31:05.617742
+2d0101f5-ecb4-405e-b65a-10b98646345b	ESP32-AUDIT01	2026-09-20 16:31:08.210034
+1955d291-3854-46cc-aa83-a4e88c46a327	ESP32-AUDIT01	2026-09-20 16:31:10.798644
+b06dd7d3-3689-4da9-a903-3689cd65246d	ESP32-AUDIT01	2026-09-20 16:31:12.094996
+4b8e5593-8ede-4018-8918-ffb0576f2a98	ESP32-AUDIT01	2026-09-20 16:31:15.98629
+f382a072-bdb2-46ba-8459-e5f6340a107e	ESP32-AUDIT01	2026-09-20 16:31:18.574717
+4f789a28-89b3-4907-84e2-b9dd0e96a97e	ESP32-AUDIT01	2026-09-20 16:31:21.165412
+2a0ca657-71fa-44d3-b800-c0fe1a8c7f46	ESP32-AUDIT01	2026-09-20 16:31:23.754618
+7c6fa689-ce5c-47a2-811a-e36166cc81df	ESP32-AUDIT01	2026-09-20 16:31:26.352518
+139cc7d6-e74d-48bb-b7ba-65d5fabaf2c4	ESP32-AUDIT01	2026-09-20 16:31:28.93833
+1ad3f69d-5fea-431e-b9c5-6b8888c5478e	ESP32-AUDIT01	2026-09-20 16:31:30.234067
+60f9ee26-bc5e-43b0-9b88-88c524aef7ee	ESP32-AUDIT01	2026-09-20 16:31:31.531179
+3613fdf7-8662-4062-b023-98a36f5bf7ec	ESP32-AUDIT01	2026-09-20 16:31:32.824294
+988f5765-228f-4f61-82d4-dd95246774fb	ESP32-AUDIT01	2026-09-20 16:31:35.415599
+9eb43c96-1ddf-428d-8941-57fca8451f37	ESP32-AUDIT01	2026-09-20 16:31:38.006655
+01523eff-a83d-4a13-8ce4-baaf070cf179	ESP32-AUDIT01	2026-09-20 16:31:40.597853
+6a3298db-c0f0-433d-b277-7ecf6dd1a146	ESP32-AUDIT01	2026-09-20 16:31:41.895343
+74824b26-ba71-49f7-af38-097617c9e41d	ESP32-AUDIT01	2026-09-20 16:31:47.075784
+5f1589bc-deb1-4720-96de-881c6a523080	ESP32-AUDIT01	2026-09-20 16:31:49.666634
+fd690209-5b37-46a5-ba11-c6a2403ad78f	ESP32-AUDIT01	2026-09-20 16:31:52.266318
+1711f479-ee3a-4950-a10d-5eb410ffee86	ESP32-AUDIT01	2026-09-20 16:31:53.573457
+890b1ece-fe31-4aad-8be7-c5f37171e8d4	ESP32-AUDIT01	2026-09-20 16:31:54.850067
+18a9e155-ae5d-41a5-85d8-2224a0e3c72c	ESP32-AUDIT01	2026-09-20 16:31:56.155497
+70455dd8-97b6-4947-a5fe-9952b1aae819	ESP32-AUDIT01	2026-09-20 16:31:57.440988
+2c85a00f-b01b-4ed7-ba3b-aefa9679aa62	ESP32-AUDIT01	2026-09-20 16:31:58.735862
+0769bde7-1ff0-47fd-8234-1865ad4a5396	ESP32-AUDIT01	2026-09-20 16:32:00.031383
+db0cb893-81a5-47c5-aa64-fbfdcaa94ae2	ESP32-AUDIT01	2026-09-20 16:32:01.334469
+7b7d3f67-0e91-49ea-926f-ec4cbca490cf	ESP32-AUDIT01	2026-09-20 16:32:02.622542
+080f54ed-d682-4ebd-9c44-18abfca773cc	ESP32-AUDIT01	2026-09-20 16:32:03.917952
+701b340b-703a-4b24-9b74-f33e2ab9a0cc	ESP32-AUDIT01	2026-09-20 16:32:05.285599
+80708cc5-895c-4bcd-b546-e43b11c91b32	ESP32-AUDIT01	2026-09-20 16:32:06.511037
+a5811272-865a-4422-a522-4894f8ed9037	ESP32-AUDIT01	2026-09-20 16:32:07.805908
+e99fb5de-989a-4d95-988e-b52520490afd	ESP32-AUDIT01	2026-09-20 16:32:09.100779
+5d0bb72a-ab7c-4e4b-975f-3533ae4d74d9	ESP32-AUDIT01	2026-09-20 16:32:10.395477
+ec614a3b-e93f-4ee5-9f51-4ce425986371	ESP32-AUDIT01	2026-09-20 16:32:11.701896
+b732d589-a4eb-4cc3-bd39-360e0e80b93a	ESP32-AUDIT01	2026-09-20 16:32:12.999213
+6af49837-cdb3-4abc-afe1-c1e1018d8c5d	ESP32-AUDIT01	2026-09-20 16:32:14.282536
+a6733fd8-6973-4993-89ed-de5878f02952	ESP32-AUDIT01	2026-09-20 16:32:15.578767
+d5c0ba59-4e69-446f-91a3-f3d6c5ad3029	ESP32-AUDIT01	2026-09-20 16:32:16.875394
+0adfb75c-16b0-49dc-9ee2-d22e675ec4fe	ESP32-AUDIT01	2026-09-20 16:32:18.168422
+d393e81a-c5a6-47e2-ad69-b51514ebd17f	ESP32-AUDIT01	2026-09-20 16:32:19.464248
+16153332-dbc2-4aec-9663-5df7c84db055	ESP32-AUDIT01	2026-09-20 16:32:20.759501
+23701e3c-d1da-4de5-bf19-332c899b699a	ESP32-AUDIT01	2026-09-20 16:32:22.055278
+c186cc7d-b705-46a7-9782-7a9c06b487f0	ESP32-AUDIT01	2026-09-20 16:32:23.350501
+12ed10d4-7a60-49a9-a5b6-2b5adb1b15eb	ESP32-AUDIT01	2026-09-20 16:32:24.647646
+7f3e1f0a-8f01-459a-815d-a842e1bcd1fa	ESP32-AUDIT01	2026-09-20 16:32:25.942675
+b198ec9b-6d0c-417c-841c-c04bcddc44ab	ESP32-AUDIT01	2026-09-20 16:32:27.237556
+1bf96002-118f-4434-a7b5-3a29d7050f93	ESP32-AUDIT01	2026-09-20 16:32:28.539596
+d21baa1c-fa59-4cfa-90c4-a94ce2c9a66a	ESP32-AUDIT01	2026-09-20 16:32:29.829296
+efc253a8-9150-4433-af4b-08523af104c1	ESP32-AUDIT01	2026-09-20 16:32:31.127769
+94870085-6b90-40f5-81c8-4d6db7f85949	ESP32-AUDIT01	2026-09-20 16:32:32.42406
+d6f00455-d8d9-4f6e-9654-96c750cf6ece	ESP32-AUDIT01	2026-09-20 16:32:33.715612
+8131566e-122b-4eb1-a62e-be66068cec10	ESP32-AUDIT01	2026-09-20 16:32:35.012732
+e5590953-a831-41d5-a52e-6709ecae11d0	ESP32-AUDIT01	2026-09-20 16:32:36.31406
+af31736d-ada6-46e6-86d2-e7fa4f9b32fe	ESP32-AUDIT01	2026-09-20 16:32:37.602243
+e7fa44de-9293-46a6-a121-3aa12c5e2a5f	ESP32-AUDIT01	2026-09-20 16:32:38.898052
+1bce2ab8-2ba9-4542-b759-b05d561eb516	ESP32-AUDIT01	2026-09-20 16:32:40.192835
+0a1ccb62-f62e-457a-b815-0da549cd8cfc	ESP32-AUDIT01	2026-09-20 16:32:41.494502
+9b48e74a-be35-4b63-80e5-0aa047c36023	ESP32-AUDIT01	2026-09-20 16:32:42.801436
+f1b7ab07-6e0a-46b7-bb96-1eef6a1d86c7	ESP32-AUDIT01	2026-09-20 16:32:44.096633
+a1fec105-574d-49de-a2f5-4919c86d76d2	ESP32-AUDIT01	2026-09-20 16:32:45.377849
+9da256dc-11a1-4dbf-a3a6-63517377ca89	ESP32-AUDIT01	2026-09-20 16:32:46.672483
+9cc268f0-5071-4b46-8bd0-279fc2c12478	ESP32-AUDIT01	2026-09-20 16:32:47.96893
+408223a9-2591-4cca-9297-5a63b4793beb	ESP32-AUDIT01	2026-09-20 16:32:49.273138
+fa879918-c5e4-4d39-8220-c04e252312b6	ESP32-AUDIT01	2026-09-20 16:32:50.557386
+58b4ffbd-7f59-4af5-b840-32d22d1057c2	ESP32-AUDIT01	2026-09-20 16:32:51.853658
+0337c316-08a7-4e70-9077-7e789710cbae	ESP32-AUDIT01	2026-09-20 16:32:53.148737
+892d62b7-f018-4b27-822f-8006593e5cef	ESP32-AUDIT01	2026-09-20 16:32:54.446364
+4c2c52ed-472f-453e-9e03-6a921e5c1940	ESP32-AUDIT01	2026-09-20 16:32:55.741509
+d97c3628-0389-4b39-8036-914388494b8d	ESP32-AUDIT01	2026-09-20 16:32:57.037753
+3e8e8352-e020-489b-a779-9115e1e9bd0c	ESP32-AUDIT01	2026-09-20 16:32:58.341549
+8cb2f895-123c-4a1a-b466-e02d04d23274	ESP32-AUDIT01	2026-09-20 16:32:59.626481
+8131d65d-42ec-45c7-b5d0-f94bb78f72e8	ESP32-AUDIT01	2026-09-20 16:33:00.936892
+2d8f3676-d999-4c2b-96a5-53ce5caba95a	ESP32-AUDIT01	2026-09-20 16:33:02.218119
+ed630ea0-5f46-499d-9258-3e6bf3901c2b	ESP32-AUDIT01	2026-09-20 16:33:03.513328
+ee77baf6-c19c-48e6-9641-131f95b161c9	ESP32-AUDIT01	2026-09-20 16:33:04.81526
+9e802ed1-dace-4383-92a5-56950d1bc215	ESP32-AUDIT01	2026-09-20 16:33:06.10406
+69f10f21-8140-4a57-be70-b2f45ab173ab	ESP32-AUDIT01	2026-09-20 16:33:07.402469
+791ababc-10ee-4401-a822-3bab821da1e8	ESP32-AUDIT01	2026-09-20 16:33:08.69531
+e8d26a36-433e-4530-bdc1-047b308dd684	ESP32-AUDIT01	2026-09-20 16:33:09.995578
+d3973a6a-042f-45ff-80fe-9bf430dbcf65	ESP32-AUDIT01	2026-09-20 16:33:11.288744
+17518680-87e8-4cf5-bb85-4d82973a1026	ESP32-AUDIT01	2026-09-20 16:33:12.584463
+f38b240a-7de5-4b05-8471-1911b94b0e44	ESP32-AUDIT01	2026-09-20 16:33:13.878211
+43b7ab1a-2b1a-430c-a88a-faabd00d9a17	ESP32-AUDIT01	2026-09-20 16:33:15.173875
+233d6c86-29ec-4fb0-ab13-aadb6d67fa3b	ESP32-AUDIT01	2026-09-20 16:33:16.474029
+4faade5b-d7af-4d8b-bc4b-292440ec7cd1	ESP32-AUDIT01	2026-09-20 16:33:17.764478
+10f0a597-bb20-4221-a2e6-59c886561a1d	ESP32-AUDIT01	2026-09-20 16:33:19.06011
+e1f0f2c3-9be5-484e-9657-84d43b371862	ESP32-AUDIT01	2026-09-20 16:33:20.36585
+34057cb4-cabc-4094-a8ff-96fa293a8e33	ESP32-AUDIT01	2026-09-20 16:33:21.651539
+56803d27-9b75-4d93-bb80-015d363d8be3	ESP32-AUDIT01	2026-09-20 16:33:22.947004
+39d78b5e-db36-4e1c-8f9c-97fdb5f709f1	ESP32-AUDIT01	2026-09-20 16:33:24.242081
+fa830347-23cf-48e2-a506-745c8632f707	ESP32-AUDIT01	2026-09-20 16:33:25.541294
+eedf7104-c164-497d-ad2a-cb86f77d625e	ESP32-AUDIT01	2026-09-20 16:33:26.835461
+f983cf05-9b1a-4d0e-ab62-fb6703746c4a	ESP32-AUDIT01	2026-09-20 16:33:28.12883
+02e40459-a5c7-40de-89a3-e21f83dfd800	ESP32-AUDIT01	2026-09-20 16:33:29.429548
+9a72232a-698d-404d-9d71-f763ab08386d	ESP32-AUDIT01	2026-09-20 16:33:30.721623
+f37bbffc-4936-49e7-aeac-28a79430823a	ESP32-AUDIT01	2026-09-20 16:33:32.01594
+b5ac1a18-26f4-40ff-875d-329b532fb745	ESP32-AUDIT01	2026-09-20 16:33:33.317462
+473d086a-2c97-4ef5-bb30-efb0dd649ab9	ESP32-AUDIT01	2026-09-20 16:33:34.606534
+200c8432-4d46-4135-9617-60629f6e9c0a	ESP32-AUDIT01	2026-09-20 16:33:35.906525
+4fc50b12-421e-4aec-8969-adfda76d1da5	ESP32-AUDIT01	2026-09-20 16:33:37.198218
+f74ede87-91c1-42af-8daa-004ac2447610	ESP32-AUDIT01	2026-09-20 16:33:38.495692
+86b58183-4e81-495e-911d-d27b408f56b9	ESP32-AUDIT01	2026-09-20 16:33:39.788596
+6eb79d5c-6cb7-441d-b264-ec1283734d2f	ESP32-AUDIT01	2026-09-20 16:33:41.097858
+43cd1175-6b6c-4f3d-9c1f-872b514c6336	ESP32-AUDIT01	2026-09-20 16:33:42.386469
+0736bb3e-3eab-4bea-9b94-2e22d65849e6	ESP32-AUDIT01	2026-09-20 16:33:43.695952
+b227fe7b-0d8f-4316-8e60-9ed99796a31d	ESP32-AUDIT01	2026-09-20 16:33:44.975029
+62d0d56f-4e98-4737-be8f-236a267f6095	ESP32-AUDIT01	2026-09-20 16:33:46.267295
+09d06c79-c951-4f77-9da7-ef2e436e4251	ESP32-AUDIT01	2026-09-20 16:33:47.563776
+bc2466d7-faeb-4c21-b28f-3c5c2acb4afd	ESP32-AUDIT01	2026-09-20 16:33:48.858765
+d3495a3f-146a-4c9c-8fcb-d3f86657f980	ESP32-AUDIT01	2026-09-20 16:33:51.455182
+31452542-99a8-48cb-b019-338ccff2a88e	ESP32-AUDIT01	2026-09-20 16:33:54.041963
+b7b64f02-35d8-42a6-bbf6-ec44f95a377e	ESP32-AUDIT01	2026-09-20 16:33:56.63218
+66718ba6-3597-4f5d-8de6-8e15a0e23929	ESP32-AUDIT01	2026-09-20 16:33:57.934211
+cf0651fd-6125-4726-bff7-3ce5b48ee8f6	ESP32-AUDIT01	2026-09-20 16:34:00.527989
+25863c37-3784-4116-8e03-4dca7518a561	ESP32-AUDIT01	2026-09-20 16:34:03.112688
+8e823846-d9cf-429d-99ca-bda8a4229f66	ESP32-AUDIT01	2026-09-20 16:34:04.406197
+4689c041-31b0-4a99-b74a-7b85db6a33ab	ESP32-AUDIT01	2026-09-20 16:34:08.293132
+c47767d9-8cfa-42d6-8d2b-ca3a90e57d9e	ESP32-AUDIT01	2026-09-20 16:34:10.884835
+2ca3f461-0663-457a-ac8e-342679eb686e	ESP32-AUDIT01	2026-09-20 16:34:12.181031
+4a1cb1bb-d83f-4935-a450-c555c7c12675	ESP32-AUDIT01	2026-09-20 16:34:14.772401
+a351536c-b398-4804-9928-360a89a18e7c	ESP32-AUDIT01	2026-09-20 16:33:50.155372
+ce27edee-a5d5-4986-a57b-38dc1b58faa5	ESP32-AUDIT01	2026-09-20 16:33:52.749793
+42b7fa36-f6cc-4f24-a404-e91372f3cfc3	ESP32-AUDIT01	2026-09-20 16:33:55.345473
+98cbb0d6-41ee-4576-aa2b-3ec310167509	ESP32-AUDIT01	2026-09-20 16:33:59.230129
+8a770690-a8a2-41c7-9f08-c2ad8364faa0	ESP32-AUDIT01	2026-09-20 16:34:01.815167
+d1490c25-157b-48f5-9cc9-a481d3403beb	ESP32-AUDIT01	2026-09-20 16:34:05.704709
+c5468aa1-891b-4465-99c9-bf2479603598	ESP32-AUDIT01	2026-09-20 16:34:06.998041
+37357174-55d9-468c-8201-729cb72a70d6	ESP32-AUDIT01	2026-09-20 16:34:09.589308
+48f381d6-6d31-4ed9-8ade-167f29a18c94	ESP32-AUDIT01	2026-09-20 16:34:13.476087
+f2fd03ff-0734-468a-bb2c-2e85de1a2b55	ESP32-AUDIT01	2026-09-20 16:34:16.073644
+eaff6dca-3e6f-427a-b856-ccf651e95e14	ESP32-AUDIT01	2026-09-20 16:34:17.392377
+cf844a3f-2105-411a-b96d-7cbac28295ff	ESP32-AUDIT01	2026-09-20 16:34:18.659421
+87af8e91-ef6a-4d50-9f34-5c126bb5def1	ESP32-AUDIT01	2026-09-20 16:34:19.954625
+366e2e5b-1058-42e3-a112-683d88def17a	ESP32-AUDIT01	2026-09-20 16:34:21.253936
+65893a48-124a-4eda-9478-461a82f1c8ef	ESP32-AUDIT01	2026-09-20 16:34:22.54565
+8fb11f10-2a6c-4c6f-8eab-f373143af0c2	ESP32-AUDIT01	2026-09-20 16:34:23.842835
+d39c311b-6205-4a9f-a535-a1339334aaa1	ESP32-AUDIT01	2026-09-20 16:34:25.137426
+ac85287d-8b45-403c-acce-baacd7c9fb4c	ESP32-AUDIT01	2026-09-20 16:34:26.432855
+55dc6bab-6ebe-430c-83de-280ef8b62fcb	ESP32-AUDIT01	2026-09-20 16:34:27.731593
+364a7cb9-8759-402a-8187-b26dbcc2d8e0	ESP32-AUDIT01	2026-09-20 16:34:29.03231
+35dc8529-171e-45e5-b0a5-0673035ff84a	ESP32-AUDIT01	2026-09-20 16:34:30.319843
+686a1c05-97c6-4582-996c-fb3177700b6f	ESP32-AUDIT01	2026-09-20 16:34:31.616701
+6007faaa-3c8f-4163-adb5-a4a90af327d4	ESP32-AUDIT01	2026-09-20 16:34:32.917061
+ea8ed7ae-dd28-45bc-b543-77ab6035e534	ESP32-AUDIT01	2026-09-20 16:34:34.207221
+06f90c2b-47d9-45e0-b14b-4031cca91ad5	ESP32-AUDIT01	2026-09-20 16:34:35.503179
+c00575fe-be78-40c9-adc7-d6d49d1328c1	ESP32-AUDIT01	2026-09-20 16:34:36.801233
+964364c5-63ef-4b90-a76e-69683d679eb3	ESP32-AUDIT01	2026-09-20 16:34:38.094261
+e06f8f53-eb57-448e-ae2e-18e11061e471	ESP32-AUDIT01	2026-09-20 16:34:39.389212
+9764cfb4-6ee3-4c62-a792-56aba8afb572	ESP32-AUDIT01	2026-09-20 16:34:40.686639
+3124df9e-aad8-40f5-9435-f11678131c3b	ESP32-AUDIT01	2026-09-20 16:34:41.981904
+0c2d66da-9035-4723-9d42-a8822138164f	ESP32-AUDIT01	2026-09-20 16:34:43.276303
+64646d9d-17e8-48b4-bb0b-1cdc46bf0892	ESP32-AUDIT01	2026-09-20 16:34:44.572806
+7aef60d3-2b53-4e34-a91b-a69d44eda533	ESP32-AUDIT01	2026-09-20 16:34:45.868214
+2390931b-06da-4e53-bcf0-fe71b58a3841	ESP32-AUDIT01	2026-09-20 16:34:47.163752
+2447fe55-c5a7-4a92-9b63-c5c8d236c948	ESP32-AUDIT01	2026-09-20 16:34:48.458998
+0f1d099f-fe65-4853-b9ca-18112b940b93	ESP32-AUDIT01	2026-09-20 16:34:49.763144
+638e2bf0-a8a9-4bc0-829e-97ec13574aa2	ESP32-AUDIT01	2026-09-20 16:34:51.054559
+f86622a8-44d6-452c-a761-be93458ba8ba	ESP32-AUDIT01	2026-09-20 16:34:52.346166
+a1b5e871-80ab-42a6-bf8d-6b274a068ff8	ESP32-AUDIT01	2026-09-20 16:34:53.643234
+c3c5acd7-04d8-47c3-a29a-215294f05bb3	ESP32-AUDIT01	2026-09-20 16:34:54.937988
+b9bd3d7a-e532-4fd0-bae2-e2f4b4fedb58	ESP32-AUDIT01	2026-09-20 16:34:56.232876
+c517084f-3958-43bc-af14-73ee27e8b908	ESP32-AUDIT01	2026-09-20 16:34:57.534599
+0019a0cc-dcb7-459a-abb2-93565f1cca75	ESP32-AUDIT01	2026-09-20 16:34:58.825186
+8dcbac21-a2bc-468a-a42d-e1c9c8f18258	ESP32-AUDIT01	2026-09-20 16:35:00.128994
+0705f4db-6486-4c37-b521-87dd95a283f1	ESP32-AUDIT01	2026-09-20 16:35:01.414999
+b25785e1-dc75-4487-a6aa-31d0d7cf4861	ESP32-AUDIT01	2026-09-20 16:35:02.71291
+b92e293c-803c-4d39-a0a1-f834709c2109	ESP32-AUDIT01	2026-09-20 16:35:04.006354
+e0ab2a22-c57f-47a9-9aea-d40e0906aa3a	ESP32-AUDIT01	2026-09-20 16:35:05.311247
+2959493b-b637-46b2-bfde-13549dd37085	ESP32-AUDIT01	2026-09-20 16:35:06.598437
+6614264f-99d8-48d4-a061-b3d81e91d6df	ESP32-AUDIT01	2026-09-20 16:35:07.892433
+bca34867-c9bf-45fa-9990-6f166ece0a56	ESP32-AUDIT01	2026-09-20 16:35:09.188691
+99df28a0-d1f1-4223-9db6-8f9eb5c83742	ESP32-AUDIT01	2026-09-20 16:35:10.483723
+6d3b023d-58c1-46f2-b4a8-dfd0d9f0061a	ESP32-AUDIT01	2026-09-20 16:35:11.77917
+5ea14b0e-8a46-4a87-864c-662ebd849829	ESP32-AUDIT01	2026-09-20 16:35:13.07776
+2f1dbb17-d48e-45a8-b9f8-8ebb929cb9db	ESP32-AUDIT01	2026-09-20 16:35:14.370709
+c05f2f7c-b913-4091-a631-54d5a50926f6	ESP32-AUDIT01	2026-09-20 16:35:15.666727
+194fede5-05f1-47aa-997e-5168c6855840	ESP32-AUDIT01	2026-09-20 16:35:16.961218
+3e834669-9f45-4643-964e-eb35347ce750	ESP32-AUDIT01	2026-09-20 16:35:18.258145
+e9eff23f-50a3-4f70-bbc2-e12aaea4a7a9	ESP32-AUDIT01	2026-09-20 16:35:19.552863
+d55e48a9-bd3b-4cdb-9c69-12935355dbf0	ESP32-AUDIT01	2026-09-20 16:35:20.848706
+41154372-aae7-464d-af88-27a505df9fcf	ESP32-AUDIT01	2026-09-20 16:35:22.144286
+c54ccc2e-a300-4dcd-a09b-53ac2858315f	ESP32-AUDIT01	2026-09-20 16:35:23.439992
+a92df49f-2f78-49f5-9e60-28fafe1ee2ea	ESP32-AUDIT01	2026-09-20 16:35:24.735692
+e2e02406-27f0-4c79-ac42-cbdeed660def	ESP32-AUDIT01	2026-09-20 16:35:26.030205
+da6207ca-2711-4ad7-96e6-d7c3717059e4	ESP32-AUDIT01	2026-09-20 16:35:27.325928
+a6dd9df0-9953-4087-aee1-056ff2b85e55	ESP32-AUDIT01	2026-09-20 16:35:28.620916
+70f3a6b5-f1c3-40d2-b128-f139509b0845	ESP32-AUDIT01	2026-09-20 16:35:29.917064
+b9985c88-aa57-45ec-b056-f283e4090eac	ESP32-AUDIT01	2026-09-20 16:35:31.213226
+e35e982b-8fca-4025-b0ad-04d4d208ec95	ESP32-AUDIT01	2026-09-20 16:35:32.50826
+79c251ad-83b3-44ed-9f1c-1784c2f890e4	ESP32-AUDIT01	2026-09-20 16:35:33.803987
+208ebbfc-8cae-4714-9e40-decc20087a8c	ESP32-AUDIT01	2026-09-20 16:35:35.102837
+67b4a755-029c-4d5d-9ae9-ec90ff195710	ESP32-AUDIT01	2026-09-20 16:35:36.4027
+7ec0b970-16d8-43de-a78e-24c59243a5a5	ESP32-AUDIT01	2026-09-20 16:35:37.692096
+ffba98b2-a8f0-4338-96c4-95975bbb5376	ESP32-AUDIT01	2026-09-20 16:35:38.986645
+f61fd035-0145-45f9-af63-fa6c56dcc963	ESP32-AUDIT01	2026-09-20 16:35:40.307425
+bb668822-b7fa-4247-b3d4-b67dfd62dfbe	ESP32-AUDIT01	2026-09-20 16:35:41.577218
+9365f057-b3a3-4f32-9585-debca22c2278	ESP32-AUDIT01	2026-09-20 16:35:42.873702
+1a2145c1-5461-4ed2-a352-932e97ccf1fc	ESP32-AUDIT01	2026-09-20 16:35:44.16846
+f125a61a-a6b4-4352-9efc-f2c2af0260b1	ESP32-AUDIT01	2026-09-20 16:35:45.464038
+6d4e46b1-3ef3-4f42-a3e7-92ba38fadf22	ESP32-AUDIT01	2026-09-20 16:35:46.760099
+d43b0ae7-361f-4650-92f6-e6d5cc4fecfe	ESP32-AUDIT01	2026-09-20 16:35:48.05424
+fc0ad308-0ac7-4ac8-adfe-b14356e4581c	ESP32-AUDIT01	2026-09-20 16:35:49.355419
+0c6302af-d054-4a50-ad61-a62f073034d9	ESP32-AUDIT01	2026-09-20 16:35:50.77407
+06cb81cc-a014-41c8-afb4-29137665b641	ESP32-AUDIT01	2026-09-20 16:35:51.941953
+3a26d878-ce1a-40c7-bab4-5a7a5be40bc4	ESP32-AUDIT01	2026-09-20 16:35:53.239108
+a4b5a2a1-ceb9-4da4-a400-4d4fae103b59	ESP32-AUDIT01	2026-09-20 16:35:54.532579
+7e2ed031-1f3d-4023-8863-9cd21a554c74	ESP32-AUDIT01	2026-09-20 16:35:55.828126
+3a562c17-03fb-41c0-b918-6d1a50664147	ESP32-AUDIT01	2026-09-20 16:35:57.123683
+eeea093c-cf6e-4ecb-a8c9-5d23cd124cf7	ESP32-AUDIT01	2026-09-20 16:35:58.419354
+cba059ce-1c90-4a8b-b194-4647747f11a5	ESP32-AUDIT01	2026-09-20 16:35:59.714591
+91e806d2-50c3-4bb4-82b8-42ce84064429	ESP32-AUDIT01	2026-09-20 16:36:01.012268
+d83dc2d9-a593-4383-95cf-c871bdb72603	ESP32-AUDIT01	2026-09-20 16:36:02.307133
+bccee6bd-7bae-48df-8fb9-67ebb98a2489	ESP32-AUDIT01	2026-09-20 16:36:03.603757
+b713daf6-e57b-45b6-80f3-492100eed934	ESP32-AUDIT01	2026-09-20 16:36:04.897764
+02a6092a-92a3-4f63-a973-d4ac82c2a45b	ESP32-AUDIT01	2026-09-20 16:36:06.195843
+156739c9-9864-47af-83bb-c05f2d2c9521	ESP32-AUDIT01	2026-09-20 16:36:07.502717
+63c0ba16-1974-4319-b3c4-9cb444f0e582	ESP32-AUDIT01	2026-09-20 16:36:08.785359
+37d6c440-c057-42ed-a0bb-3ac606cfb00b	ESP32-AUDIT01	2026-09-20 16:36:10.082558
+0957ab4e-6f94-4120-ab22-9c4393f6fe91	ESP32-AUDIT01	2026-09-20 16:36:11.37785
+7c4b8996-b8c7-43bf-9d6a-e1983403a96f	ESP32-AUDIT01	2026-09-20 16:36:12.670054
+1ae1549b-d2b9-490f-b830-ea2077907028	ESP32-AUDIT01	2026-09-20 16:36:13.966257
+4afde451-3641-4015-b398-e0259b6073a8	ESP32-AUDIT01	2026-09-20 16:36:15.268832
+dd330709-a1d9-4e41-9b1a-985fcf99b5d2	ESP32-AUDIT01	2026-09-20 16:36:16.556968
+dac50c0a-931c-4e86-af2b-80835f7b4985	ESP32-AUDIT01	2026-09-20 16:36:17.853638
+f370b7d7-003d-471a-a93e-d0512aff7bcd	ESP32-AUDIT01	2026-09-20 16:36:19.149385
+5c31d90b-30c2-48bd-bd72-11768cb53e84	ESP32-AUDIT01	2026-09-20 16:36:20.444941
+4c281407-3b43-4398-a6fc-778d17be8d40	ESP32-AUDIT01	2026-09-20 16:36:21.740327
+36307127-c10b-40a9-b594-258ad6a6db6c	ESP32-AUDIT01	2026-09-20 16:36:23.034951
+8848bf71-2a4c-423d-96a5-67d06f7366b9	ESP32-AUDIT01	2026-09-20 16:36:24.331245
+50585375-4b9e-4828-9b9f-3856720e94d3	ESP32-AUDIT01	2026-09-20 16:36:25.636567
+c5d8a603-bac5-4b17-ab93-f1e67e61f42f	ESP32-AUDIT01	2026-09-20 16:36:26.922313
+20157677-f1be-41cb-bfc6-18a98a8b63c5	ESP32-AUDIT01	2026-09-20 16:36:28.217866
+34a9069b-c575-489b-aa8e-3022cb86c903	ESP32-AUDIT01	2026-09-20 16:36:29.513228
+700fca46-74c8-4f87-b71b-35c014a3ec4b	ESP32-AUDIT01	2026-09-20 16:36:30.809654
+60cd1bbb-dc01-4b18-98b6-e4196c664658	ESP32-AUDIT01	2026-09-20 16:36:32.105535
 \.
 
 
 --
--- Data for Name: sensor_readings; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: sensor_readings; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.sensor_readings (id, device_id, grams_int, taken_at, session_id, created_at) FROM stdin;
@@ -4520,11 +6026,647 @@ af4176d8-81da-4680-ae57-5dacd0a86e34	ESP32-AUDIT01	3000	2026-08-19 05:54:32.823	
 c6345cff-9222-4bbc-9791-dfdd4accfc1d	ESP32-AUDIT01	3001	2026-08-19 05:54:32.935	4ad24cae-8997-4ae1-9503-ac4e47a458fa	2026-08-19 05:54:32.940601
 c8e6804c-f0bd-44a4-9b7f-77be1f88a66e	ESP32-AUDIT01	2999	2026-08-19 05:54:33.035	4ad24cae-8997-4ae1-9503-ac4e47a458fa	2026-08-19 05:54:33.041236
 61f3e358-75b4-4d54-b3bf-bfb21dcf6f75	ESP32-AUDIT01	3000	2026-08-19 05:54:33.138	\N	2026-08-19 05:54:33.146292
+9ee1a507-870f-4540-8bda-a9dcde696518	ESP32-AUDIT01	0	2026-09-20 16:24:30.896	80e602a7-4178-4e67-88bf-b2461669c161	2026-09-20 16:24:30.903081
+69719511-65e9-44ae-8e4f-58ccb623334b	ESP32-AUDIT01	3628	2026-09-20 16:24:42.552	80e602a7-4178-4e67-88bf-b2461669c161	2026-09-20 16:24:42.55383
+cec0c9fa-93ac-42ff-a1c2-aab7c93187b4	ESP32-AUDIT01	377	2026-09-20 16:24:42.977	80e602a7-4178-4e67-88bf-b2461669c161	2026-09-20 16:24:42.978561
+cfae393b-6d42-4bb0-9314-826041f5da32	ESP32-AUDIT01	0	2026-09-26 20:20:17.368	\N	2026-09-26 20:20:17.373695
+d5a47b56-4d0f-4adc-a789-1cc2bc5c7e33	ESP32-AUDIT01	0	2026-09-26 20:27:54.236	\N	2026-09-26 20:27:54.247933
+3b994574-3c11-405c-9a79-d9bc3012cc7c	ESP32-AUDIT01	0	2026-09-26 20:41:19.052	\N	2026-09-26 20:41:19.07428
+33ad15c2-b943-4bbf-8f3f-94a6b6ac0c2c	ESP32-AUDIT01	0	2026-09-26 20:41:20.074	\N	2026-09-26 20:41:20.076551
+ad8f152f-4534-4d47-ac99-deff98978967	ESP32-AUDIT01	0	2026-09-26 20:41:21.097	\N	2026-09-26 20:41:21.099691
+24fc5dbb-cc62-4f8c-b57b-4f7af5e63a48	ESP32-AUDIT01	0	2026-09-26 20:41:22.12	\N	2026-09-26 20:41:22.122695
+c88b9561-47aa-4d96-be3a-f1cb91f9aca8	ESP32-AUDIT01	0	2026-09-26 20:41:23.143	\N	2026-09-26 20:41:23.144571
+bd1c0509-42f3-448b-ab5e-059208132130	ESP32-AUDIT01	0	2026-09-26 20:41:24.166	\N	2026-09-26 20:41:24.168491
+1c58ed4b-e613-4f0f-87a2-755937e41673	ESP32-AUDIT01	0	2026-09-26 20:41:25.189	\N	2026-09-26 20:41:25.191358
+0f39ffc9-6c03-46d0-abdd-57843d387b59	ESP32-AUDIT01	0	2026-09-26 20:41:26.212	\N	2026-09-26 20:41:26.215161
+a4fa0284-e3e3-4a1e-af6b-17f80e2a13af	ESP32-AUDIT01	0	2026-09-26 20:41:27.235	\N	2026-09-26 20:41:27.238629
+0d1fe210-b2bb-4f90-b822-de4ff172da4c	ESP32-AUDIT01	0	2026-09-26 20:41:28.258	\N	2026-09-26 20:41:28.260869
+66132c1f-457d-4ff1-ba5b-70797a85917c	ESP32-AUDIT01	0	2026-09-26 20:41:29.281	\N	2026-09-26 20:41:29.283637
+bd062ae5-da06-4245-ac13-9eea5a71f76f	ESP32-AUDIT01	0	2026-09-26 20:41:30.304	\N	2026-09-26 20:41:30.306825
+47c705e2-1006-4832-ba1d-327c9bca5faf	ESP32-AUDIT01	0	2026-09-26 20:41:31.327	\N	2026-09-26 20:41:31.329553
+1d53f3da-c456-462e-a6bb-4dc2b616cf2f	ESP32-AUDIT01	0	2026-09-26 20:41:32.35	\N	2026-09-26 20:41:32.352272
+fc197bc2-bfee-4327-befb-3d97b6218276	ESP32-AUDIT01	0	2026-09-26 20:41:33.373	\N	2026-09-26 20:41:33.37551
+c8a4506a-dbc8-46cf-b3d4-12ba429f6def	ESP32-AUDIT01	0	2026-09-26 20:41:34.396	\N	2026-09-26 20:41:34.399137
+49670568-d818-4334-82af-7f14ee4da900	ESP32-AUDIT01	0	2026-09-26 20:41:35.419	\N	2026-09-26 20:41:35.426177
+1e19f5cb-fe4a-4f27-a0c5-edad86139bba	ESP32-AUDIT01	0	2026-09-26 20:41:36.441	\N	2026-09-26 20:41:36.443804
+b38aca84-e93c-49e4-8e83-f1839db9b037	ESP32-AUDIT01	0	2026-09-26 20:41:37.464	\N	2026-09-26 20:41:37.466494
+1d5fe937-491d-49ff-9fa6-16e79917b324	ESP32-AUDIT01	0	2026-09-26 20:41:38.488	\N	2026-09-26 20:41:38.490436
+7df97783-b929-43bf-8b79-61766a168eea	ESP32-AUDIT01	0	2026-09-26 20:41:39.511	\N	2026-09-26 20:41:39.513548
+fcc76f9e-5824-4bac-a7f9-3647cb3ca733	ESP32-AUDIT01	0	2026-09-26 20:41:40.533	\N	2026-09-26 20:41:40.53819
+f62d39ee-3cb6-4789-a902-1d81fcf33835	ESP32-AUDIT01	0	2026-09-26 20:41:41.556	\N	2026-09-26 20:41:41.56007
+40cffde0-3267-442e-a304-e8964a1165c8	ESP32-AUDIT01	0	2026-09-26 20:41:42.579	\N	2026-09-26 20:41:42.58222
+5d1733cc-00f9-4ff9-af9e-b704aa97dae7	ESP32-AUDIT01	0	2026-09-26 20:41:43.62	\N	2026-09-26 20:41:43.628807
+28fe3b2c-1d10-45da-be0f-df44a18493d9	ESP32-AUDIT01	0	2026-09-26 20:41:44.625	\N	2026-09-26 20:41:44.628468
+3b34091c-ae78-43e0-a86d-830f99cb98a8	ESP32-AUDIT01	0	2026-09-26 20:41:45.649	\N	2026-09-26 20:41:45.651384
+5a7e6c5c-be07-4773-be79-1d096db99514	ESP32-AUDIT01	0	2026-09-26 20:41:46.671	\N	2026-09-26 20:41:46.674417
+21d9c076-6a09-4dfc-8c73-b8a8e211cea4	ESP32-AUDIT01	0	2026-09-26 20:41:47.694	\N	2026-09-26 20:41:47.697261
+3a5512cf-05f2-4424-90e0-8e1db6929d7c	ESP32-AUDIT01	0	2026-09-26 20:41:48.718	\N	2026-09-26 20:41:48.722493
+a551a824-42a3-4a85-b425-bdc2fdc62496	ESP32-AUDIT01	0	2026-09-26 20:41:49.741	\N	2026-09-26 20:41:49.756367
+3bcf2172-ca43-4be9-9c6e-ffe08ff2fa34	ESP32-AUDIT01	0	2026-09-26 20:41:50.764	\N	2026-09-26 20:41:50.767043
+515d13d8-19c1-410d-b97c-68b5fa7393e2	ESP32-AUDIT01	0	2026-09-26 20:41:51.786	\N	2026-09-26 20:41:51.789447
+8ae8c65c-4523-4554-9aba-226e7be3db1d	ESP32-AUDIT01	0	2026-09-26 20:41:52.809	\N	2026-09-26 20:41:52.812599
+36caf072-c995-41b2-8241-6079791c04c0	ESP32-AUDIT01	0	2026-09-26 20:41:53.833	\N	2026-09-26 20:41:53.835329
+4f612e38-a3fc-4eb8-b1c7-a3893a37a1b9	ESP32-AUDIT01	0	2026-09-26 20:41:54.855	\N	2026-09-26 20:41:54.858019
+7eeedba6-6b6a-468e-bde5-9b50391582b6	ESP32-AUDIT01	0	2026-09-26 20:41:55.878	\N	2026-09-26 20:41:55.88123
+5ff33cb7-2177-4adb-8797-4dcc31914d5f	ESP32-AUDIT01	0	2026-09-26 20:41:56.901	\N	2026-09-26 20:41:56.904082
+4deb7027-0995-45f6-87be-961af894e97d	ESP32-AUDIT01	0	2026-09-26 20:41:57.925	\N	2026-09-26 20:41:57.92727
+7342e7bb-15da-4920-a721-1a80cf02df53	ESP32-AUDIT01	0	2026-09-26 20:41:58.947	\N	2026-09-26 20:41:58.950129
+d8ec23b0-2ad2-4389-85c1-cbb0e8bd25b3	ESP32-AUDIT01	0	2026-09-26 20:41:59.97	\N	2026-09-26 20:41:59.973264
+d21f11dc-00b5-4a20-a547-6ff872097ebc	ESP32-AUDIT01	0	2026-09-26 20:42:00.993	\N	2026-09-26 20:42:00.995
+39f810ee-40d6-448f-897d-592f6c1670b5	ESP32-AUDIT01	0	2026-09-26 20:42:02.016	\N	2026-09-26 20:42:02.019068
+66dd646d-9427-44ee-98e1-f03040b65801	ESP32-AUDIT01	0	2026-09-26 20:42:03.039	\N	2026-09-26 20:42:03.042171
+85b05e62-6ed9-4256-8186-923cd61a533f	ESP32-AUDIT01	0	2026-09-26 20:42:04.062	\N	2026-09-26 20:42:04.065262
+ccddc9c2-43ea-4d45-9863-6cdd5b62ed8f	ESP32-AUDIT01	0	2026-09-26 20:42:05.085	\N	2026-09-26 20:42:05.087972
+61186dd2-6b7f-44db-bffe-919b517c965a	ESP32-AUDIT01	0	2026-09-26 20:42:06.108	\N	2026-09-26 20:42:06.111022
+e0671cd1-0913-46da-bde3-037b6fc9ec7c	ESP32-AUDIT01	0	2026-09-26 20:42:07.131	\N	2026-09-26 20:42:07.134541
+1421fb32-b532-4de5-be10-f1242b17d479	ESP32-AUDIT01	0	2026-09-26 20:42:08.154	\N	2026-09-26 20:42:08.158552
+6d36fdba-f059-4785-b29f-c0b74a56f38f	ESP32-AUDIT01	0	2026-09-26 20:42:09.177	\N	2026-09-26 20:42:09.180233
+93ea3ea1-bf66-4d35-b468-7f2f1e79c18b	ESP32-AUDIT01	0	2026-09-26 20:42:10.2	\N	2026-09-26 20:42:10.203214
+e8834b40-6c98-4f5a-bc38-bd79f47b7e66	ESP32-AUDIT01	0	2026-09-26 20:42:11.223	\N	2026-09-26 20:42:11.225706
+2f2a89e4-cdf0-4b8d-94bc-74c3010c77ea	ESP32-AUDIT01	0	2026-09-26 20:42:12.246	\N	2026-09-26 20:42:12.249151
+4ac28ff4-7480-434f-9462-0c65f70ab578	ESP32-AUDIT01	0	2026-09-26 20:42:13.269	\N	2026-09-26 20:42:13.271298
+3e2fb817-bad6-49ba-90fb-088ab445f34f	ESP32-AUDIT01	0	2026-09-26 20:42:14.292	\N	2026-09-26 20:42:14.295124
+c4a83dba-07d3-4aff-8687-c9b407eefaf4	ESP32-AUDIT01	0	2026-09-26 20:42:15.315	\N	2026-09-26 20:42:15.318121
+2e962831-35a3-492c-b507-5ee3c0df6d4d	ESP32-AUDIT01	0	2026-09-26 20:42:16.338	\N	2026-09-26 20:42:16.341054
+dc770d6b-fbee-49c0-8081-ca11a6cd4ee9	ESP32-AUDIT01	0	2026-09-26 20:42:17.361	\N	2026-09-26 20:42:17.365504
+bf2c7a33-0e31-4c29-9ead-2966ef6f7acf	ESP32-AUDIT01	0	2026-09-26 20:42:18.384	\N	2026-09-26 20:42:18.387175
+2aeba077-8619-4a18-bb83-a2e2d4f4c510	ESP32-AUDIT01	0	2026-09-26 20:42:19.407	\N	2026-09-26 20:42:19.410208
+b2e920b7-488e-4d2e-b777-a4fd1b2c277a	ESP32-AUDIT01	0	2026-09-26 20:42:20.43	\N	2026-09-26 20:42:20.443961
+ceb46c8f-0406-4dfb-b704-bb6cb6df1b04	ESP32-AUDIT01	0	2026-09-26 20:42:21.453	\N	2026-09-26 20:42:21.455314
+0a295ddd-0b6c-42b6-8d25-3be9b476a445	ESP32-AUDIT01	0	2026-09-26 20:42:22.476	\N	2026-09-26 20:42:22.479038
+9a0ea489-bd31-4c05-a95d-9166c999d001	ESP32-AUDIT01	0	2026-09-26 20:42:23.499	\N	2026-09-26 20:42:23.501996
+cf5ed0dc-f81a-4a92-8b1c-26a342f7656e	ESP32-AUDIT01	0	2026-09-26 20:42:24.522	\N	2026-09-26 20:42:24.525445
+20d547f0-2ad7-440b-afc2-435885bc4457	ESP32-AUDIT01	0	2026-09-26 20:42:25.545	\N	2026-09-26 20:42:25.548619
+f0f637e7-1c2c-4b2b-a427-2e6986fd62e4	ESP32-AUDIT01	0	2026-09-26 20:42:26.568	\N	2026-09-26 20:42:26.570849
+7802eff7-76b1-4b0a-9e41-a560f7a80256	ESP32-AUDIT01	0	2026-09-26 20:42:27.591	\N	2026-09-26 20:42:27.598341
+0849038e-4b69-4423-9957-2d5aaff84d47	ESP32-AUDIT01	0	2026-09-26 20:42:28.614	\N	2026-09-26 20:42:28.617216
+f73a6f31-1b42-4e84-9b2c-b46fe8b3a3cd	ESP32-AUDIT01	0	2026-09-26 20:42:29.637	\N	2026-09-26 20:42:29.639461
+7e389907-486b-405a-8d36-3ccc9a859373	ESP32-AUDIT01	0	2026-09-26 20:42:30.66	\N	2026-09-26 20:42:30.661994
+9541e10e-7864-4478-8bbf-9a0eda3262cd	ESP32-AUDIT01	0	2026-09-26 20:42:31.683	\N	2026-09-26 20:42:31.686388
+a7845c0a-dfcb-424e-989d-e53f73f67c59	ESP32-AUDIT01	0	2026-09-26 20:42:32.706	\N	2026-09-26 20:42:32.709018
+200f3b7d-f74f-4e84-bb24-36b583206537	ESP32-AUDIT01	0	2026-09-26 20:42:33.729	\N	2026-09-26 20:42:33.731285
+577a4d0f-9781-46bb-a632-457bc5bddb43	ESP32-AUDIT01	0	2026-09-26 20:42:34.752	\N	2026-09-26 20:42:34.754596
+c68139a8-58c5-44a6-973d-01f75554cf9b	ESP32-AUDIT01	0	2026-09-26 20:42:35.775	\N	2026-09-26 20:42:35.778044
+7a678851-1f3b-4c75-8c4d-ce398c9d3814	ESP32-AUDIT01	0	2026-09-26 20:42:36.798	\N	2026-09-26 20:42:36.800909
+5dba35ff-f780-47c1-8ea9-6a0124952ca0	ESP32-AUDIT01	0	2026-09-26 20:42:37.822	\N	2026-09-26 20:42:37.824537
+7eb97ea5-0ef4-4a9a-9fbf-fd11242ef4a2	ESP32-AUDIT01	0	2026-09-26 20:42:38.844	\N	2026-09-26 20:42:38.848127
+564ff05a-0ad3-458d-866e-005eee1d4ff6	ESP32-AUDIT01	0	2026-09-26 20:42:39.867	\N	2026-09-26 20:42:39.872654
+45dd1eba-6aef-41d7-8f54-f2146114e4e9	ESP32-AUDIT01	0	2026-09-26 20:42:40.89	\N	2026-09-26 20:42:40.89294
+161de912-e5bd-44cd-9600-c87ff0303aa9	ESP32-AUDIT01	0	2026-09-26 20:42:41.913	\N	2026-09-26 20:42:41.91592
+f42a6997-2db4-43a5-b5f4-40cdabc9901d	ESP32-AUDIT01	0	2026-09-26 20:42:42.936	\N	2026-09-26 20:42:42.939018
+fb13dbb7-53cd-42cb-be38-53249b180367	ESP32-AUDIT01	0	2026-09-26 20:42:43.959	\N	2026-09-26 20:42:43.961962
+e88352c0-fb28-4b62-82e3-611b5326d7f8	ESP32-AUDIT01	0	2026-09-26 20:42:44.982	\N	2026-09-26 20:42:44.98443
+5796a5a1-1b18-494c-baa6-2f5debea36fd	ESP32-AUDIT01	0	2026-09-26 20:42:46.005	\N	2026-09-26 20:42:46.008028
+9da54e5b-bba5-4745-a769-63ce293a39f4	ESP32-AUDIT01	0	2026-09-26 20:42:47.028	\N	2026-09-26 20:42:47.030887
+248be1e9-369f-4fa9-8f56-0feff30fd17a	ESP32-AUDIT01	0	2026-09-26 20:42:48.051	\N	2026-09-26 20:42:48.054271
+4b2472b3-b9e0-4c72-be61-50486f0fc4a7	ESP32-AUDIT01	0	2026-09-26 20:42:49.074	\N	2026-09-26 20:42:49.076867
+b069bccf-7665-4752-8a86-b4743f29ee76	ESP32-AUDIT01	0	2026-09-26 20:42:50.097	\N	2026-09-26 20:42:50.09998
+feeaa5de-4f8a-48ce-a790-9535c546860b	ESP32-AUDIT01	0	2026-09-26 20:42:51.12	\N	2026-09-26 20:42:51.136461
+2fe4bb13-ddd4-4722-bedb-2b70214204b4	ESP32-AUDIT01	0	2026-09-26 20:42:52.143	\N	2026-09-26 20:42:52.146319
+9fcf1269-b720-4def-bed0-be9e09a2c396	ESP32-AUDIT01	0	2026-09-26 20:42:53.166	\N	2026-09-26 20:42:53.168926
+54dc6d46-9bfe-400b-9f99-2d7786555381	ESP32-AUDIT01	0	2026-09-26 20:42:54.19	\N	2026-09-26 20:42:54.192422
+6725944a-729e-4068-87ba-646d07d7802f	ESP32-AUDIT01	0	2026-09-26 20:42:55.212	\N	2026-09-26 20:42:55.214949
+fc4f4cc1-b788-4af3-bb07-868758226d63	ESP32-AUDIT01	0	2026-09-26 20:42:56.253	\N	2026-09-26 20:42:56.264663
+e18feb5f-78c9-4e14-8f56-9785667d05f7	ESP32-AUDIT01	0	2026-09-26 20:42:57.258	\N	2026-09-26 20:42:57.260897
+afbac8fc-7218-44bb-b7ba-f46806acc429	ESP32-AUDIT01	0	2026-09-26 20:42:58.281	\N	2026-09-26 20:42:58.284921
+2291d6d5-fc4c-4d0b-8ded-67f079f33f94	ESP32-AUDIT01	0	2026-09-26 20:42:59.304	\N	2026-09-26 20:42:59.306945
+f37e4130-90a4-419c-b4b0-ec6a7bb0b7ed	ESP32-AUDIT01	0	2026-09-26 20:43:00.327	\N	2026-09-26 20:43:00.329043
+06f6bb9f-9ce7-4ca0-9656-c13f66d2b304	ESP32-AUDIT01	0	2026-09-26 20:43:01.35	\N	2026-09-26 20:43:01.352814
+3cd92d43-f75a-48ad-8455-6ab38652ff04	ESP32-AUDIT01	0	2026-09-26 20:43:02.373	\N	2026-09-26 20:43:02.376096
+68281353-0bb5-4a8d-add3-743cf7f6bfd1	ESP32-AUDIT01	0	2026-09-26 20:43:03.396	\N	2026-09-26 20:43:03.398946
+0b358589-04ce-49d3-86a1-ee79298bd05a	ESP32-AUDIT01	0	2026-09-26 20:43:04.421	\N	2026-09-26 20:43:04.427761
+c2412880-4f69-4925-9a51-32a4713de4d2	ESP32-AUDIT01	0	2026-09-26 20:43:05.442	\N	2026-09-26 20:43:05.445002
+863763ca-aca4-4e91-846c-aa3c9220563f	ESP32-AUDIT01	0	2026-09-26 20:43:06.465	\N	2026-09-26 20:43:06.467136
+98546469-6523-4023-b02e-00aeda84b02f	ESP32-AUDIT01	0	2026-09-26 20:43:07.488	\N	2026-09-26 20:43:07.491039
+c5b956c4-07c4-48ca-8945-72991b30257b	ESP32-AUDIT01	0	2026-09-26 20:43:08.511	\N	2026-09-26 20:43:08.513593
+402c9b51-b39a-4e9e-8678-c8906b2fc6ed	ESP32-AUDIT01	0	2026-09-26 20:43:09.534	\N	2026-09-26 20:43:09.536922
+efdd161b-42b6-436c-9317-8e23a8fc668b	ESP32-AUDIT01	0	2026-09-26 20:43:10.557	\N	2026-09-26 20:43:10.559625
+4c44a8c5-41e0-4b3f-95b7-43f8c19ea627	ESP32-AUDIT01	0	2026-09-26 20:43:11.58	\N	2026-09-26 20:43:11.582812
+89b150a3-2b49-47d9-b459-0cd9afc47254	ESP32-AUDIT01	0	2026-09-26 20:43:12.603	\N	2026-09-26 20:43:12.60584
+9e57c323-f494-4875-95ca-75f649cb6179	ESP32-AUDIT01	0	2026-09-26 20:43:13.626	\N	2026-09-26 20:43:13.628963
+8ae988aa-8a1a-41db-8cb5-694f0d8b885a	ESP32-AUDIT01	0	2026-09-26 20:43:14.649	\N	2026-09-26 20:43:14.651623
+6e6f2e82-bd88-45f9-9ca7-f933f928265e	ESP32-AUDIT01	0	2026-09-26 20:43:15.672	\N	2026-09-26 20:43:15.674507
+0ddef66f-5cc9-48d1-83b8-7984f7cd69d4	ESP32-AUDIT01	0	2026-09-26 20:43:16.695	\N	2026-09-26 20:43:16.697941
+696a9e6f-ca7b-4137-965a-f21cea53513b	ESP32-AUDIT01	0	2026-09-26 20:43:17.718	\N	2026-09-26 20:43:17.720981
+b0d7aa64-776a-4914-a3c1-3374356eb72c	ESP32-AUDIT01	0	2026-09-26 20:43:18.741	\N	2026-09-26 20:43:18.745885
+687219fd-ceaa-4301-8766-40a97e7653b6	ESP32-AUDIT01	0	2026-09-26 20:43:19.764	\N	2026-09-26 20:43:19.767164
+0496a41c-2915-4426-90e0-e305fd55a98b	ESP32-AUDIT01	0	2026-09-26 20:43:20.787	\N	2026-09-26 20:43:20.792438
+8e9c18e6-bd1d-4a8a-b630-c123c785893f	ESP32-AUDIT01	0	2026-09-26 20:43:21.81	\N	2026-09-26 20:43:21.826933
+9130f979-f48c-428a-8cb9-a880409ea66f	ESP32-AUDIT01	0	2026-09-26 20:43:22.833	\N	2026-09-26 20:43:22.836014
+07830e3d-2093-46df-a9d1-2969b5d58c07	ESP32-AUDIT01	0	2026-09-26 20:43:23.856	\N	2026-09-26 20:43:23.858751
+d790c651-59da-46af-ab7b-75eb8972ef55	ESP32-AUDIT01	0	2026-09-26 20:43:24.879	\N	2026-09-26 20:43:24.884295
+3cd744f4-7f5f-4074-a440-57ce0ff796df	ESP32-AUDIT01	0	2026-09-26 20:43:25.902	\N	2026-09-26 20:43:25.904008
+2d9e1599-f7bf-4ae2-a68b-ff8202d43db0	ESP32-AUDIT01	0	2026-09-26 20:43:26.925	\N	2026-09-26 20:43:26.928026
+1144251b-239b-45c9-b6e5-06f520378248	ESP32-AUDIT01	0	2026-09-26 20:43:27.948	\N	2026-09-26 20:43:27.951804
+bcb580e5-6e13-42e0-b865-24d4575ef9bd	ESP32-AUDIT01	0	2026-09-26 20:43:28.971	\N	2026-09-26 20:43:28.972453
+7c7de110-7c14-41f3-a443-a925016dcf02	ESP32-AUDIT01	0	2026-09-26 20:43:29.994	\N	2026-09-26 20:43:29.996909
+372e7bb1-4305-4a8a-8227-e0f44e729538	ESP32-AUDIT01	0	2026-09-26 20:43:31.017	\N	2026-09-26 20:43:31.020901
+b77f9e1b-b530-4f34-98a3-46645e4169f5	ESP32-AUDIT01	0	2026-09-26 20:43:32.04	\N	2026-09-26 20:43:32.042889
+6b3a4cb7-fb6d-44bd-aa0e-d1ef913c7a69	ESP32-AUDIT01	0	2026-09-26 20:43:33.063	\N	2026-09-26 20:43:33.066929
+9acd6026-6ab0-451b-98bd-1ef5d54abb87	ESP32-AUDIT01	0	2026-09-26 20:43:34.086	\N	2026-09-26 20:43:34.088224
+19f7d8e5-b85a-4d8a-a2da-fb1048eb8c4e	ESP32-AUDIT01	0	2026-09-26 20:43:35.109	\N	2026-09-26 20:43:35.112441
+078bfc97-5e22-420d-a79c-3c08426ede9d	ESP32-AUDIT01	0	2026-09-26 20:43:36.132	\N	2026-09-26 20:43:36.134865
+c372bd81-d3c4-4730-bb0f-7540e779375a	ESP32-AUDIT01	0	2026-09-26 20:43:37.155	\N	2026-09-26 20:43:37.15746
+57aaf846-8dd6-445c-878a-12925e9dde76	ESP32-AUDIT01	0	2026-09-26 20:43:38.178	\N	2026-09-26 20:43:38.181263
+e0b19cb8-1ed5-4fab-96ea-82a1b3a8ff6a	ESP32-AUDIT01	0	2026-09-26 20:43:39.201	\N	2026-09-26 20:43:39.204828
+cae2bef6-054f-4ce2-bb10-e904ed4dce81	ESP32-AUDIT01	0	2026-09-26 20:43:40.224	\N	2026-09-26 20:43:40.226047
+aee8017b-03ec-48f6-9a5b-a848735cede6	ESP32-AUDIT01	0	2026-09-26 20:43:41.247	\N	2026-09-26 20:43:41.249735
+0c369924-fc8f-45a5-b0b6-69cff2dd8acf	ESP32-AUDIT01	0	2026-09-26 20:43:42.27	\N	2026-09-26 20:43:42.272715
+a14dc468-acf5-45f6-8d6f-70f18b8ca559	ESP32-AUDIT01	0	2026-09-26 20:43:43.293	\N	2026-09-26 20:43:43.295793
+9dc4b7df-1190-487a-b5de-5bdf4ba25275	ESP32-AUDIT01	0	2026-09-26 20:43:44.316	\N	2026-09-26 20:43:44.318763
+801edf12-edcb-4bec-b73f-732ebbdcaebf	ESP32-AUDIT01	0	2026-09-26 20:43:45.339	\N	2026-09-26 20:43:45.342124
+5a26d101-4358-4980-b88c-7e0baa9de5fd	ESP32-AUDIT01	0	2026-09-26 20:43:46.362	\N	2026-09-26 20:43:46.364773
+8724d3e7-42c7-42fe-aa32-00b76b8cf1af	ESP32-AUDIT01	0	2026-09-26 20:43:47.385	\N	2026-09-26 20:43:47.387711
+80f4f84e-089d-4795-b20b-3dc449c40edf	ESP32-AUDIT01	0	2026-09-26 20:43:48.408	\N	2026-09-26 20:43:48.41098
+e3d68f09-25eb-4692-be1a-847e219589d4	ESP32-AUDIT01	0	2026-09-26 20:43:49.431	\N	2026-09-26 20:43:49.433742
+3aea2833-7d81-4805-884b-891984d33035	ESP32-AUDIT01	0	2026-09-26 20:43:50.454	\N	2026-09-26 20:43:50.456206
+b6505a31-0010-4087-8083-1b816064272e	ESP32-AUDIT01	0	2026-09-26 20:43:51.477	\N	2026-09-26 20:43:51.479804
+83376b71-9660-4504-a332-7c3ea7794ff5	ESP32-AUDIT01	0	2026-09-26 20:43:52.5	\N	2026-09-26 20:43:52.518323
+54d7ed58-ffeb-4575-b922-923479fdd6af	ESP32-AUDIT01	0	2026-09-26 20:43:53.523	\N	2026-09-26 20:43:53.525326
+6871a1b0-8d95-4372-abb7-90a25bded6f9	ESP32-AUDIT01	0	2026-09-26 20:43:54.546	\N	2026-09-26 20:43:54.547956
+2182b84d-95bd-4515-97af-cc93ce557814	ESP32-AUDIT01	0	2026-09-26 20:43:55.569	\N	2026-09-26 20:43:55.571678
+3f837506-e8c2-465a-a163-bf87980acb5d	ESP32-AUDIT01	0	2026-09-26 20:43:56.592	\N	2026-09-26 20:43:56.594596
+14e20fc5-f259-40c4-bc92-66bb717cffc8	ESP32-AUDIT01	0	2026-09-26 20:43:57.615	\N	2026-09-26 20:43:57.617017
+830cf2f5-943a-4c0a-87fc-44b71c2f3bd2	ESP32-AUDIT01	0	2026-09-26 20:43:58.638	\N	2026-09-26 20:43:58.651588
+b490c893-6fd2-49ae-bffb-52581d0403e3	ESP32-AUDIT01	0	2026-09-26 20:43:59.661	\N	2026-09-26 20:43:59.662947
+1aaab3e7-e818-49cb-95f8-9e6e4e90ae40	ESP32-AUDIT01	0	2026-09-26 20:44:00.684	\N	2026-09-26 20:44:00.686442
+7cda5bc1-5413-408f-9af5-203833cad39f	ESP32-AUDIT01	0	2026-09-26 20:44:01.707	\N	2026-09-26 20:44:01.709691
+6497656c-7126-4a7d-8f18-cb4cfc81ce11	ESP32-AUDIT01	0	2026-09-26 20:44:02.73	\N	2026-09-26 20:44:02.733977
+5b6f360c-ed70-4b33-bdd7-4027cc07169e	ESP32-AUDIT01	0	2026-09-26 20:44:03.753	\N	2026-09-26 20:44:03.755945
+2826d4b1-1796-461e-b7a0-90d078d4661a	ESP32-AUDIT01	0	2026-09-26 20:44:04.776	\N	2026-09-26 20:44:04.778491
+9c8e9129-ce1f-47eb-a3b8-3f509317736d	ESP32-AUDIT01	0	2026-09-26 20:44:05.799	\N	2026-09-26 20:44:05.801582
+c5c13ef1-8612-4615-b99b-f2a6812a0db1	ESP32-AUDIT01	0	2026-09-26 20:44:06.822	\N	2026-09-26 20:44:06.824039
+5d188d8f-f3dd-4f39-bad2-78b31c11b504	ESP32-AUDIT01	0	2026-09-26 20:44:07.845	\N	2026-09-26 20:44:07.847639
+c2fa2289-d5d7-4fea-864c-5658634676cc	ESP32-AUDIT01	0	2026-09-26 20:44:08.868	\N	2026-09-26 20:44:08.871128
+c7a89ce3-82b3-4d2b-9176-f089e9fb53cd	ESP32-AUDIT01	0	2026-09-26 20:44:09.891	\N	2026-09-26 20:44:09.899651
+a22e01c6-8a84-478b-a422-5e88972f579a	ESP32-AUDIT01	0	2026-09-26 20:44:10.914	\N	2026-09-26 20:44:10.915668
+18169ca2-cfc9-467e-8164-b35538a91fef	ESP32-AUDIT01	0	2026-09-26 20:44:11.937	\N	2026-09-26 20:44:11.93966
+d7c1440f-7651-4959-aa5b-a55632821f71	ESP32-AUDIT01	0	2026-09-26 20:44:12.96	\N	2026-09-26 20:44:12.962581
+6602e031-2ba8-4124-b00b-72ef6efc4920	ESP32-AUDIT01	0	2026-09-26 20:44:13.983	\N	2026-09-26 20:44:13.984897
+67e7ea05-7d69-43ad-aa6d-fb1f41899c3c	ESP32-AUDIT01	0	2026-09-26 20:44:15.006	\N	2026-09-26 20:44:15.008747
+13d19adf-415c-43dc-836c-74054c789108	ESP32-AUDIT01	0	2026-09-26 20:44:16.029	\N	2026-09-26 20:44:16.031506
+6c42823d-38e9-4907-a851-ebdbd8896fec	ESP32-AUDIT01	0	2026-09-26 20:44:17.052	\N	2026-09-26 20:44:17.056749
+7450c5c8-c12e-4474-bf19-9a9caf2d3406	ESP32-AUDIT01	0	2026-09-26 20:44:18.075	\N	2026-09-26 20:44:18.082949
+9fe48238-1832-4e8c-94a5-fcd5354e157b	ESP32-AUDIT01	0	2026-09-26 20:44:19.098	\N	2026-09-26 20:44:19.100374
+4d7414ac-ac93-41b5-a868-93732d66bcee	ESP32-AUDIT01	0	2026-09-26 20:44:20.121	\N	2026-09-26 20:44:20.123765
+0abdac76-31ff-4d42-93ac-e877ea0dd4c8	ESP32-AUDIT01	0	2026-09-26 20:44:21.144	\N	2026-09-26 20:44:21.146688
+219ed7d0-c734-48f3-8dad-35ec166734de	ESP32-AUDIT01	0	2026-09-26 20:44:22.167	\N	2026-09-26 20:44:22.169536
+d2a90aa6-1467-4311-bf05-236da3637d60	ESP32-AUDIT01	0	2026-09-26 20:44:23.19	\N	2026-09-26 20:44:23.206696
+034f0b2c-3739-4730-a934-fa859542f0fe	ESP32-AUDIT01	0	2026-09-26 20:44:24.213	\N	2026-09-26 20:44:24.215691
+c44ea141-d30b-47b4-8912-25d7b36d54e9	ESP32-AUDIT01	0	2026-09-26 20:44:25.236	\N	2026-09-26 20:44:25.238003
+10bb3b84-2aad-412f-a680-c18a3a14b84b	ESP32-AUDIT01	0	2026-09-26 20:44:26.259	\N	2026-09-26 20:44:26.26148
+a777f1b9-9d89-46d7-afe1-ff275891efd6	ESP32-AUDIT01	0	2026-09-26 20:44:27.282	\N	2026-09-26 20:44:27.284354
+854f6530-69a7-435f-a67d-4d3b6bfd1cf8	ESP32-AUDIT01	0	2026-09-26 20:44:28.305	\N	2026-09-26 20:44:28.30746
+7d868ddc-630e-4061-af24-e3b1c075f23b	ESP32-AUDIT01	0	2026-09-26 20:44:29.328	\N	2026-09-26 20:44:29.329625
+494acb21-2860-4d16-ab5f-46f42cb914ee	ESP32-AUDIT01	0	2026-09-26 20:44:30.351	\N	2026-09-26 20:44:30.352826
+1a6999c1-a438-44af-b07f-dcefd912692f	ESP32-AUDIT01	0	2026-09-26 20:44:31.374	\N	2026-09-26 20:44:31.376355
+aa8924ae-c532-4c12-8923-b45d7acf2c4c	ESP32-AUDIT01	0	2026-09-26 20:44:32.399	\N	2026-09-26 20:44:32.400599
+4f4fa66a-2657-4623-a892-cb9976fd9c80	ESP32-AUDIT01	0	2026-09-26 20:44:33.42	\N	2026-09-26 20:44:33.423116
+775bf26b-c665-4e75-931a-bcd43d102c5e	ESP32-AUDIT01	0	2026-09-26 20:44:34.443	\N	2026-09-26 20:44:34.445515
+b85980e4-0c12-471c-8895-bf586e04be08	ESP32-AUDIT01	0	2026-09-26 20:44:35.466	\N	2026-09-26 20:44:35.46807
+edabfe45-d9c0-4ee0-b693-fa823ae63819	ESP32-AUDIT01	0	2026-09-26 20:44:36.492	\N	2026-09-26 20:44:36.499133
+61c74e18-00a6-494f-a7ad-1e963f1953a1	ESP32-AUDIT01	0	2026-09-26 20:44:37.512	\N	2026-09-26 20:44:37.513505
+fda35a9a-41f2-4881-a1fc-e9c1b0ee2174	ESP32-AUDIT01	0	2026-09-26 20:44:38.535	\N	2026-09-26 20:44:38.53741
+ff00401d-32df-4084-bd2f-0f74cfdf9607	ESP32-AUDIT01	0	2026-09-26 20:44:39.558	\N	2026-09-26 20:44:39.560448
+e855f4c7-22ac-43ba-aa51-38feb92477c9	ESP32-AUDIT01	0	2026-09-26 20:44:40.581	\N	2026-09-26 20:44:40.583505
+f7350b26-141e-4c09-898d-3ef745a6d431	ESP32-AUDIT01	0	2026-09-26 20:44:41.604	\N	2026-09-26 20:44:41.606343
+3952310b-eb58-4eaa-b9f1-e9b46e1a025d	ESP32-AUDIT01	0	2026-09-26 20:44:42.627	\N	2026-09-26 20:44:42.628764
+76847033-c21e-4659-b49c-ea84edddd411	ESP32-AUDIT01	0	2026-09-26 20:44:43.65	\N	2026-09-26 20:44:43.651718
+b9d6b8f6-a3c6-4aba-91cc-490f733c8539	ESP32-AUDIT01	0	2026-09-26 20:44:44.673	\N	2026-09-26 20:44:44.675378
+3d2dc92f-5b30-4fd6-a214-8ebc2f5070eb	ESP32-AUDIT01	0	2026-09-26 20:44:45.696	\N	2026-09-26 20:44:45.698554
+d4519d54-4434-47e3-8754-a9871912969b	ESP32-AUDIT01	0	2026-09-26 20:44:46.719	\N	2026-09-26 20:44:46.72113
+4edf03c3-fe0b-4d4f-8939-f9e619204bca	ESP32-AUDIT01	0	2026-09-26 20:44:47.742	\N	2026-09-26 20:44:47.744562
+52f15ebc-3c71-49fb-a83f-559a8d3b7f0b	ESP32-AUDIT01	0	2026-09-26 20:44:48.765	\N	2026-09-26 20:44:48.768345
+26811eae-02a1-41e5-91c8-a18df44499ff	ESP32-AUDIT01	0	2026-09-26 20:44:49.788	\N	2026-09-26 20:44:49.789906
+83589e3d-2106-4b69-89a6-950660ffb8e4	ESP32-AUDIT01	0	2026-09-26 20:44:50.811	\N	2026-09-26 20:44:50.813355
+12a00e5b-885e-4add-84eb-4d64e3af0462	ESP32-AUDIT01	0	2026-09-26 20:44:51.834	\N	2026-09-26 20:44:51.836373
+f2ab6c4e-971f-43f8-8d21-586b0035fb3a	ESP32-AUDIT01	0	2026-09-26 20:44:52.857	\N	2026-09-26 20:44:52.859618
+0c0d9ace-810b-48b1-9efe-98e1dc3e3d48	ESP32-AUDIT01	0	2026-09-26 20:44:53.88	\N	2026-09-26 20:44:53.894539
+e44d642e-c1bd-4596-8f9e-d9640dc1babb	ESP32-AUDIT01	0	2026-09-26 20:44:54.903	\N	2026-09-26 20:44:54.905532
+d3d57bbb-c551-4605-b443-4455e50d0467	ESP32-AUDIT01	0	2026-09-26 20:44:55.926	\N	2026-09-26 20:44:55.932338
+d2a3441c-e62c-4841-a256-0bad1dfd57f8	ESP32-AUDIT01	0	2026-09-26 20:44:56.949	\N	2026-09-26 20:44:56.951628
+6768449f-9db5-4c96-b6b1-69bcfb33d1d5	ESP32-AUDIT01	0	2026-09-26 20:44:57.972	\N	2026-09-26 20:44:57.974135
+1d115321-a003-494d-a6d4-7b95dd236dae	ESP32-AUDIT01	0	2026-09-26 20:44:58.995	\N	2026-09-26 20:44:58.997465
+dd7841dc-c48e-4682-a760-8b7d4f1eb26a	ESP32-AUDIT01	0	2026-09-26 20:45:00.018	\N	2026-09-26 20:45:00.026001
+f5eb6f2a-e85c-40b2-a4a8-23d92107ed56	ESP32-AUDIT01	0	2026-09-26 20:45:01.041	\N	2026-09-26 20:45:01.043281
+80eb7c5e-ad35-4e0c-9b69-7549dcf1b38e	ESP32-AUDIT01	0	2026-09-26 20:45:02.064	\N	2026-09-26 20:45:02.06647
+62524e7b-0eab-400a-911a-c9aaaad9e343	ESP32-AUDIT01	0	2026-09-26 20:45:03.087	\N	2026-09-26 20:45:03.090058
+2e6fbef9-53d7-4b68-971e-c6b6a4eb5b47	ESP32-AUDIT01	0	2026-09-26 20:45:04.11	\N	2026-09-26 20:45:04.112283
+94dc0093-5fe2-4c78-baa2-bf1fa80f6954	ESP32-AUDIT01	0	2026-09-26 20:45:05.132	\N	2026-09-26 20:45:05.135258
+6d725319-4cea-4001-9899-d857d086dccc	ESP32-AUDIT01	0	2026-09-26 20:45:06.156	\N	2026-09-26 20:45:06.158366
+628f271b-1767-4b17-a331-43ef8c85c28e	ESP32-AUDIT01	0	2026-09-26 20:45:07.179	\N	2026-09-26 20:45:07.181358
+4745db7a-928c-4289-a715-a80e5d6b14eb	ESP32-AUDIT01	0	2026-09-26 20:45:08.202	\N	2026-09-26 20:45:08.204859
+9ca16c87-1fea-40af-a924-0d259c8ace5a	ESP32-AUDIT01	0	2026-09-26 20:45:09.225	\N	2026-09-26 20:45:09.2275
+74e3a4b5-1a53-43b4-8017-44bbdee2b135	ESP32-AUDIT01	0	2026-09-26 20:45:10.248	\N	2026-09-26 20:45:10.250359
+da746eae-9034-4050-9297-3ba81820b10c	ESP32-AUDIT01	0	2026-09-26 20:45:11.271	\N	2026-09-26 20:45:11.273378
+dc0cdee9-7be9-4dc4-b079-636a373d06a0	ESP32-AUDIT01	0	2026-09-26 20:45:12.294	\N	2026-09-26 20:45:12.297013
+33e6d408-b685-4b41-9aeb-49980b36a9e6	ESP32-AUDIT01	0	2026-09-26 20:45:13.316	\N	2026-09-26 20:45:13.319218
+3bb1f817-7f1f-4ce0-a238-ecbe300a7b29	ESP32-AUDIT01	0	2026-09-26 20:45:14.34	\N	2026-09-26 20:45:14.342191
+ed253f54-deb9-4e94-a81c-9edd7f5d4f81	ESP32-AUDIT01	0	2026-09-26 20:45:15.363	\N	2026-09-26 20:45:15.36525
+2480ab04-965d-4495-aa00-bfb31aab4156	ESP32-AUDIT01	0	2026-09-26 20:45:16.386	\N	2026-09-26 20:45:16.388334
+099ee652-2374-4551-ac23-0a28ba593daf	ESP32-AUDIT01	0	2026-09-26 20:45:17.409	\N	2026-09-26 20:45:17.411608
+a2368b2b-05c4-4626-9917-82dcbc90cfa0	ESP32-AUDIT01	0	2026-09-26 20:45:18.432	\N	2026-09-26 20:45:18.434178
+eb206656-af4a-4372-8263-b0bfea9904a9	ESP32-AUDIT01	0	2026-09-26 20:45:19.455	\N	2026-09-26 20:45:19.457737
+deafcc74-268d-4f20-87c4-39bb81b4b3ff	ESP32-AUDIT01	0	2026-09-26 20:45:20.478	\N	2026-09-26 20:45:20.48027
+e1183625-00a8-4685-b840-5bf5325d6f0e	ESP32-AUDIT01	0	2026-09-26 20:45:21.5	\N	2026-09-26 20:45:21.503074
+e06ef0d8-6788-4c97-9b7f-a755d5d8eb5f	ESP32-AUDIT01	0	2026-09-26 20:45:22.524	\N	2026-09-26 20:45:22.526324
+8fe9b5eb-6e59-40d9-8d4b-a776942fef1c	ESP32-AUDIT01	0	2026-09-26 20:45:23.547	\N	2026-09-26 20:45:23.54976
+72b22473-8c12-4739-b31a-d2153ca8e49e	ESP32-AUDIT01	0	2026-09-26 20:45:24.57	\N	2026-09-26 20:45:24.572951
+b5bfb962-217f-4edf-9cc6-0616c905695e	ESP32-AUDIT01	0	2026-09-26 20:45:25.592	\N	2026-09-26 20:45:25.595221
+6041d8e2-6094-4fc3-87a6-7fa6b7171281	ESP32-AUDIT01	0	2026-09-26 20:45:26.616	\N	2026-09-26 20:45:26.618227
+8fa465f8-0f3c-4b61-adc8-cfb64c08ba6d	ESP32-AUDIT01	0	2026-09-26 20:45:27.638	\N	2026-09-26 20:45:27.641097
+dbbfb923-b31c-4a9f-8dfc-d943febabc40	ESP32-AUDIT01	0	2026-09-26 20:45:28.661	\N	2026-09-26 20:45:28.66429
+bcf9dc06-6f95-400b-94af-2da148083c02	ESP32-AUDIT01	0	2026-09-26 20:45:29.684	\N	2026-09-26 20:45:29.687267
+59f870a4-9944-45a1-9e09-d87e8cf111ef	ESP32-AUDIT01	0	2026-09-26 20:45:30.708	\N	2026-09-26 20:45:30.710589
+4dfac1a9-e8a9-4ce2-b919-c51d7486dac8	ESP32-AUDIT01	0	2026-09-26 20:45:31.731	\N	2026-09-26 20:45:31.736271
+768386d5-f6c5-4c84-a8ad-0a16ef1edda8	ESP32-AUDIT01	0	2026-09-26 20:45:32.754	\N	2026-09-26 20:45:32.756921
+3cc246be-ee8d-491a-9983-27dfb58a47f8	ESP32-AUDIT01	0	2026-09-26 20:45:33.777	\N	2026-09-26 20:45:33.780101
+701141d4-9e75-4aa4-b7ff-b85c87dadd2f	ESP32-AUDIT01	0	2026-09-26 20:45:34.801	\N	2026-09-26 20:45:34.803259
+be76c5b2-32f8-42e8-a584-eadb395c461d	ESP32-AUDIT01	0	2026-09-26 20:45:35.824	\N	2026-09-26 20:45:35.826427
+ebfbf6f0-7e4c-42e2-83d2-e94aa11800d3	ESP32-AUDIT01	0	2026-09-26 20:45:36.847	\N	2026-09-26 20:45:36.85088
+4286ed38-0af0-499f-be2e-14ad06b81d98	ESP32-AUDIT01	0	2026-09-26 20:45:37.87	\N	2026-09-26 20:45:37.872616
+70dae455-8f80-4577-a117-eef9d1e5df13	ESP32-AUDIT01	0	2026-09-26 20:45:38.893	\N	2026-09-26 20:45:38.895967
+894aeec7-bea5-4620-95b9-14c0be810767	ESP32-AUDIT01	0	2026-09-26 20:45:39.916	\N	2026-09-26 20:45:39.919038
+ed11bb8a-e1a8-43d5-90ad-2372f04a3cc0	ESP32-AUDIT01	0	2026-09-26 20:45:40.939	\N	2026-09-26 20:45:40.942321
+d72c451a-d268-46f8-ab0e-b8d42d8815b3	ESP32-AUDIT01	0	2026-09-26 20:45:41.963	\N	2026-09-26 20:45:41.965323
+11f56d18-18a9-4256-8a88-93afad9a8c1f	ESP32-AUDIT01	0	2026-09-26 20:45:42.986	\N	2026-09-26 20:45:42.988328
+a3fd355e-6d66-4182-9677-1661bff646e4	ESP32-AUDIT01	0	2026-09-26 20:45:44.009	\N	2026-09-26 20:45:44.011405
+739cbad7-e6b1-43da-b77f-bebea0373ed8	ESP32-AUDIT01	0	2026-09-26 20:45:45.032	\N	2026-09-26 20:45:45.034233
+ee4b7a77-da57-4f0b-8dce-09d745989896	ESP32-AUDIT01	0	2026-09-26 20:45:46.055	\N	2026-09-26 20:45:46.057333
+9eae2b47-d2b5-4abf-bdc2-926e8a06aa1a	ESP32-AUDIT01	0	2026-09-26 20:45:47.078	\N	2026-09-26 20:45:47.080655
+a0991a51-bfb8-4af7-a4fd-3cefa9e8d00d	ESP32-AUDIT01	0	2026-09-26 20:45:48.101	\N	2026-09-26 20:45:48.103756
+c7b16bd3-75d1-4cc1-9ba7-33dfcfb48746	ESP32-AUDIT01	0	2026-09-26 20:45:49.124	\N	2026-09-26 20:45:49.126843
+10c774e1-337c-43a4-be73-9c3ccb084e4c	ESP32-AUDIT01	0	2026-09-26 20:45:50.147	\N	2026-09-26 20:45:50.149716
+5c118418-835a-49f7-b97b-fd2ac2b01da9	ESP32-AUDIT01	0	2026-09-26 20:45:51.17	\N	2026-09-26 20:45:51.172954
+9deaa222-7686-4086-aeac-4bca3fd7dc26	ESP32-AUDIT01	0	2026-09-26 20:45:52.193	\N	2026-09-26 20:45:52.195844
+87601773-de2c-41ad-b2c3-05eefc0405b0	ESP32-AUDIT01	0	2026-09-26 20:45:53.216	\N	2026-09-26 20:45:53.218607
+4af6af82-ffa1-4b6e-8edf-5751b0e4632e	ESP32-AUDIT01	0	2026-09-26 20:45:54.239	\N	2026-09-26 20:45:54.242216
+3609201e-9f28-43d0-b4dc-651dff9b7933	ESP32-AUDIT01	0	2026-09-26 20:45:55.262	\N	2026-09-26 20:45:55.276937
+ed44075c-a842-429e-bfa1-76745536e397	ESP32-AUDIT01	0	2026-09-26 20:45:56.285	\N	2026-09-26 20:45:56.288175
+32bab45c-e093-43bb-8316-e977689cfb4e	ESP32-AUDIT01	0	2026-09-26 20:45:57.309	\N	2026-09-26 20:45:57.311221
+cd0f524a-7d14-45f2-86c2-b68a14ad4cab	ESP32-AUDIT01	0	2026-09-26 20:45:58.331	\N	2026-09-26 20:45:58.335333
+afa50715-54e0-4b0e-8286-fc448e252a48	ESP32-AUDIT01	0	2026-09-26 20:45:59.354	\N	2026-09-26 20:45:59.357162
+fbef2336-5797-4920-a240-f94a624c3b2e	ESP32-AUDIT01	0	2026-09-26 20:46:00.378	\N	2026-09-26 20:46:00.380874
+38302364-c1b3-4806-98c4-b1c8039e696d	ESP32-AUDIT01	0	2026-09-26 20:46:01.4	\N	2026-09-26 20:46:01.402362
+b0d7c1f3-e9dd-469f-9f17-632235c2b012	ESP32-AUDIT01	0	2026-09-26 20:46:02.424	\N	2026-09-26 20:46:02.426338
+58de19b5-46ca-420e-b842-d4937ec3cf0a	ESP32-AUDIT01	0	2026-09-26 20:46:03.447	\N	2026-09-26 20:46:03.449392
+fcad7102-43de-485a-ac63-bea8b83d240f	ESP32-AUDIT01	0	2026-09-26 20:46:04.47	\N	2026-09-26 20:46:04.47165
+36802f25-46dc-4b7e-8351-e42994329f95	ESP32-AUDIT01	0	2026-09-26 20:46:05.493	\N	2026-09-26 20:46:05.495331
+9683f4ee-3d4e-4fa4-acf4-da204d81ff95	ESP32-AUDIT01	0	2026-09-26 20:46:06.516	\N	2026-09-26 20:46:06.518231
+8ea57850-dc0f-42ea-b401-24340321996d	ESP32-AUDIT01	0	2026-09-26 20:46:07.539	\N	2026-09-26 20:46:07.5412
+0d230f9c-3608-4354-836d-28ba64e6a387	ESP32-AUDIT01	0	2026-09-26 20:46:08.562	\N	2026-09-26 20:46:08.564437
+f4585598-4dd3-440a-9d3f-4ca1b95a7399	ESP32-AUDIT01	0	2026-09-26 20:46:09.585	\N	2026-09-26 20:46:09.587661
+526071f4-c830-477a-a7fa-e9b206bfaaf6	ESP32-AUDIT01	0	2026-09-26 20:46:10.608	\N	2026-09-26 20:46:10.610787
+8b863468-cb09-4d6e-8581-e89490b842fb	ESP32-AUDIT01	0	2026-09-26 20:46:11.631	\N	2026-09-26 20:46:11.633725
+42e08a3d-7d6e-4e6d-abbd-3d4c4c1feca6	ESP32-AUDIT01	0	2026-09-26 20:46:12.654	\N	2026-09-26 20:46:12.656415
+ac23f0f7-6db6-4677-b77d-c766156549ee	ESP32-AUDIT01	0	2026-09-26 20:46:13.677	\N	2026-09-26 20:46:13.67953
+2dddb7a8-7b01-4ab6-abab-36338d4965f4	ESP32-AUDIT01	0	2026-09-26 20:46:14.7	\N	2026-09-26 20:46:14.702522
+2132f6ed-8cbc-4d6d-a554-aec512e71a45	ESP32-AUDIT01	0	2026-09-26 20:46:15.723	\N	2026-09-26 20:46:15.725435
+54236231-93e9-4e82-8fa9-b4e99d178c6a	ESP32-AUDIT01	0	2026-09-26 20:46:16.746	\N	2026-09-26 20:46:16.748468
+08bc88d5-a5de-44b1-986a-fcc5c28ef822	ESP32-AUDIT01	0	2026-09-26 20:46:17.769	\N	2026-09-26 20:46:17.771017
+14b65969-3d01-41f0-8469-c05556bdf1ff	ESP32-AUDIT01	0	2026-09-26 20:46:18.792	\N	2026-09-26 20:46:18.79431
+686ee427-3e98-4276-84a2-ddd75c6ac9a1	ESP32-AUDIT01	0	2026-09-26 20:46:19.815	\N	2026-09-26 20:46:19.817494
+47cf94fd-4564-40a2-8ae9-67c6c0dcdc73	ESP32-AUDIT01	0	2026-09-26 20:46:20.838	\N	2026-09-26 20:46:20.840618
+2ab0ff33-a1f0-415c-a624-2035833d3b9e	ESP32-AUDIT01	0	2026-09-26 20:46:21.861	\N	2026-09-26 20:46:21.863608
+16f71b0f-bf75-445d-a134-62e0409dcaa3	ESP32-AUDIT01	0	2026-09-26 20:46:22.884	\N	2026-09-26 20:46:22.886642
+97d33fc9-c500-41a4-9e02-8386af15a735	ESP32-AUDIT01	0	2026-09-26 20:46:23.907	\N	2026-09-26 20:46:23.909497
+d6918074-9b77-4288-a39c-71a7f22803a9	ESP32-AUDIT01	0	2026-09-26 20:46:24.93	\N	2026-09-26 20:46:24.932675
+cd2337ca-2ccb-4d6b-bf27-d5c620773e86	ESP32-AUDIT01	0	2026-09-26 20:46:25.953	\N	2026-09-26 20:46:25.967834
+88e0f864-0fe5-424d-be00-d37b14bf4f8e	ESP32-AUDIT01	0	2026-09-26 20:46:26.976	\N	2026-09-26 20:46:26.978558
+1a1b3a99-3602-479f-bfcc-cf19a5dfe2b8	ESP32-AUDIT01	0	2026-09-26 20:46:27.999	\N	2026-09-26 20:46:28.001515
+3dd60528-8561-4eed-b5ac-0a6b4d7a0680	ESP32-AUDIT01	0	2026-09-26 20:46:29.022	\N	2026-09-26 20:46:29.024523
+85246aa2-f4dc-46d5-b6cb-01ea37eac2bc	ESP32-AUDIT01	0	2026-09-26 20:46:30.045	\N	2026-09-26 20:46:30.047501
+6fbab890-eb3a-4d37-a5e5-51d3a8b3e3b1	ESP32-AUDIT01	0	2026-09-26 20:46:31.068	\N	2026-09-26 20:46:31.06981
+124a573a-e897-4bf9-a704-90e47a53c6de	ESP32-AUDIT01	0	2026-09-26 20:46:32.091	\N	2026-09-26 20:46:32.09329
+8653a6cd-6935-47de-a59f-d74d081a55be	ESP32-AUDIT01	0	2026-09-26 20:46:33.114	\N	2026-09-26 20:46:33.117025
+560685a8-d7f6-40dc-97db-38b365dcc723	ESP32-AUDIT01	0	2026-09-26 20:46:34.137	\N	2026-09-26 20:46:34.13967
+119cb1d4-f7a3-46e9-baf1-facedcdb181c	ESP32-AUDIT01	0	2026-09-26 20:46:35.16	\N	2026-09-26 20:46:35.16245
+5985b369-d8e7-4606-8039-3c5cf706f341	ESP32-AUDIT01	0	2026-09-26 20:46:36.183	\N	2026-09-26 20:46:36.185624
+31ec12ef-09fb-447e-b30c-9953f2655f35	ESP32-AUDIT01	0	2026-09-26 20:46:37.206	\N	2026-09-26 20:46:37.208592
+9581fe28-8302-4209-9f27-94d7d0ec92ef	ESP32-AUDIT01	0	2026-09-26 20:46:38.229	\N	2026-09-26 20:46:38.231534
+b4a27400-06f3-4ae4-ab2e-634824f2e16d	ESP32-AUDIT01	0	2026-09-26 20:46:39.252	\N	2026-09-26 20:46:39.254556
+a287679d-eccb-449b-8536-07aa589a584f	ESP32-AUDIT01	0	2026-09-26 20:46:40.275	\N	2026-09-26 20:46:40.277593
+5fbd7111-44b3-48db-8157-e00d0c371340	ESP32-AUDIT01	0	2026-09-26 20:46:41.298	\N	2026-09-26 20:46:41.300535
+c00494c5-304a-446b-b199-3234fa10dce9	ESP32-AUDIT01	0	2026-09-26 20:46:42.321	\N	2026-09-26 20:46:42.323593
+df7405ad-ed8f-47a8-a413-0afec6dde504	ESP32-AUDIT01	0	2026-09-26 20:46:43.344	\N	2026-09-26 20:46:43.346609
+fe283a24-e964-4c40-8557-d9006914f3e6	ESP32-AUDIT01	0	2026-09-26 20:46:44.367	\N	2026-09-26 20:46:44.369569
+d3c38e0b-df1a-40f1-82ff-929b91cf1c04	ESP32-AUDIT01	0	2026-09-26 20:46:45.39	\N	2026-09-26 20:46:45.392506
+91a94a97-42c0-4391-88c0-81093a2f0bd7	ESP32-AUDIT01	0	2026-09-26 20:46:46.413	\N	2026-09-26 20:46:46.415514
+53f90d53-b83c-48bf-ada4-2f9985223ca8	ESP32-AUDIT01	0	2026-09-26 20:46:47.436	\N	2026-09-26 20:46:47.438458
+7e4ee068-0c19-4b5e-a82a-0372117b7a9b	ESP32-AUDIT01	0	2026-09-26 20:46:48.459	\N	2026-09-26 20:46:48.46079
+281380fd-2db7-4713-8ae8-05e52d437ab4	ESP32-AUDIT01	0	2026-09-26 20:46:49.482	\N	2026-09-26 20:46:49.48461
+e997498a-a8c9-4937-9ed7-80932bfb7944	ESP32-AUDIT01	0	2026-09-26 20:46:50.505	\N	2026-09-26 20:46:50.508357
+82953da5-233f-4a9e-aa4e-f4c3c64c2fef	ESP32-AUDIT01	0	2026-09-26 20:46:51.528	\N	2026-09-26 20:46:51.530139
+fb330736-dd30-4045-b138-4aba79f9bf03	ESP32-AUDIT01	0	2026-09-26 20:46:52.551	\N	2026-09-26 20:46:52.553268
+edab1ee8-b437-409a-b121-b47e27fe8906	ESP32-AUDIT01	0	2026-09-26 20:46:53.574	\N	2026-09-26 20:46:53.576721
+2f1d1851-3a74-4c2f-8fea-77c72eb8526d	ESP32-AUDIT01	0	2026-09-26 20:46:54.597	\N	2026-09-26 20:46:54.599855
+90c94702-d81a-4ac0-a276-f479b9cce19d	ESP32-AUDIT01	0	2026-09-26 20:46:55.62	\N	2026-09-26 20:46:55.622676
+02e100cc-d7c0-467f-b759-003c8fad1440	ESP32-AUDIT01	0	2026-09-26 20:46:56.643	\N	2026-09-26 20:46:56.658837
+6064a4e4-f3ea-4ff1-b6ec-28d3c5e78638	ESP32-AUDIT01	0	2026-09-26 20:46:57.666	\N	2026-09-26 20:46:57.668748
+775a539b-1d7e-46d3-b11f-c027404a85a6	ESP32-AUDIT01	0	2026-09-26 20:46:58.689	\N	2026-09-26 20:46:58.691541
+ff7fc613-d6d3-4869-902a-f70e61ac3056	ESP32-AUDIT01	0	2026-09-26 20:46:59.712	\N	2026-09-26 20:46:59.715433
+3216ea52-d690-4366-8082-a8e25db293de	ESP32-AUDIT01	0	2026-09-26 20:47:00.735	\N	2026-09-26 20:47:00.738296
+f8ee8296-6fc3-4da4-b4b5-c48b849f7a9e	ESP32-AUDIT01	0	2026-09-26 20:47:01.758	\N	2026-09-26 20:47:01.761662
+3e7d0f5e-1219-4955-8ec1-644ba49d59bc	ESP32-AUDIT01	0	2026-09-26 20:47:02.781	\N	2026-09-26 20:47:02.783688
+4fec5d61-a96f-4662-85ba-b1448f4bb0cb	ESP32-AUDIT01	0	2026-09-26 20:47:03.804	\N	2026-09-26 20:47:03.805697
+8b7d1faf-703e-4690-9aa7-d46b40d5c71a	ESP32-AUDIT01	0	2026-09-26 20:47:04.827	\N	2026-09-26 20:47:04.830083
+0a577645-fff0-473e-a1ae-724fdae23cca	ESP32-AUDIT01	0	2026-09-26 20:47:05.85	\N	2026-09-26 20:47:05.853483
+aa235bba-6c59-4a78-97c5-475ca915e3a8	ESP32-AUDIT01	0	2026-09-26 20:47:06.873	\N	2026-09-26 20:47:06.875236
+7c8419af-9609-463e-a323-482c5b5f640b	ESP32-AUDIT01	0	2026-09-26 20:47:07.896	\N	2026-09-26 20:47:07.899029
+7062a407-c321-40b6-b727-b5fe31b422ec	ESP32-AUDIT01	0	2026-09-26 20:47:08.919	\N	2026-09-26 20:47:08.92169
+04803e5d-fa8c-44e3-bb4e-f5025138eaca	ESP32-AUDIT01	0	2026-09-26 20:47:09.942	\N	2026-09-26 20:47:09.944575
+ccf7135c-d464-42a5-b7fc-5b8bfe2d1462	ESP32-AUDIT01	0	2026-09-26 20:47:10.965	\N	2026-09-26 20:47:10.967866
+fb5f0207-967d-4c4b-8530-a4809ff410c7	ESP32-AUDIT01	0	2026-09-26 20:47:11.988	\N	2026-09-26 20:47:11.991639
+fb7371ff-0428-48ce-ac4c-fe84587f11d1	ESP32-AUDIT01	0	2026-09-26 20:47:13.011	\N	2026-09-26 20:47:13.013467
+b55ce884-92d9-430b-96e0-999a0052a546	ESP32-AUDIT01	0	2026-09-26 20:47:14.034	\N	2026-09-26 20:47:14.038122
+6cd430fc-5637-4613-90eb-4da8ec09f27b	ESP32-AUDIT01	0	2026-09-26 20:47:15.057	\N	2026-09-26 20:47:15.059354
+040054ad-6e7b-40e0-ab62-739e20397141	ESP32-AUDIT01	0	2026-09-26 20:47:16.08	\N	2026-09-26 20:47:16.081428
+761da763-3202-4cba-a5f3-4f5f4e10a037	ESP32-AUDIT01	0	2026-09-26 20:47:17.103	\N	2026-09-26 20:47:17.10553
+c0356a6f-e4f2-4d39-88cd-7baf1769a41e	ESP32-AUDIT01	0	2026-09-26 20:47:18.13	\N	2026-09-26 20:47:18.134513
+f2f04b84-6796-42de-88b1-7221381101e9	ESP32-AUDIT01	0	2026-09-26 20:47:19.149	\N	2026-09-26 20:47:19.151697
+56ff550c-ad49-44c9-b60e-364ffbe3c969	ESP32-AUDIT01	0	2026-09-26 20:47:20.172	\N	2026-09-26 20:47:20.174584
+77fd63df-1681-4600-8e70-94f9d1ab6faa	ESP32-AUDIT01	0	2026-09-26 20:47:21.195	\N	2026-09-26 20:47:21.197492
+cbb04f01-3151-434d-92a2-85a2fcd7004f	ESP32-AUDIT01	0	2026-09-26 20:47:22.218	\N	2026-09-26 20:47:22.2208
+a1ef21e7-e59a-42ae-a6c5-a77ef7a28068	ESP32-AUDIT01	0	2026-09-26 20:47:23.241	\N	2026-09-26 20:47:23.244113
+43f6fcb1-84fe-4cb9-907b-0eda87391dd4	ESP32-AUDIT01	0	2026-09-26 20:47:24.264	\N	2026-09-26 20:47:24.266616
+7252360b-7ba7-43db-ae2e-a4168e0025c4	ESP32-AUDIT01	0	2026-09-26 20:47:25.287	\N	2026-09-26 20:47:25.28943
+fa6edf98-b482-4cf8-bb42-9254c2edb153	ESP32-AUDIT01	0	2026-09-26 20:47:26.31	\N	2026-09-26 20:47:26.312166
+a1b5b820-08ba-46ab-91b7-5c4ce66ab139	ESP32-AUDIT01	0	2026-09-26 20:47:27.333	\N	2026-09-26 20:47:27.349305
+cd5c4670-84e4-4fbc-b48a-bd119cc59f98	ESP32-AUDIT01	0	2026-09-26 20:47:28.356	\N	2026-09-26 20:47:28.357691
+7d807e5f-0201-4bd3-82f0-7bc8e7caa1dd	ESP32-AUDIT01	0	2026-09-26 20:47:29.379	\N	2026-09-26 20:47:29.381524
+edb53bde-4c26-4ff7-b649-b3c520b80687	ESP32-AUDIT01	0	2026-09-26 20:47:30.402	\N	2026-09-26 20:47:30.40444
+4fe76f94-00ae-4a42-a952-bdbb141b9afb	ESP32-AUDIT01	0	2026-09-26 20:47:31.425	\N	2026-09-26 20:47:31.42788
+f1c47391-e9c9-4b6c-a59c-7f7ccac86bdf	ESP32-AUDIT01	0	2026-09-26 20:47:32.448	\N	2026-09-26 20:47:32.451565
+5970ab38-fc54-4c32-b7de-bc9d5224d0ea	ESP32-AUDIT01	0	2026-09-26 20:47:33.471	\N	2026-09-26 20:47:33.472923
+7bf86e1b-b230-43ee-83fe-f6b71fe004da	ESP32-AUDIT01	0	2026-09-26 20:47:34.494	\N	2026-09-26 20:47:34.49697
+a3fec9a8-95b5-484d-bb8b-c73eb7604c82	ESP32-AUDIT01	0	2026-09-26 20:47:35.517	\N	2026-09-26 20:47:35.519982
+80f62210-dbb8-4b63-abff-bc4dd1ee7e1e	ESP32-AUDIT01	0	2026-09-26 20:47:36.54	\N	2026-09-26 20:47:36.542703
+5c18220a-ac3c-4ba2-b1a0-e037a3813973	ESP32-AUDIT01	0	2026-09-26 20:47:37.563	\N	2026-09-26 20:47:37.564378
+2607e127-3be3-4710-9a5c-12f84e297953	ESP32-AUDIT01	0	2026-09-26 20:47:38.586	\N	2026-09-26 20:47:38.587761
+33c4a64b-418f-41dd-ae7a-d0d41d73ece7	ESP32-AUDIT01	0	2026-09-26 20:47:39.609	\N	2026-09-26 20:47:39.611672
+9e08b29b-031d-487b-87a6-f4b4bf634597	ESP32-AUDIT01	0	2026-09-26 20:47:40.632	\N	2026-09-26 20:47:40.634514
+7d400b2b-d331-4d64-8a54-330106eb87f2	ESP32-AUDIT01	0	2026-09-26 20:47:41.655	\N	2026-09-26 20:47:41.657284
+8ec4f1e3-b6f7-423e-8ddf-570969b83549	ESP32-AUDIT01	0	2026-09-26 20:47:42.678	\N	2026-09-26 20:47:42.680612
+a92e6482-ad6e-45d3-8e40-c0303eca30da	ESP32-AUDIT01	0	2026-09-26 20:47:43.701	\N	2026-09-26 20:47:43.703664
+24aac82a-a726-4ad1-9769-e5decd5fd437	ESP32-AUDIT01	0	2026-09-26 20:47:44.724	\N	2026-09-26 20:47:44.726289
+1b617967-8e10-4cac-92b6-7ac28bc97f08	ESP32-AUDIT01	0	2026-09-26 20:47:45.747	\N	2026-09-26 20:47:45.749435
+4c5dfae9-fd63-4076-a94f-b360b14aee73	ESP32-AUDIT01	0	2026-09-26 20:47:46.77	\N	2026-09-26 20:47:46.771785
+4ac108eb-23f0-4cc8-8520-0e0c4d016cae	ESP32-AUDIT01	0	2026-09-26 20:47:47.793	\N	2026-09-26 20:47:47.796107
+0e9561ef-770c-4248-ac0d-1417af2e35bb	ESP32-AUDIT01	0	2026-09-26 20:47:48.816	\N	2026-09-26 20:47:48.818301
+66fe8d64-2a97-4aa7-b7fd-d8c2eb53f1d0	ESP32-AUDIT01	0	2026-09-26 20:47:49.839	\N	2026-09-26 20:47:49.841565
+0afb599a-29cc-424c-8988-7881487dc362	ESP32-AUDIT01	0	2026-09-26 20:47:50.862	\N	2026-09-26 20:47:50.864042
+1f4ca4a0-234f-44ac-8f15-7b9d2be068cb	ESP32-AUDIT01	0	2026-09-26 20:47:51.885	\N	2026-09-26 20:47:51.887656
+6643aa0e-495b-437b-a0e2-3ebc389f26bc	ESP32-AUDIT01	0	2026-09-26 20:47:52.908	\N	2026-09-26 20:47:52.910537
+bf4e0441-880b-4d55-ac98-82ef9efc88e6	ESP32-AUDIT01	0	2026-09-26 20:47:53.931	\N	2026-09-26 20:47:53.933513
+ec761de5-5e23-4814-ae21-dc048e8da98a	ESP32-AUDIT01	0	2026-09-26 20:47:54.954	\N	2026-09-26 20:47:54.958809
+26b6bffe-53b1-4db0-9625-c29d20ef09b9	ESP32-AUDIT01	0	2026-09-26 20:47:55.977	\N	2026-09-26 20:47:55.979617
+bc3dadad-482b-498e-bd5f-7fc34dc19c81	ESP32-AUDIT01	0	2026-09-26 20:47:57	\N	2026-09-26 20:47:57.002398
+e137b6bc-4995-44ce-99bd-af0e314bfa50	ESP32-AUDIT01	0	2026-09-26 20:47:58.023	\N	2026-09-26 20:47:58.041462
+0ba61bae-5b11-44cd-a51a-13dce33467b0	ESP32-AUDIT01	0	2026-09-26 20:47:59.046	\N	2026-09-26 20:47:59.048796
+b7d386ed-df9c-46cc-8228-278c924bd30a	ESP32-AUDIT01	0	2026-09-26 20:48:00.069	\N	2026-09-26 20:48:00.07162
+7f37d5e4-a24d-48c4-b838-982edd644cfd	ESP32-AUDIT01	0	2026-09-26 20:48:01.092	\N	2026-09-26 20:48:01.093378
+2763ddde-4ae2-4538-b1f2-79fa06a4d7f7	ESP32-AUDIT01	0	2026-09-26 20:48:02.115	\N	2026-09-26 20:48:02.117461
+d71c6aac-fb76-4900-a876-1b4b7faf39dd	ESP32-AUDIT01	0	2026-09-26 20:48:03.138	\N	2026-09-26 20:48:03.140736
+c2813527-16f9-4bc4-a367-7095804ddf1b	ESP32-AUDIT01	0	2026-09-26 20:48:04.163	\N	2026-09-26 20:48:04.169673
+76ad6220-c521-40e4-a56c-71a96673eec6	ESP32-AUDIT01	0	2026-09-26 20:48:05.184	\N	2026-09-26 20:48:05.189063
+d2c41629-55c7-45ec-87fa-72e49f77282c	ESP32-AUDIT01	0	2026-09-26 20:48:06.207	\N	2026-09-26 20:48:06.208764
+ad3bc585-d05a-43ee-89f4-85d95660856e	ESP32-AUDIT01	0	2026-09-26 20:48:07.23	\N	2026-09-26 20:48:07.231732
+a3ff5992-b89a-4ea0-9a0a-42a02a2ed8d9	ESP32-AUDIT01	0	2026-09-26 20:48:08.253	\N	2026-09-26 20:48:08.255585
+0548baf4-f2bd-440c-9b34-46cec492fdf9	ESP32-AUDIT01	0	2026-09-26 20:50:00.784	\N	2026-09-26 20:50:00.788338
+8903956a-5450-41bc-86d1-23400d20d70e	ESP32-AUDIT01	0	2026-09-26 20:50:01.806	\N	2026-09-26 20:50:01.809219
+4689f578-78a1-4f94-91d6-c229e8f6d557	ESP32-AUDIT01	0	2026-09-26 20:50:02.829	\N	2026-09-26 20:50:02.831354
+dbc17067-de22-4c4c-bd9e-51cbd7908ca4	ESP32-AUDIT01	0	2026-09-26 20:50:03.852	\N	2026-09-26 20:50:03.854631
+f80a1b41-46e9-44cd-9091-246bc100cbe8	ESP32-AUDIT01	0	2026-09-26 20:50:04.875	\N	2026-09-26 20:50:04.877401
+b8d8795c-1f24-47eb-bdee-4cd802f36c3a	ESP32-AUDIT01	0	2026-09-26 20:50:05.898	\N	2026-09-26 20:50:05.904202
+62d7a065-6362-4167-a943-0b9e9fc3e7f3	ESP32-AUDIT01	0	2026-09-26 20:50:06.921	\N	2026-09-26 20:50:06.923402
+8b547f45-44a7-454c-a24b-ba1f6f799ff9	ESP32-AUDIT01	0	2026-09-26 20:50:07.944	\N	2026-09-26 20:50:07.945507
+cf6f80db-6ae8-4ea4-bd41-11c66eecb560	ESP32-AUDIT01	0	2026-09-26 20:50:08.967	\N	2026-09-26 20:50:08.969756
+20b57c24-98c7-4de3-ac1d-d87e7f85f95c	ESP32-AUDIT01	0	2026-09-26 20:50:09.99	\N	2026-09-26 20:50:09.992738
+4643e931-86a6-4b80-a2d4-8710c1026a20	ESP32-AUDIT01	0	2026-09-26 20:50:11.012	\N	2026-09-26 20:50:11.015425
+a5730d37-09a6-4f0e-b485-1f91662431f1	ESP32-AUDIT01	0	2026-09-26 20:50:12.035	\N	2026-09-26 20:50:12.040544
+85157cff-1eb9-4c8d-876e-e984658c3461	ESP32-AUDIT01	0	2026-09-26 20:50:13.058	\N	2026-09-26 20:50:13.061299
+6c48bd86-2e9a-42ab-a595-2b15d82f02e2	ESP32-AUDIT01	0	2026-09-26 20:50:14.082	\N	2026-09-26 20:50:14.084329
+45c4ace3-8874-45b2-a212-43e639c02dfe	ESP32-AUDIT01	0	2026-09-26 20:50:15.105	\N	2026-09-26 20:50:15.107466
+bef2f7dc-2057-4803-9d98-13d4753fc200	ESP32-AUDIT01	0	2026-09-26 20:50:16.127	\N	2026-09-26 20:50:16.130283
+0e5858ae-a970-4c02-8718-972f6ff5e597	ESP32-AUDIT01	0	2026-09-26 20:50:17.15	\N	2026-09-26 20:50:17.15313
+8d987fd6-67dd-44d6-8cb9-71e5266c5f37	ESP32-AUDIT01	0	2026-09-26 20:50:18.173	\N	2026-09-26 20:50:18.176171
+db4a5e54-1598-4b28-8714-530ec518e1d4	ESP32-AUDIT01	0	2026-09-26 20:50:19.196	\N	2026-09-26 20:50:19.199246
+62edc32a-644e-433d-8490-77af254217d2	ESP32-AUDIT01	0	2026-09-26 20:50:20.22	\N	2026-09-26 20:50:20.222292
+6a0c6d24-942c-4c7f-b88e-306ac3a8359f	ESP32-AUDIT01	0	2026-09-26 20:50:21.242	\N	2026-09-26 20:50:21.245269
+3684997f-6bb0-4c63-a7bb-86b4481f3ab1	ESP32-AUDIT01	0	2026-09-26 20:50:22.266	\N	2026-09-26 20:50:22.268196
+09a63224-3754-4d35-aa5f-0d76889707b6	ESP32-AUDIT01	0	2026-09-26 20:50:23.288	\N	2026-09-26 20:50:23.297417
+38806c33-61bf-45c3-b168-4cb99d4c3993	ESP32-AUDIT01	0	2026-09-26 20:50:24.311	\N	2026-09-26 20:50:24.313957
+c898499d-46ed-4fb6-b51a-88bc04a9bc6d	ESP32-AUDIT01	0	2026-09-26 20:50:25.335	\N	2026-09-26 20:50:25.337274
+6fa4b969-62bc-408c-b2cc-dc2bc748fe6e	ESP32-AUDIT01	0	2026-09-26 20:50:26.358	\N	2026-09-26 20:50:26.362193
+fb87683d-c675-49ed-a850-166b03248a50	ESP32-AUDIT01	0	2026-09-26 20:50:27.381	\N	2026-09-26 20:50:27.383067
+4434c5cb-77bc-4b37-87fa-678ce9112dcb	ESP32-AUDIT01	0	2026-09-26 20:50:28.404	\N	2026-09-26 20:50:28.40621
+b0603af7-e9c9-439d-8cb2-17bdd4e96757	ESP32-AUDIT01	0	2026-09-26 20:50:29.427	\N	2026-09-26 20:50:29.431071
+820e7493-1171-4b5d-975d-0a2ecf9675c5	ESP32-AUDIT01	0	2026-09-26 20:50:30.449	\N	2026-09-26 20:50:30.452335
+5a34798c-a28a-4bd1-ae2a-6adb5e6551f8	ESP32-AUDIT01	0	2026-09-26 20:50:31.472	\N	2026-09-26 20:50:31.493
+c03b4f8e-e2b8-46d3-9844-13cdc6405915	ESP32-AUDIT01	0	2026-09-26 20:50:32.496	\N	2026-09-26 20:50:32.499187
+f9bc4141-8533-4acc-b758-5e1bf3afb40b	ESP32-AUDIT01	0	2026-09-26 20:50:33.519	\N	2026-09-26 20:50:33.520708
+81773622-549b-4693-8f94-e0d556deef23	ESP32-AUDIT01	0	2026-09-26 20:50:34.542	\N	2026-09-26 20:50:34.544124
+83b992f9-d044-45b2-a8bd-61cfbdf6cd23	ESP32-AUDIT01	0	2026-09-26 20:50:35.564	\N	2026-09-26 20:50:35.566984
+22205ae8-d9a5-4c0a-871b-c433a854c8ab	ESP32-AUDIT01	0	2026-09-26 20:50:36.587	\N	2026-09-26 20:50:36.590054
+401aa68b-4152-4166-a2ad-f7fb8924b2c0	ESP32-AUDIT01	0	2026-09-26 20:50:37.61	\N	2026-09-26 20:50:37.612153
+80985b71-eebb-4041-8db0-e99e3dbc1dab	ESP32-AUDIT01	0	2026-09-26 20:50:38.633	\N	2026-09-26 20:50:38.636256
+1bced5bc-9697-4cf3-8f20-f283050cc775	ESP32-AUDIT01	0	2026-09-26 20:50:39.656	\N	2026-09-26 20:50:39.659234
+76f78760-09f2-4a77-a17e-a8f717eb0f66	ESP32-AUDIT01	0	2026-09-26 20:50:40.679	\N	2026-09-26 20:50:40.682333
+0fa6e5bc-9ee2-4800-903a-c1fa7e053f83	ESP32-AUDIT01	0	2026-09-26 20:50:41.702	\N	2026-09-26 20:50:41.707327
+f21c300f-582f-46fa-9e7f-d83fb33a0caa	ESP32-AUDIT01	0	2026-09-26 20:50:42.726	\N	2026-09-26 20:50:42.728296
+ec1538bb-1b9e-42ae-b34b-a9a6556cd91b	ESP32-AUDIT01	0	2026-09-26 20:50:43.748	\N	2026-09-26 20:50:43.751064
+4b230890-aba2-4051-a739-b1e6dfc064c5	ESP32-AUDIT01	0	2026-09-26 20:50:44.771	\N	2026-09-26 20:50:44.774071
+3587e9f0-5be6-4f14-aaba-4e289d013932	ESP32-AUDIT01	0	2026-09-26 20:50:45.794	\N	2026-09-26 20:50:45.797012
+893046d9-4301-49f8-9f5a-2b9a50f1d01e	ESP32-AUDIT01	0	2026-09-26 20:50:46.817	\N	2026-09-26 20:50:46.820328
+99bfd739-5c36-4ee8-a093-6777e40bb8eb	ESP32-AUDIT01	0	2026-09-26 20:50:47.84	\N	2026-09-26 20:50:47.843381
+3ba385e5-9d4e-44c6-bd3c-1812bd97fcd6	ESP32-AUDIT01	0	2026-09-26 20:50:48.863	\N	2026-09-26 20:50:48.866446
+c981beb9-eb49-4b46-8d16-27b526f03f26	ESP32-AUDIT01	0	2026-09-26 20:50:49.886	\N	2026-09-26 20:50:49.888957
+a7e1f576-d8af-4571-b5ae-d8f8264f17ae	ESP32-AUDIT01	0	2026-09-26 20:50:50.909	\N	2026-09-26 20:50:50.912015
+61361abd-0fef-4039-bc4c-edb7121cf198	ESP32-AUDIT01	0	2026-09-26 20:50:51.933	\N	2026-09-26 20:50:51.93484
+7f5efa8a-a24b-4225-a5ca-b79671b820e5	ESP32-AUDIT01	0	2026-09-26 20:50:52.955	\N	2026-09-26 20:50:52.958248
+79887072-7ef7-42ee-bc4e-1753f7b9fa92	ESP32-AUDIT01	0	2026-09-26 20:50:53.978	\N	2026-09-26 20:50:53.981176
+bc7ee930-d04e-44a8-a2a9-11887824b73c	ESP32-AUDIT01	0	2026-09-26 20:50:55.001	\N	2026-09-26 20:50:55.003175
+dae58270-fafd-458d-904f-e0b4f3f56a14	ESP32-AUDIT01	0	2026-09-26 20:50:56.024	\N	2026-09-26 20:50:56.02642
+194d7e8d-37af-4da0-b0c5-cd2b14f6ed1a	ESP32-AUDIT01	0	2026-09-26 20:50:57.047	\N	2026-09-26 20:50:57.049399
+5dc7b744-c18f-4ec0-b1db-69dabc14876b	ESP32-AUDIT01	0	2026-09-26 20:50:58.07	\N	2026-09-26 20:50:58.072879
+4971587b-0d6a-4bfa-8920-ac953f59dc33	ESP32-AUDIT01	0	2026-09-26 20:50:59.093	\N	2026-09-26 20:50:59.095979
+f07758ac-e202-49cd-abd1-efad3e1eb266	ESP32-AUDIT01	0	2026-09-26 20:51:00.116	\N	2026-09-26 20:51:00.118565
+be4e2127-85ff-4264-940d-a9a10c2549d0	ESP32-AUDIT01	0	2026-09-26 20:51:01.139	\N	2026-09-26 20:51:01.142281
+9b676cb4-639c-40f0-9e80-bd5fb1d73674	ESP32-AUDIT01	0	2026-09-26 20:51:02.162	\N	2026-09-26 20:51:02.177882
+f793719c-d3f8-4a35-9c56-4c1fe540767d	ESP32-AUDIT01	0	2026-09-26 20:51:03.185	\N	2026-09-26 20:51:03.188077
+4b77933a-b98f-41fa-a292-5ba12013a6a6	ESP32-AUDIT01	0	2026-09-26 20:51:04.208	\N	2026-09-26 20:51:04.211301
+9e067198-2303-49ad-80c1-d58422aec856	ESP32-AUDIT01	0	2026-09-26 20:51:05.231	\N	2026-09-26 20:51:05.234306
+9723cda5-ed50-4250-895b-0443500880ee	ESP32-AUDIT01	0	2026-09-26 20:51:06.254	\N	2026-09-26 20:51:06.256626
+d2b322b3-a3ab-4a81-86ba-621b354bf743	ESP32-AUDIT01	0	2026-09-26 20:51:07.277	\N	2026-09-26 20:51:07.279531
+1b992ea7-eedc-43b0-a805-6f25aa542228	ESP32-AUDIT01	0	2026-09-26 20:51:08.301	\N	2026-09-26 20:51:08.314105
+941e04ba-24e6-4498-a729-3444182fbc09	ESP32-AUDIT01	0	2026-09-26 20:51:09.323	\N	2026-09-26 20:51:09.325544
+42e04821-462e-41e9-bcaf-67c63ec7e455	ESP32-AUDIT01	0	2026-09-26 20:51:10.346	\N	2026-09-26 20:51:10.348183
+6ad27c6a-2d6e-4b4d-ba6c-1f7ed3b1e902	ESP32-AUDIT01	0	2026-09-26 20:51:11.37	\N	2026-09-26 20:51:11.371674
+b181fd4a-bd1e-40cd-96cf-648cf092dfb9	ESP32-AUDIT01	0	2026-09-26 20:51:12.392	\N	2026-09-26 20:51:12.394916
+70f176f3-c02d-40e7-823d-a2caf7c7b6b8	ESP32-AUDIT01	0	2026-09-26 20:51:13.416	\N	2026-09-26 20:51:13.419326
+6b69d63a-86d9-4d6b-85a6-bb1d50990f8d	ESP32-AUDIT01	0	2026-09-26 20:51:14.438	\N	2026-09-26 20:51:14.441936
+32352154-164c-4355-ae9d-fddbdb481ab9	ESP32-AUDIT01	0	2026-09-26 20:51:15.461	\N	2026-09-26 20:51:15.464348
+0c01ff22-4a45-4c57-bdf2-b20345415558	ESP32-AUDIT01	0	2026-09-26 20:51:16.484	\N	2026-09-26 20:51:16.487518
+2e64b279-422e-4ebe-9a82-033d8390ebc9	ESP32-AUDIT01	0	2026-09-26 20:51:17.507	\N	2026-09-26 20:51:17.510142
+54684290-c3ad-4cf5-ad75-036ed6320302	ESP32-AUDIT01	0	2026-09-26 20:51:18.53	\N	2026-09-26 20:51:18.532808
+b05ebd07-a230-4078-93dc-1925cff3f7d5	ESP32-AUDIT01	0	2026-09-26 20:51:19.553	\N	2026-09-26 20:51:19.556017
+a3961525-ff3c-400a-a16c-6d683b988818	ESP32-AUDIT01	0	2026-09-26 20:51:20.576	\N	2026-09-26 20:51:20.578992
+87642232-b246-4f85-a270-bc5f9f661480	ESP32-AUDIT01	0	2026-09-26 20:51:21.599	\N	2026-09-26 20:51:21.606211
+cd469b0d-fc29-4893-9c19-05f6f3fe6aba	ESP32-AUDIT01	0	2026-09-26 20:51:22.622	\N	2026-09-26 20:51:22.62436
+0dd9c5eb-e5b9-4fb3-94f4-d2739ac4e4d2	ESP32-AUDIT01	0	2026-09-26 20:51:23.645	\N	2026-09-26 20:51:23.648347
+9a38a247-5251-4f02-abf1-3f0ecf10ef03	ESP32-AUDIT01	0	2026-09-26 20:51:24.668	\N	2026-09-26 20:51:24.672908
+f75f86f2-9d38-404b-a86f-e01cbe52c376	ESP32-AUDIT01	0	2026-09-26 20:51:25.691	\N	2026-09-26 20:51:25.694123
+ddaeeb78-2b18-4a00-a40c-21714585f7a1	ESP32-AUDIT01	0	2026-09-26 20:51:26.714	\N	2026-09-26 20:51:26.716732
+16a636f7-07da-4929-af67-395303fabc9d	ESP32-AUDIT01	0	2026-09-26 20:51:27.737	\N	2026-09-26 20:51:27.740581
+572e1296-08c2-4688-92a9-2c52dd08414c	ESP32-AUDIT01	0	2026-09-26 20:51:28.76	\N	2026-09-26 20:51:28.763009
+8049bf38-2512-4ad3-bd8c-7e6216ba1061	ESP32-AUDIT01	0	2026-09-26 20:51:29.783	\N	2026-09-26 20:51:29.786046
+97f86d34-8d6e-40ec-b955-581bcf8372e1	ESP32-AUDIT01	0	2026-09-26 20:51:30.806	\N	2026-09-26 20:51:30.809395
+c074b29b-a8ef-4c74-98d2-2b24d1c92ed1	ESP32-AUDIT01	0	2026-09-26 20:51:31.829	\N	2026-09-26 20:51:31.831968
+8e3c7e86-1b43-408a-9929-3ba18d4cf97b	ESP32-AUDIT01	0	2026-09-26 20:51:32.852	\N	2026-09-26 20:51:32.867033
+0970ff66-d65f-43a8-a8a0-f4e95ef67545	ESP32-AUDIT01	0	2026-09-26 20:51:33.876	\N	2026-09-26 20:51:33.878239
+1b856744-8eca-4992-9d13-2968ce3d8ff2	ESP32-AUDIT01	0	2026-09-26 20:51:34.898	\N	2026-09-26 20:51:34.901151
+b404a411-3938-4d33-b2b4-913e47e72c9d	ESP32-AUDIT01	0	2026-09-26 20:51:35.921	\N	2026-09-26 20:51:35.923906
+5fe97825-2aaa-4495-8c10-11e9e3f190dd	ESP32-AUDIT01	0	2026-09-26 20:51:36.944	\N	2026-09-26 20:51:36.946809
+457fbaa0-347c-4c21-8d68-11d3a9cf3802	ESP32-AUDIT01	0	2026-09-26 20:51:37.967	\N	2026-09-26 20:51:37.970284
+f4cb9aac-71af-4ae3-9c7b-603492d180fd	ESP32-AUDIT01	0	2026-09-26 20:51:38.991	\N	2026-09-26 20:51:38.993113
+b17c349a-ba70-4eed-a9c4-266def5bbc69	ESP32-AUDIT01	0	2026-09-26 20:51:40.013	\N	2026-09-26 20:51:40.016062
+0eb2c2de-833e-458a-8db7-4e005332a270	ESP32-AUDIT01	0	2026-09-26 20:51:41.036	\N	2026-09-26 20:51:41.03941
+8a2f3fee-afd7-46d5-9901-1a85eaa17e5c	ESP32-AUDIT01	0	2026-09-26 20:51:42.059	\N	2026-09-26 20:51:42.061863
+e737e557-9d03-4c54-849b-d60f850a1336	ESP32-AUDIT01	0	2026-09-26 20:51:43.082	\N	2026-09-26 20:51:43.08656
+d45f1154-0a48-4516-9d95-ba5c297c3618	ESP32-AUDIT01	0	2026-09-26 20:51:44.105	\N	2026-09-26 20:51:44.107832
+6cba7954-27c4-4e95-845a-6075c770f045	ESP32-AUDIT01	0	2026-09-26 20:51:45.128	\N	2026-09-26 20:51:45.131483
+08b1714e-67fe-490f-a5b5-390728ca149c	ESP32-AUDIT01	0	2026-09-26 20:51:46.151	\N	2026-09-26 20:51:46.154171
+ea312a34-b070-4a37-a00d-e74825a83cd9	ESP32-AUDIT01	0	2026-09-26 20:51:47.174	\N	2026-09-26 20:51:47.176965
+2c3e94a9-5f00-4b71-9ef4-04d96321dbef	ESP32-AUDIT01	0	2026-09-26 20:51:48.197	\N	2026-09-26 20:51:48.199473
+6a70ed30-40ab-4dc6-a68f-a569406bb4cf	ESP32-AUDIT01	0	2026-09-26 20:51:49.22	\N	2026-09-26 20:51:49.222697
+49a82848-5b4b-46f5-8b18-6d02375c02a2	ESP32-AUDIT01	0	2026-09-26 20:51:50.243	\N	2026-09-26 20:51:50.246054
+02d638b5-0efa-4768-8fae-9ed23f65ccc5	ESP32-AUDIT01	0	2026-09-26 20:51:51.266	\N	2026-09-26 20:51:51.273074
+de7b98d4-2479-467b-9c4d-0994bc588ada	ESP32-AUDIT01	0	2026-09-26 20:51:52.289	\N	2026-09-26 20:51:52.292045
+652733b9-da3e-44bc-8055-a662f6ac7950	ESP32-AUDIT01	0	2026-09-26 20:51:53.312	\N	2026-09-26 20:51:53.314007
+1cd25457-0b16-43b2-9840-caf5fa6ac056	ESP32-AUDIT01	0	2026-09-26 20:51:54.335	\N	2026-09-26 20:51:54.33806
+762d543e-b402-4d96-8e65-7d5a5ef0ba62	ESP32-AUDIT01	0	2026-09-26 20:51:55.359	\N	2026-09-26 20:51:55.414115
+38d4d56e-c43c-4b85-b224-94073a0fa96e	ESP32-AUDIT01	0	2026-09-26 20:51:56.381	\N	2026-09-26 20:51:56.384801
+8990b73c-54a0-4d4a-883e-308277871f75	ESP32-AUDIT01	0	2026-09-26 20:51:57.405	\N	2026-09-26 20:51:57.408157
+001bcd1a-8989-41a3-92c9-79b4a3b5f83a	ESP32-AUDIT01	0	2026-09-26 20:51:58.427	\N	2026-09-26 20:51:58.489575
+ffdb9d32-e522-4270-956c-92800990ace5	ESP32-AUDIT01	0	2026-09-26 20:51:59.45	\N	2026-09-26 20:51:59.45243
+1b31db64-5165-4072-b195-1c9dd020f4f8	ESP32-AUDIT01	0	2026-09-26 20:52:00.473	\N	2026-09-26 20:52:00.476734
+4d9dc166-e990-4950-a611-66201870836b	ESP32-AUDIT01	0	2026-09-26 20:52:01.496	\N	2026-09-26 20:52:01.49791
+a36e9901-232e-466e-a374-e94e362da82e	ESP32-AUDIT01	0	2026-09-26 20:52:02.519	\N	2026-09-26 20:52:02.522742
+86545267-1a9b-48ae-8e7d-645e3b497f10	ESP32-AUDIT01	0	2026-09-26 20:52:03.542	\N	2026-09-26 20:52:03.557215
+7f666e0e-04c3-45b4-a4b1-5d9a0ad595c4	ESP32-AUDIT01	0	2026-09-26 20:52:04.565	\N	2026-09-26 20:52:04.567862
+83e48be3-a04d-4c43-a10c-f9fa3d581885	ESP32-AUDIT01	0	2026-09-26 20:52:05.588	\N	2026-09-26 20:52:05.590907
+08cd4a0a-a08d-4018-a38a-ad7c290d5177	ESP32-AUDIT01	0	2026-09-26 20:52:06.611	\N	2026-09-26 20:52:06.613882
+1b1f59a8-6a19-4d2c-9cf0-2d0c1730e8d6	ESP32-AUDIT01	0	2026-09-26 20:52:07.634	\N	2026-09-26 20:52:07.636925
+9a87db3e-931c-4fe5-856b-82cbd4bbbca0	ESP32-AUDIT01	0	2026-09-26 20:52:08.657	\N	2026-09-26 20:52:08.659984
+6a4a67f4-8729-423d-9684-a7db74a538c2	ESP32-AUDIT01	0	2026-09-26 20:52:09.68	\N	2026-09-26 20:52:09.682716
+81a7a369-967c-4a76-ae97-ebc41fbd9948	ESP32-AUDIT01	0	2026-09-26 20:52:10.703	\N	2026-09-26 20:52:10.705812
+d96d8389-0a95-45fb-bdcb-e37f019bac44	ESP32-AUDIT01	0	2026-09-26 20:52:11.726	\N	2026-09-26 20:52:11.728983
+86f165ad-f8da-4b0f-8981-d195beeeb527	ESP32-AUDIT01	0	2026-09-26 20:52:12.749	\N	2026-09-26 20:52:12.752071
+96c3b1a5-706e-4f9d-aae2-3607c4bda320	ESP32-AUDIT01	0	2026-09-26 20:52:13.772	\N	2026-09-26 20:52:13.775052
+8d885b41-de56-4d73-ba41-bb778b6195f5	ESP32-AUDIT01	0	2026-09-26 20:52:14.795	\N	2026-09-26 20:52:14.797813
+d9033642-6960-4251-932e-7383962afc12	ESP32-AUDIT01	0	2026-09-26 20:52:15.818	\N	2026-09-26 20:52:15.820814
+b4759a1d-a0a7-4c3c-97d1-59768e45da30	ESP32-AUDIT01	0	2026-09-26 20:52:16.841	\N	2026-09-26 20:52:16.843539
+ef1f9256-ef8e-4f0e-9e6f-e5f1abd77f4e	ESP32-AUDIT01	0	2026-09-26 20:52:17.864	\N	2026-09-26 20:52:17.866793
+ceed27fa-2335-4ea1-9179-2fdf71b863d6	ESP32-AUDIT01	0	2026-09-26 20:52:18.887	\N	2026-09-26 20:52:18.889551
+ee253270-6510-4fd7-bdfb-ee714f1bb31c	ESP32-AUDIT01	0	2026-09-26 20:52:19.91	\N	2026-09-26 20:52:19.915252
+f67b46e7-a200-4cb0-80a2-dbd01e56e3e6	ESP32-AUDIT01	0	2026-09-26 20:52:20.933	\N	2026-09-26 20:52:20.935113
+1a7ce0c2-1fa1-4d3b-8d9a-8f7f26b7a8a9	ESP32-AUDIT01	0	2026-09-26 20:52:21.956	\N	2026-09-26 20:52:21.958798
+1b99af4e-7638-44c3-ad1e-b94bf63720a7	ESP32-AUDIT01	0	2026-09-26 20:52:22.979	\N	2026-09-26 20:52:22.982019
+82ac019f-b54a-4d03-a07b-051bce07dbd6	ESP32-AUDIT01	0	2026-09-26 20:52:24.002	\N	2026-09-26 20:52:24.004983
+eb099276-8f26-40bf-86b5-4bb8423f3c3f	ESP32-AUDIT01	0	2026-09-26 20:52:25.025	\N	2026-09-26 20:52:25.027865
+c1f179ca-81e4-411e-8b08-3ef3a2e2a64a	ESP32-AUDIT01	0	2026-09-26 20:52:26.048	\N	2026-09-26 20:52:26.050799
+4673d097-cac0-4893-a35e-02a07434c949	ESP32-AUDIT01	0	2026-09-26 20:52:27.071	\N	2026-09-26 20:52:27.076526
+925c55e4-c66c-48cd-ae3e-99c4ddd8d93c	ESP32-AUDIT01	0	2026-09-26 20:52:28.094	\N	2026-09-26 20:52:28.097883
+2f1641d6-8105-472d-8722-3335d0c75383	ESP32-AUDIT01	0	2026-09-26 20:52:29.117	\N	2026-09-26 20:52:29.11981
+164fd2bf-d462-4964-816f-884f8893563a	ESP32-AUDIT01	0	2026-09-26 20:52:30.14	\N	2026-09-26 20:52:30.142836
+8b1756ba-a167-4fab-88e8-e63b10a51dc4	ESP32-AUDIT01	0	2026-09-26 20:52:31.163	\N	2026-09-26 20:52:31.164688
+925cd863-6050-4955-ba02-64877103e922	ESP32-AUDIT01	0	2026-09-26 20:52:32.186	\N	2026-09-26 20:52:32.18759
+b0f3630c-9191-42be-bd32-9df2cd97067a	ESP32-AUDIT01	0	2026-09-26 20:52:33.209	\N	2026-09-26 20:52:33.210689
+2b68df7b-d585-411b-840d-1a1debc5ea4d	ESP32-AUDIT01	0	2026-09-26 20:52:34.232	\N	2026-09-26 20:52:34.25297
+7d9638af-f165-4708-9864-3e6ad171c2a9	ESP32-AUDIT01	0	2026-09-26 20:52:35.255	\N	2026-09-26 20:52:35.25756
+23f096b0-0a12-43fa-a061-3355c8f67900	ESP32-AUDIT01	0	2026-09-26 20:52:36.278	\N	2026-09-26 20:52:36.281053
+627c392d-c8dd-4313-b0dd-cec2ae046802	ESP32-AUDIT01	0	2026-09-26 20:52:37.301	\N	2026-09-26 20:52:37.303954
+8348708e-cede-4f69-aa18-a6d4752acd75	ESP32-AUDIT01	0	2026-09-26 20:52:38.324	\N	2026-09-26 20:52:38.326809
+29ba65dc-fd6c-4122-a56d-8459ea117a58	ESP32-AUDIT01	0	2026-09-26 20:52:39.348	\N	2026-09-26 20:52:39.349756
+a8857fad-963d-4d1a-9853-b4b000122501	ESP32-AUDIT01	0	2026-09-26 20:52:40.37	\N	2026-09-26 20:52:40.372699
+148a5d8b-6500-4bc6-91e3-8f1e1365227f	ESP32-AUDIT01	0	2026-09-26 20:52:41.393	\N	2026-09-26 20:52:41.398938
+bcfea800-86c6-42c2-a176-97342d649102	ESP32-AUDIT01	0	2026-09-26 20:52:42.416	\N	2026-09-26 20:52:42.41992
+3170aaca-0e6c-49f3-9022-2f3e0b10f242	ESP32-AUDIT01	0	2026-09-26 20:52:43.439	\N	2026-09-26 20:52:43.441884
+7785ff8b-d205-4339-9113-28e80fe20a2d	ESP32-AUDIT01	0	2026-09-26 20:52:44.462	\N	2026-09-26 20:52:44.487194
+7808745e-6b56-44aa-9d2c-b127e63e50be	ESP32-AUDIT01	0	2026-09-26 20:52:45.485	\N	2026-09-26 20:52:45.487832
+4b0d6e2e-8e32-4343-8907-6557420647dc	ESP32-AUDIT01	0	2026-09-26 20:52:46.508	\N	2026-09-26 20:52:46.509709
+77483ce4-fe2b-4a03-9c98-dfe97d46505a	ESP32-AUDIT01	0	2026-09-26 20:52:47.531	\N	2026-09-26 20:52:47.534139
+d69a1d0d-d18d-4fdf-9a71-4f3b8d1e3647	ESP32-AUDIT01	0	2026-09-26 20:52:48.557	\N	2026-09-26 20:52:48.560179
+246218e0-a4c4-4626-b34f-d61beee2fc45	ESP32-AUDIT01	0	2026-09-26 20:52:49.577	\N	2026-09-26 20:52:49.586729
+81e497e4-0986-439e-b885-cf7884ce7f11	ESP32-AUDIT01	0	2026-09-26 20:52:50.6	\N	2026-09-26 20:52:50.60243
+68f99523-ef6a-440c-a5bd-4064b1f4e7d5	ESP32-AUDIT01	0	2026-09-26 20:52:51.623	\N	2026-09-26 20:52:51.626199
+2bd7ddca-9411-45f8-9ac7-103255bb8a75	ESP32-AUDIT01	0	2026-09-26 20:52:52.646	\N	2026-09-26 20:52:52.64917
+33a5acef-334b-4c7b-9be5-83ff738995f3	ESP32-AUDIT01	0	2026-09-26 20:52:53.67	\N	2026-09-26 20:52:53.67198
+e42817c5-70bc-4a7b-b137-35a57255925e	ESP32-AUDIT01	0	2026-09-26 20:52:54.692	\N	2026-09-26 20:52:54.699837
+11815783-a01b-4ba7-93d8-ef1fae8ed3a6	ESP32-AUDIT01	0	2026-09-26 20:52:55.715	\N	2026-09-26 20:52:55.716834
+be629b86-f93e-4c5a-b5d5-62e8a697efe1	ESP32-AUDIT01	0	2026-09-26 20:52:56.738	\N	2026-09-26 20:52:56.739634
+a043040e-235b-4991-816c-eac956f35e55	ESP32-AUDIT01	0	2026-09-26 20:52:57.761	\N	2026-09-26 20:52:57.763919
+072d6aee-10cd-482f-9060-8071aa4f590a	ESP32-AUDIT01	0	2026-09-26 20:52:58.784	\N	2026-09-26 20:52:58.787024
+95353de9-957a-4372-b68a-eba2005b268e	ESP32-AUDIT01	0	2026-09-26 20:52:59.808	\N	2026-09-26 20:52:59.811256
+16101c67-9f0e-4ed9-a2bf-a8df52f2c48c	ESP32-AUDIT01	0	2026-09-26 20:53:00.83	\N	2026-09-26 20:53:00.832718
+0eb758c5-135c-47b4-8bc1-1dc55d53e7a6	ESP32-AUDIT01	0	2026-09-26 20:53:01.852	\N	2026-09-26 20:53:01.855062
+8fca8c6a-0c45-4e42-ada7-4597f8e792a0	ESP32-AUDIT01	0	2026-09-26 20:53:02.876	\N	2026-09-26 20:53:02.878347
+74102ac9-5030-44a6-889a-4265130231ae	ESP32-AUDIT01	0	2026-09-26 20:53:03.899	\N	2026-09-26 20:53:03.901925
+b05c3e7e-2f5c-454b-9edd-efe1f06196dd	ESP32-AUDIT01	0	2026-09-26 20:53:04.922	\N	2026-09-26 20:53:04.943634
+6f034d05-9673-4244-a32d-ac821027e257	ESP32-AUDIT01	0	2026-09-26 20:53:05.945	\N	2026-09-26 20:53:05.947882
+50cba846-38f0-421c-83a7-9370d29105c9	ESP32-AUDIT01	0	2026-09-26 20:53:06.968	\N	2026-09-26 20:53:06.970312
+10f9a14e-728b-4af5-b8b7-4f1fe034b75b	ESP32-AUDIT01	0	2026-09-26 20:53:07.991	\N	2026-09-26 20:53:07.997001
+2fa24e7e-8458-4321-9176-abfa26fa06ee	ESP32-AUDIT01	0	2026-09-26 20:53:09.014	\N	2026-09-26 20:53:09.01681
+00ee8481-88f2-44d6-bd9a-f15ac5ae1f3c	ESP32-AUDIT01	0	2026-09-26 20:53:10.037	\N	2026-09-26 20:53:10.041482
+8982c61f-8047-4ef9-be8d-5e0d61c2d71b	ESP32-AUDIT01	0	2026-09-26 20:53:11.06	\N	2026-09-26 20:53:11.062566
+cc962b3c-6030-4698-a436-2584cea660b2	ESP32-AUDIT01	0	2026-09-26 20:53:12.083	\N	2026-09-26 20:53:12.085703
+5fdecbe8-5923-4ae5-b642-6b27e87db90b	ESP32-AUDIT01	0	2026-09-26 20:53:13.106	\N	2026-09-26 20:53:13.107899
+114502e3-a03e-47a2-a7af-4feeae210c7d	ESP32-AUDIT01	0	2026-09-26 20:53:14.129	\N	2026-09-26 20:53:14.13172
+8aa50f77-7388-4449-9369-a38d14d5939e	ESP32-AUDIT01	0	2026-09-26 20:53:15.152	\N	2026-09-26 20:53:15.154629
+8655895d-84a8-432f-a107-518765686f73	ESP32-AUDIT01	0	2026-09-26 20:53:16.175	\N	2026-09-26 20:53:16.178283
+0a14a323-9f59-4850-b410-384d695031b1	ESP32-AUDIT01	0	2026-09-26 20:53:17.198	\N	2026-09-26 20:53:17.200564
+9223c7ad-d207-4f04-867e-ce307512ac1c	ESP32-AUDIT01	0	2026-09-26 20:53:18.221	\N	2026-09-26 20:53:18.22326
+d321054f-91f5-46da-b353-4c812320e464	ESP32-AUDIT01	0	2026-09-26 20:53:19.244	\N	2026-09-26 20:53:19.245594
+45751a70-ee5a-4370-a71d-2a1e43546df4	ESP32-AUDIT01	0	2026-09-26 20:53:20.267	\N	2026-09-26 20:53:20.269743
+adb45ac1-e4d2-487f-be7f-7137099a3c0e	ESP32-AUDIT01	0	2026-09-26 20:53:21.29	\N	2026-09-26 20:53:21.291784
+9088201f-eb9a-43c8-b700-44e8d6698406	ESP32-AUDIT01	0	2026-09-26 20:53:22.313	\N	2026-09-26 20:53:22.314874
+2060378e-e24a-4abf-b50c-8cb6324ce1f7	ESP32-AUDIT01	0	2026-09-26 20:53:23.336	\N	2026-09-26 20:53:23.337552
+259f18d4-ebac-488a-bffa-9e1523c805d3	ESP32-AUDIT01	0	2026-09-26 20:53:24.359	\N	2026-09-26 20:53:24.360708
+acefc7d0-0e72-4207-8410-183db8a29590	ESP32-AUDIT01	0	2026-09-26 20:53:25.382	\N	2026-09-26 20:53:25.383961
+b9b30c38-fbfe-4ef1-8473-bb76d272a80a	ESP32-AUDIT01	0	2026-09-26 20:53:26.405	\N	2026-09-26 20:53:26.4067
+6950383a-b566-4474-8cd0-4a07c196ae4a	ESP32-AUDIT01	0	2026-09-26 20:53:27.428	\N	2026-09-26 20:53:27.429776
+3c5b390e-daf5-450b-abea-d9f89894712d	ESP32-AUDIT01	0	2026-09-26 20:53:28.451	\N	2026-09-26 20:53:28.456147
+3f5125b7-c11c-4238-b4c3-804ffe912139	ESP32-AUDIT01	0	2026-09-26 20:53:29.474	\N	2026-09-26 20:53:29.475581
+e8d257fa-a5db-4e70-804b-93f0fb0a00fd	ESP32-AUDIT01	0	2026-09-26 20:53:30.497	\N	2026-09-26 20:53:30.498766
+7dfeadf5-9b2e-4d45-9092-eef80d63adcf	ESP32-AUDIT01	0	2026-09-26 20:53:31.52	\N	2026-09-26 20:53:31.523122
+b67d0c2f-1a65-4440-87bd-59c38d8ca448	ESP32-AUDIT01	0	2026-09-26 20:53:32.543	\N	2026-09-26 20:53:32.545216
+36aefe8c-20e2-498a-9fb7-e4581d4daf49	ESP32-AUDIT01	0	2026-09-26 20:53:33.566	\N	2026-09-26 20:53:33.56871
+046ebe0b-a602-464b-8c32-3124a8ee6112	ESP32-AUDIT01	0	2026-09-26 20:53:34.589	\N	2026-09-26 20:53:34.591069
+6ee2b603-d1a1-4540-8f5f-c032031de238	ESP32-AUDIT01	0	2026-09-26 20:53:35.612	\N	2026-09-26 20:53:35.628408
+1b4195c0-a0b8-41ae-a53e-3144b7e30303	ESP32-AUDIT01	0	2026-09-26 20:53:36.635	\N	2026-09-26 20:53:36.638041
+2732362c-8f6a-41be-ab46-cbb9a93cfb55	ESP32-AUDIT01	0	2026-09-26 20:53:37.658	\N	2026-09-26 20:53:37.659876
+600641b9-6794-43d1-aa53-41a3c078ab99	ESP32-AUDIT01	0	2026-09-26 20:53:38.681	\N	2026-09-26 20:53:38.683988
+7ced5aa4-66ff-41d9-acaf-7246fbe2b49e	ESP32-AUDIT01	0	2026-09-26 20:53:39.704	\N	2026-09-26 20:53:39.706712
+5c3c8d9e-a374-4cb2-91ea-2627c34333d4	ESP32-AUDIT01	0	2026-09-26 20:53:40.727	\N	2026-09-26 20:53:40.730974
+826f8cb6-2e39-48e7-b3d8-abe55a0fef09	ESP32-AUDIT01	0	2026-09-26 20:53:41.75	\N	2026-09-26 20:53:41.753143
+205ac293-4fba-4680-a498-93359cb74052	ESP32-AUDIT01	0	2026-09-26 20:53:42.773	\N	2026-09-26 20:53:42.776594
+988f6441-a9de-4bb3-b02e-7d0dc8ce804f	ESP32-AUDIT01	0	2026-09-26 20:53:43.796	\N	2026-09-26 20:53:43.798716
+ae5c5c19-70f6-4730-9cff-7fee313d4ade	ESP32-AUDIT01	0	2026-09-26 20:53:44.819	\N	2026-09-26 20:53:44.821661
+455cf275-301d-4deb-bfce-8bfd7d44887b	ESP32-AUDIT01	0	2026-09-26 20:53:45.842	\N	2026-09-26 20:53:45.844946
+4e5bdf58-c011-4dfd-99de-247fdc44cf5d	ESP32-AUDIT01	0	2026-09-26 20:53:46.865	\N	2026-09-26 20:53:46.867717
+a01267dd-450d-4351-a4a3-5adc083006ac	ESP32-AUDIT01	0	2026-09-26 20:53:47.888	\N	2026-09-26 20:53:47.895547
+6844df21-6bc0-4d25-b94c-b0ed6038a862	ESP32-AUDIT01	0	2026-09-26 20:53:48.911	\N	2026-09-26 20:53:48.913678
+adf35678-81cf-42ae-a118-51cbfbf019dd	ESP32-AUDIT01	0	2026-09-26 20:53:49.934	\N	2026-09-26 20:53:49.936796
+f28bbf62-b110-4ad2-a7fb-d49a6c78633e	ESP32-AUDIT01	0	2026-09-26 20:53:50.957	\N	2026-09-26 20:53:50.959579
+5654bd63-3c53-4f38-a534-0b773a673446	ESP32-AUDIT01	0	2026-09-26 20:53:51.98	\N	2026-09-26 20:53:51.981981
+0f4eda27-7bab-4046-88bf-0989d97af9ea	ESP32-AUDIT01	0	2026-09-26 20:53:53.003	\N	2026-09-26 20:53:53.005044
+67f40476-a5e1-4362-8724-251f443200d3	ESP32-AUDIT01	0	2026-09-26 20:53:54.026	\N	2026-09-26 20:53:54.02851
+04fbb881-4756-4144-8917-23fe332fad8d	ESP32-AUDIT01	0	2026-09-26 20:53:55.049	\N	2026-09-26 20:53:55.051503
 \.
 
 
 --
--- Data for Name: shops; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: shops; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.shops (id, shop_code, shop_name, area_id, shopkeeper_id, address, contact_number, is_active, created_at) FROM stdin;
@@ -4541,32 +6683,32 @@ COPY public.shops (id, shop_code, shop_name, area_id, shopkeeper_id, address, co
 
 
 --
--- Data for Name: transactions; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: transactions; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
-COPY public.transactions (id, ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg, blockchain_tx_hash, created_at) FROM stdin;
-d57243cf-7845-4cfc-a63e-4b3efbece1ae	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	12.00	8.00	0xe7143e8c29c84eb4b1c205253c24a57bb13d40e06892e9f002c0fb629f8b0a56	2026-07-26 23:06:47.724603
-73d16b31-4e8e-4296-a25d-2900906bab0d	c5f67b4a-212b-464e-83da-409bbb0922fb	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	4.00	0.00	0x29817918fc9e85a9f99169ded8188715773133fdb13788f371e6d6723a8719ed	2026-08-17 22:15:09.971101
-aa77980e-7d17-455e-bd31-be036c7f9e8a	30795952-ad2f-4255-9996-d52db050d9ef	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	4.00	0.00	0x500d7850fd642c0aecccb3ab555ec62cd0f089443ec6999ee3b8add829bb2a65	2026-08-17 23:04:35.873211
-23bea8c9-a4ef-44d2-af19-5f3982c8b75b	7e838d46-d4cf-454c-8eec-00ea4e1c9aef	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.99	0.00	0x98fe754ee1973a529942b62ba43b7b0ec2076057903ce317851e7c829760924a	2026-08-17 23:28:02.685799
-dc11a9b0-c638-4fc8-8ad6-505deb77bb4f	a022488d-ec1f-416f-b0da-ab29acbcc682	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	2.99	0.00	\N	2026-08-18 08:17:02.386651
-27936fd3-1db3-41cf-b6ee-4a40f3896e12	f2396205-10a1-4e69-9f76-75418763371e	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	2.40	0.00	\N	2026-08-18 08:17:02.897487
-345dd6d7-6790-4983-bbbe-5a93fc4d3b54	34c9afc1-632b-4982-83d0-40f40b9678c9	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x874a1484ad781eac3059e75f53bf19feb73803de2daea2a8ba50843d333898b1	2026-08-18 08:18:40.336674
-9fa6d284-fa0f-45b5-aaa9-47462b06f2d4	34c9afc1-632b-4982-83d0-40f40b9678c9	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	0.00	2.00	0xebf5601d70cfeab2cfc54d9be2378ef11d34d21541cf1b3ab033df7d2a1a0ddd	2026-08-18 08:19:05.393797
-a1d1c94e-4706-4960-ae51-8b20b672b6fc	993808d6-cda1-4699-af8f-86437ddc6a21	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	1.00	0.00	\N	2026-08-18 08:20:05.2826
-4eafa7eb-3aff-43ea-b557-4d1179ef0749	3c52eae6-1ec3-4ff5-bc58-88524b3d247f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x90404c9bf638fc74c21d7f2948b04a29e6f2c35a3d3240177c1b018d5ce387ad	2026-08-18 22:58:48.800158
-5d83e583-b993-4e58-84ea-14a6fd92ba5c	a27f9dfd-c28d-4d4f-8b84-bdd63245e311	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xf8e0cde665213032fe701ffc9ce96fe8c5284865e9ceb88c5c5fb5b6b48bb2cc	2026-08-18 23:15:17.587876
-642b54d8-a464-44e4-9852-643ac8a369b7	5c75ee1d-ccbe-4e65-a262-fa1aca738666	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x626fce0e3102d44ff77279e143f82f7b298a2e07de17f43542f76a435c23b410	2026-08-18 23:19:38.868932
-0a1eb76a-a094-4e5d-af55-9523aa445b68	1f34dc13-e9c1-4e8b-8cef-f81eeba6a70b	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x599d65f37ac67214747780a92794868c1f35644335aa18ccb7ce467e6258f391	2026-08-18 23:22:05.528091
-d6a3ad76-d830-4444-989c-d5a644250e9f	02299d9c-beee-40ff-bc1a-976e174435e8	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xd11db2dd6b1a4712a481f2b8b0f532c27b08a401384e578984a60189d07f1867	2026-08-18 23:23:53.445656
-2c00b3b0-0eef-42ec-b660-d49d78174688	51af64a5-7904-40b2-9914-d8b9071e5436	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xa807f23a348031ab05bdde35ee87a04c193d475425b5f1ac2c90638d58ae2b96	2026-08-18 23:25:49.286308
-106c3eb1-0738-43da-942f-fc56ee0310ed	d1cedd81-5a69-4434-b165-c8bdaf311baa	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xc7c2836ffee134143697233ed7c4343053036c36e186eac38faf8fee4e3c7f02	2026-08-18 23:27:55.050513
-30319c7b-e954-4ed7-ae4b-82283a879e95	da681ac5-fc04-454f-9476-684d628f062f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x55b92c88af6bb3f0c1a56e8924b52fe473138b6bd4fe8f9009a5ad3f9fc54a5f	2026-08-19 05:54:33.055941
+COPY public.transactions (id, ration_card_id, shop_id, served_by, rice_qty_kg, wheat_qty_kg, blockchain_tx_hash, created_at, iot_verified, iot_device_id) FROM stdin;
+d57243cf-7845-4cfc-a63e-4b3efbece1ae	f556693d-e0fd-4c91-9d30-572eb0ebf01f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	12.00	8.00	0xe7143e8c29c84eb4b1c205253c24a57bb13d40e06892e9f002c0fb629f8b0a56	2026-07-26 23:06:47.724603	f	\N
+73d16b31-4e8e-4296-a25d-2900906bab0d	c5f67b4a-212b-464e-83da-409bbb0922fb	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	4.00	0.00	0x29817918fc9e85a9f99169ded8188715773133fdb13788f371e6d6723a8719ed	2026-08-17 22:15:09.971101	f	\N
+aa77980e-7d17-455e-bd31-be036c7f9e8a	30795952-ad2f-4255-9996-d52db050d9ef	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	4.00	0.00	0x500d7850fd642c0aecccb3ab555ec62cd0f089443ec6999ee3b8add829bb2a65	2026-08-17 23:04:35.873211	f	\N
+23bea8c9-a4ef-44d2-af19-5f3982c8b75b	7e838d46-d4cf-454c-8eec-00ea4e1c9aef	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.99	0.00	0x98fe754ee1973a529942b62ba43b7b0ec2076057903ce317851e7c829760924a	2026-08-17 23:28:02.685799	f	\N
+dc11a9b0-c638-4fc8-8ad6-505deb77bb4f	a022488d-ec1f-416f-b0da-ab29acbcc682	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	2.99	0.00	\N	2026-08-18 08:17:02.386651	f	\N
+27936fd3-1db3-41cf-b6ee-4a40f3896e12	f2396205-10a1-4e69-9f76-75418763371e	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	2.40	0.00	\N	2026-08-18 08:17:02.897487	f	\N
+345dd6d7-6790-4983-bbbe-5a93fc4d3b54	34c9afc1-632b-4982-83d0-40f40b9678c9	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x874a1484ad781eac3059e75f53bf19feb73803de2daea2a8ba50843d333898b1	2026-08-18 08:18:40.336674	f	\N
+9fa6d284-fa0f-45b5-aaa9-47462b06f2d4	34c9afc1-632b-4982-83d0-40f40b9678c9	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	0.00	2.00	0xebf5601d70cfeab2cfc54d9be2378ef11d34d21541cf1b3ab033df7d2a1a0ddd	2026-08-18 08:19:05.393797	f	\N
+a1d1c94e-4706-4960-ae51-8b20b672b6fc	993808d6-cda1-4699-af8f-86437ddc6a21	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	1.00	0.00	\N	2026-08-18 08:20:05.2826	f	\N
+4eafa7eb-3aff-43ea-b557-4d1179ef0749	3c52eae6-1ec3-4ff5-bc58-88524b3d247f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x90404c9bf638fc74c21d7f2948b04a29e6f2c35a3d3240177c1b018d5ce387ad	2026-08-18 22:58:48.800158	f	\N
+5d83e583-b993-4e58-84ea-14a6fd92ba5c	a27f9dfd-c28d-4d4f-8b84-bdd63245e311	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xf8e0cde665213032fe701ffc9ce96fe8c5284865e9ceb88c5c5fb5b6b48bb2cc	2026-08-18 23:15:17.587876	f	\N
+642b54d8-a464-44e4-9852-643ac8a369b7	5c75ee1d-ccbe-4e65-a262-fa1aca738666	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x626fce0e3102d44ff77279e143f82f7b298a2e07de17f43542f76a435c23b410	2026-08-18 23:19:38.868932	f	\N
+0a1eb76a-a094-4e5d-af55-9523aa445b68	1f34dc13-e9c1-4e8b-8cef-f81eeba6a70b	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x599d65f37ac67214747780a92794868c1f35644335aa18ccb7ce467e6258f391	2026-08-18 23:22:05.528091	f	\N
+d6a3ad76-d830-4444-989c-d5a644250e9f	02299d9c-beee-40ff-bc1a-976e174435e8	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xd11db2dd6b1a4712a481f2b8b0f532c27b08a401384e578984a60189d07f1867	2026-08-18 23:23:53.445656	f	\N
+2c00b3b0-0eef-42ec-b660-d49d78174688	51af64a5-7904-40b2-9914-d8b9071e5436	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xa807f23a348031ab05bdde35ee87a04c193d475425b5f1ac2c90638d58ae2b96	2026-08-18 23:25:49.286308	f	\N
+106c3eb1-0738-43da-942f-fc56ee0310ed	d1cedd81-5a69-4434-b165-c8bdaf311baa	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0xc7c2836ffee134143697233ed7c4343053036c36e186eac38faf8fee4e3c7f02	2026-08-18 23:27:55.050513	f	\N
+30319c7b-e954-4ed7-ae4b-82283a879e95	da681ac5-fc04-454f-9476-684d628f062f	148bf4bf-2817-4d6b-8be5-0a4cca73dbdc	b3a9d263-dbf7-4f66-87eb-b296177b80d1	3.00	0.00	0x55b92c88af6bb3f0c1a56e8924b52fe473138b6bd4fe8f9009a5ad3f9fc54a5f	2026-08-19 05:54:33.055941	f	\N
 \.
 
 
 --
--- Data for Name: used_jtis; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: used_jtis; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.used_jtis (jti, session_id, used_at) FROM stdin;
@@ -4587,11 +6729,21 @@ cbb3cc3d-dbd5-4101-9c94-c15f56d9ee54	f7b796fe-ec80-4c9d-9d0a-79673ff25b61	2026-0
 9ea7506e-309a-450a-ae34-7fab774bd991	cfc51926-df05-4509-92e9-5fb6fb0f79be	2026-08-18 23:25:42.710961
 f2fc1e60-0989-41ed-b2f7-1257fb69dbf6	fe0a29bd-32d1-4a6e-988d-cdefd20509ac	2026-08-18 23:27:48.805512
 eed83ef2-93dd-4a4c-8b53-0bc18671c255	4ad24cae-8997-4ae1-9503-ac4e47a458fa	2026-08-19 05:54:28.490166
+cdde8f35-db2c-4991-bbd7-480cf7456fd0	80e602a7-4178-4e67-88bf-b2461669c161	2026-09-20 16:24:25.847573
+c029e59a-261f-4153-b6a2-cdb1f8790fbf	6ac89a1d-0649-429a-9485-495352c40079	2026-09-20 16:26:25.06075
+4a141641-b8b9-41e4-a0bf-8d076c8e83f0	6b6e0cbd-e3ac-410c-8ac4-1351fc6e452a	2026-09-20 16:27:42.438541
+aabc5b30-a490-448d-bb7f-c40310f33cba	597b4d9f-6716-4b03-8e9a-413d5836386f	2026-09-20 16:35:13.783704
+02f3ae8e-4781-46bc-bee2-70095b5f389c	0655b0b5-b059-4326-ba45-c27bf2b66301	2026-09-20 16:36:36.931921
+f165daa1-0ebd-479e-ba3f-fd90a65a6534	d409dfeb-06d7-4a4c-885f-20fff5ee789b	2026-09-26 10:35:35.945848
+89d24bfc-12b3-4f86-b069-7b1f2ecd4707	6c932c7d-3444-4bfc-9cc6-d510f278c3f3	2026-09-26 20:03:10.266035
+567f0806-d366-49d5-be8e-f06f82a19564	e9b6a9d4-9226-42be-8b68-b7af07ebda8d	2026-09-26 20:06:16.608737
+c34951ac-ce95-47fe-b733-807248162dfa	dc6fbf4c-e179-4b55-964a-bb9a105371e1	2026-09-26 20:10:07.789514
+e75ec373-a6b3-4e0c-8694-86246950ff2a	e72c20cf-1670-462d-91b5-119ce3e0c179	2026-09-26 20:12:49.103175
 \.
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.users (id, role, name, email, mobile, password_hash, address, is_active, created_at, gender, age) FROM stdin;
@@ -4715,7 +6867,7 @@ c68ff2da-32b3-4dcf-921d-4540f205d378	beneficiary	DEMO Audit Child AAF7DF	demo-au
 
 
 --
--- Data for Name: wallets; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: wallets; Type: TABLE DATA; Schema: public; Owner: himanshumire
 --
 
 COPY public.wallets (id, ration_card_id, rice_balance_kg, wheat_balance_kg, last_reset_date, updated_at) FROM stdin;
@@ -4742,24 +6894,16 @@ d7d3e53a-a353-4ac6-90bb-22aa02f40b9f	1f34dc13-e9c1-4e8b-8cef-f81eeba6a70b	0.00	2
 049fac27-84b4-4e9b-822c-98a512d23256	f422e3ba-ef69-450b-ae3a-24a4cebe2fa8	3.00	2.00	\N	2026-08-18 23:22:23.429797
 fc40ab8d-7fa0-470b-9e15-a44eae5551c6	02299d9c-beee-40ff-bc1a-976e174435e8	0.00	2.00	\N	2026-08-18 23:23:53.445656
 a80c0175-7666-4a62-ba69-aa20d975ca50	5e3d5be1-5010-40e4-a1d1-1c0660e4c73d	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-4fc41705-e034-40b9-b4a5-d676010e5989	029dbd90-797b-47a5-9aac-ae8512059d93	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 66f7e449-497a-49b3-9975-62fcaeafd4d3	405d8973-b424-4b61-9954-711b249b448b	4.00	3.00	2026-08-17	2026-08-17 22:49:09.474563
 ded5c1c5-ee5a-4e56-825b-92bceb1a396d	8424d36a-e3ea-4e39-a8a7-f0d4292ca78f	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-d56b02ef-33d9-4558-8e3d-f8587fa3b835	9ccdb76a-657b-42f5-a719-d406f462a349	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
-a96045e6-308b-466e-8942-9bbf2c0d5245	428780e3-e99e-49cb-9112-380c1978ac35	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 a2eb6699-90f9-4843-8903-baab8c2997a9	3acb8cb2-2904-4304-8baf-a7a37017f986	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-958ed3c9-83f1-4a4f-b746-626b797453a9	552b5cdd-0c24-4fac-af9b-6e088bd99f4b	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 c9d37838-ce42-4035-bca2-268277c6a533	350a628f-9a90-4ab2-829b-6cad766b4904	3.00	2.00	\N	2026-08-18 23:24:27.457991
 7c87bb11-2765-4655-af0b-71ce59716db1	b77c501f-f783-4ab3-8fcc-2e272e0d496f	4.00	3.00	2026-08-17	2026-08-17 22:49:09.474563
-72a1e324-268b-44d6-b7f2-4a55f8f7d018	643ece23-be14-4f2a-999e-39a2ec669b55	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 52a37813-a9f2-49b0-894f-335268d9564f	ca5b35e1-75b3-47ac-a611-a7dc82ace08a	4.00	3.00	2026-08-17	2026-08-17 22:49:09.474563
 4632f5a3-a54f-480c-8389-78871c1b4d9a	40452a1a-79c7-48ed-ad7c-80e11658f900	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-23face22-fcd8-4502-98a0-bbe0b9cfcd8c	8127a264-1835-4ae0-aef8-fdbac7a35081	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 1c08dd20-68b5-47b1-906a-74155f7bad92	5f5c7b92-50d1-416e-b871-a83850bfd9d4	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-d58fd8bf-3830-4826-ac4b-a47fe3293d94	972ecf55-2bdf-4e21-be38-178402867b8c	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 9b5558f2-db74-4497-8ff2-84a376ffa7c6	b0f2a62f-1fda-4b09-9c2d-9ad04ecb4624	4.00	3.00	2026-08-17	2026-08-17 22:49:09.474563
 8b73b28e-af20-48d7-a4b0-08e42613c76d	a73c0661-d13a-4986-95b2-0930813f274e	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
-f1dab8e1-205e-4193-9171-9989f2d971cf	f556693d-e0fd-4c91-9d30-572eb0ebf01f	2.00	1.50	2026-08-17	2026-08-17 22:49:09.474563
 e8e78c53-bc69-4125-9140-9a638b0958d6	c5f67b4a-212b-464e-83da-409bbb0922fb	3.00	2.00	2026-08-17	2026-08-17 22:49:09.474563
 7e64b3f8-7013-4d7a-9119-23d7a4c9db42	30795952-ad2f-4255-9996-d52db050d9ef	0.00	3.00	\N	2026-08-17 23:04:35.873211
 3d8ed9ae-d00c-41f0-9d46-f5f4ba234445	51af64a5-7904-40b2-9914-d8b9071e5436	0.00	2.00	\N	2026-08-18 23:25:49.286308
@@ -4774,18 +6918,26 @@ e8e78c53-bc69-4125-9140-9a638b0958d6	c5f67b4a-212b-464e-83da-409bbb0922fb	3.00	2
 847dccb6-2a31-4623-afd0-6ee3a46d59ed	c6288a74-f2eb-4139-bd18-fa6a3a4b5596	3.00	2.00	\N	2026-08-18 23:28:30.0649
 51199880-611c-4fb1-9522-27c769419edc	da681ac5-fc04-454f-9476-684d628f062f	0.00	2.00	\N	2026-08-19 05:54:33.055941
 f25f62db-a5cd-4e63-8ecf-4313187442c3	0944244e-b10e-486c-adeb-5cd16a643c7e	3.00	2.00	\N	2026-08-19 05:54:43.680439
+4fc41705-e034-40b9-b4a5-d676010e5989	029dbd90-797b-47a5-9aac-ae8512059d93	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+d56b02ef-33d9-4558-8e3d-f8587fa3b835	9ccdb76a-657b-42f5-a719-d406f462a349	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+a96045e6-308b-466e-8942-9bbf2c0d5245	428780e3-e99e-49cb-9112-380c1978ac35	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+958ed3c9-83f1-4a4f-b746-626b797453a9	552b5cdd-0c24-4fac-af9b-6e088bd99f4b	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+72a1e324-268b-44d6-b7f2-4a55f8f7d018	643ece23-be14-4f2a-999e-39a2ec669b55	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+23face22-fcd8-4502-98a0-bbe0b9cfcd8c	8127a264-1835-4ae0-aef8-fdbac7a35081	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+d58fd8bf-3830-4826-ac4b-a47fe3293d94	972ecf55-2bdf-4e21-be38-178402867b8c	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
+f1dab8e1-205e-4193-9171-9989f2d971cf	f556693d-e0fd-4c91-9d30-572eb0ebf01f	1.00	0.70	2026-09-26	2026-09-26 10:45:26.856111
 \.
 
 
 --
--- Name: pgmigrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+-- Name: pgmigrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: himanshumire
 --
 
-SELECT pg_catalog.setval('public.pgmigrations_id_seq', 27, true);
+SELECT pg_catalog.setval('public.pgmigrations_id_seq', 28, true);
 
 
 --
--- Name: anomaly_events anomaly_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_events anomaly_events_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_events
@@ -4793,7 +6945,7 @@ ALTER TABLE ONLY public.anomaly_events
 
 
 --
--- Name: anomaly_flags anomaly_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_flags anomaly_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_flags
@@ -4801,7 +6953,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- Name: anomaly_rules anomaly_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_rules anomaly_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_rules
@@ -4809,7 +6961,7 @@ ALTER TABLE ONLY public.anomaly_rules
 
 
 --
--- Name: areas areas_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: areas areas_name_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.areas
@@ -4817,7 +6969,7 @@ ALTER TABLE ONLY public.areas
 
 
 --
--- Name: areas areas_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: areas areas_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.areas
@@ -4825,7 +6977,7 @@ ALTER TABLE ONLY public.areas
 
 
 --
--- Name: blockchain_logs blockchain_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: blockchain_logs blockchain_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.blockchain_logs
@@ -4833,7 +6985,7 @@ ALTER TABLE ONLY public.blockchain_logs
 
 
 --
--- Name: blockchain_logs blockchain_logs_transaction_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: blockchain_logs blockchain_logs_transaction_id_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.blockchain_logs
@@ -4841,7 +6993,7 @@ ALTER TABLE ONLY public.blockchain_logs
 
 
 --
--- Name: commodity_tolerances commodity_tolerances_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: commodity_tolerances commodity_tolerances_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.commodity_tolerances
@@ -4849,7 +7001,7 @@ ALTER TABLE ONLY public.commodity_tolerances
 
 
 --
--- Name: dispense_records dispense_records_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_records dispense_records_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_records
@@ -4857,7 +7009,7 @@ ALTER TABLE ONLY public.dispense_records
 
 
 --
--- Name: dispense_sessions dispense_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_sessions dispense_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_sessions
@@ -4865,7 +7017,23 @@ ALTER TABLE ONLY public.dispense_sessions
 
 
 --
--- Name: family_members family_members_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_weighings dispense_weighings_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
+--
+
+ALTER TABLE ONLY public.dispense_weighings
+    ADD CONSTRAINT dispense_weighings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: dispense_weighings dispense_weighings_session_id_commodity_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
+--
+
+ALTER TABLE ONLY public.dispense_weighings
+    ADD CONSTRAINT dispense_weighings_session_id_commodity_key UNIQUE (session_id, commodity);
+
+
+--
+-- Name: family_members family_members_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.family_members
@@ -4873,7 +7041,7 @@ ALTER TABLE ONLY public.family_members
 
 
 --
--- Name: family_members family_members_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: family_members family_members_user_id_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.family_members
@@ -4881,7 +7049,7 @@ ALTER TABLE ONLY public.family_members
 
 
 --
--- Name: iot_audit iot_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: iot_audit iot_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.iot_audit
@@ -4889,7 +7057,7 @@ ALTER TABLE ONLY public.iot_audit
 
 
 --
--- Name: iot_devices iot_devices_device_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: iot_devices iot_devices_device_id_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.iot_devices
@@ -4897,7 +7065,7 @@ ALTER TABLE ONLY public.iot_devices
 
 
 --
--- Name: iot_devices iot_devices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: iot_devices iot_devices_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.iot_devices
@@ -4905,7 +7073,7 @@ ALTER TABLE ONLY public.iot_devices
 
 
 --
--- Name: otp_verifications otp_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: otp_verifications otp_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.otp_verifications
@@ -4913,7 +7081,7 @@ ALTER TABLE ONLY public.otp_verifications
 
 
 --
--- Name: pgmigrations pgmigrations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: pgmigrations pgmigrations_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.pgmigrations
@@ -4921,7 +7089,7 @@ ALTER TABLE ONLY public.pgmigrations
 
 
 --
--- Name: policies policies_category_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: policies policies_category_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.policies
@@ -4929,7 +7097,7 @@ ALTER TABLE ONLY public.policies
 
 
 --
--- Name: policies policies_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: policies policies_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.policies
@@ -4937,7 +7105,7 @@ ALTER TABLE ONLY public.policies
 
 
 --
--- Name: qr_sessions qr_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: qr_sessions qr_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.qr_sessions
@@ -4945,7 +7113,7 @@ ALTER TABLE ONLY public.qr_sessions
 
 
 --
--- Name: ration_cards ration_cards_card_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ration_cards ration_cards_card_number_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.ration_cards
@@ -4953,7 +7121,7 @@ ALTER TABLE ONLY public.ration_cards
 
 
 --
--- Name: ration_cards ration_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ration_cards ration_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.ration_cards
@@ -4961,7 +7129,7 @@ ALTER TABLE ONLY public.ration_cards
 
 
 --
--- Name: sensor_reading_rejections sensor_reading_rejections_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sensor_reading_rejections sensor_reading_rejections_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.sensor_reading_rejections
@@ -4969,7 +7137,7 @@ ALTER TABLE ONLY public.sensor_reading_rejections
 
 
 --
--- Name: sensor_readings sensor_readings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sensor_readings sensor_readings_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.sensor_readings
@@ -4977,7 +7145,7 @@ ALTER TABLE ONLY public.sensor_readings
 
 
 --
--- Name: shops shops_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shops shops_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.shops
@@ -4985,7 +7153,7 @@ ALTER TABLE ONLY public.shops
 
 
 --
--- Name: shops shops_shop_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shops shops_shop_code_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.shops
@@ -4993,7 +7161,7 @@ ALTER TABLE ONLY public.shops
 
 
 --
--- Name: shops shops_shopkeeper_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shops shops_shopkeeper_id_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.shops
@@ -5001,7 +7169,7 @@ ALTER TABLE ONLY public.shops
 
 
 --
--- Name: transactions transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: transactions transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.transactions
@@ -5009,7 +7177,7 @@ ALTER TABLE ONLY public.transactions
 
 
 --
--- Name: used_jtis used_jtis_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: used_jtis used_jtis_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.used_jtis
@@ -5017,7 +7185,7 @@ ALTER TABLE ONLY public.used_jtis
 
 
 --
--- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.users
@@ -5025,7 +7193,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.users
@@ -5033,7 +7201,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: wallets wallets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: wallets wallets_pkey; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.wallets
@@ -5041,7 +7209,7 @@ ALTER TABLE ONLY public.wallets
 
 
 --
--- Name: wallets wallets_ration_card_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: wallets wallets_ration_card_id_key; Type: CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.wallets
@@ -5049,301 +7217,301 @@ ALTER TABLE ONLY public.wallets
 
 
 --
--- Name: anomaly_flags_resolved_at_auto_resolved_at_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: anomaly_flags_resolved_at_auto_resolved_at_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX anomaly_flags_resolved_at_auto_resolved_at_index ON public.anomaly_flags USING btree (resolved_at, auto_resolved_at);
 
 
 --
--- Name: anomaly_flags_rule_key_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: anomaly_flags_rule_key_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX anomaly_flags_rule_key_index ON public.anomaly_flags USING btree (rule_key);
 
 
 --
--- Name: anomaly_flags_shop_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: anomaly_flags_shop_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX anomaly_flags_shop_id_index ON public.anomaly_flags USING btree (shop_id);
 
 
 --
--- Name: dispense_records_ration_card_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_records_ration_card_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX dispense_records_ration_card_id_index ON public.dispense_records USING btree (ration_card_id);
 
 
 --
--- Name: dispense_records_session_id_unique_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_records_session_id_unique_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE UNIQUE INDEX dispense_records_session_id_unique_index ON public.dispense_records USING btree (session_id);
 
 
 --
--- Name: dispense_records_shop_id_committed_at_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_records_shop_id_committed_at_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX dispense_records_shop_id_committed_at_index ON public.dispense_records USING btree (shop_id, committed_at);
 
 
 --
--- Name: dispense_records_transaction_id_unique_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_records_transaction_id_unique_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE UNIQUE INDEX dispense_records_transaction_id_unique_index ON public.dispense_records USING btree (transaction_id) WHERE (transaction_id IS NOT NULL);
 
 
 --
--- Name: dispense_sessions_device_id_state_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_sessions_device_id_state_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX dispense_sessions_device_id_state_index ON public.dispense_sessions USING btree (device_id, state);
 
 
 --
--- Name: dispense_sessions_ration_card_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_sessions_ration_card_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX dispense_sessions_ration_card_id_index ON public.dispense_sessions USING btree (ration_card_id);
 
 
 --
--- Name: dispense_sessions_shop_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: dispense_sessions_shop_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX dispense_sessions_shop_id_index ON public.dispense_sessions USING btree (shop_id);
 
 
 --
--- Name: idx_anomaly_events_created_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_anomaly_events_created_at; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_anomaly_events_created_at ON public.anomaly_events USING btree (created_at);
 
 
 --
--- Name: idx_anomaly_events_resolved; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_anomaly_events_resolved; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_anomaly_events_resolved ON public.anomaly_events USING btree (resolved);
 
 
 --
--- Name: idx_anomaly_events_transaction_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_anomaly_events_transaction_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_anomaly_events_transaction_id ON public.anomaly_events USING btree (transaction_id);
 
 
 --
--- Name: idx_blockchain_logs_status; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_blockchain_logs_status; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_blockchain_logs_status ON public.blockchain_logs USING btree (status);
 
 
 --
--- Name: idx_blockchain_logs_transaction_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_blockchain_logs_transaction_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_blockchain_logs_transaction_id ON public.blockchain_logs USING btree (transaction_id);
 
 
 --
--- Name: idx_family_members_ration_card_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_family_members_ration_card_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_family_members_ration_card_id ON public.family_members USING btree (ration_card_id);
 
 
 --
--- Name: idx_family_members_user_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_family_members_user_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_family_members_user_id ON public.family_members USING btree (user_id);
 
 
 --
--- Name: idx_otp_verifications_mobile; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_otp_verifications_mobile; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_otp_verifications_mobile ON public.otp_verifications USING btree (mobile);
 
 
 --
--- Name: idx_qr_sessions_expires_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_qr_sessions_expires_at; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_qr_sessions_expires_at ON public.qr_sessions USING btree (expires_at);
 
 
 --
--- Name: idx_qr_sessions_ration_card_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_qr_sessions_ration_card_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_qr_sessions_ration_card_id ON public.qr_sessions USING btree (ration_card_id);
 
 
 --
--- Name: idx_qr_sessions_shop_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_qr_sessions_shop_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_qr_sessions_shop_id ON public.qr_sessions USING btree (shop_id);
 
 
 --
--- Name: idx_ration_cards_area_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_ration_cards_area_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_ration_cards_area_id ON public.ration_cards USING btree (area_id);
 
 
 --
--- Name: idx_ration_cards_head_user_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_ration_cards_head_user_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_ration_cards_head_user_id ON public.ration_cards USING btree (head_user_id);
 
 
 --
--- Name: idx_ration_cards_shop_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_ration_cards_shop_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_ration_cards_shop_id ON public.ration_cards USING btree (shop_id);
 
 
 --
--- Name: idx_shops_area_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_shops_area_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_shops_area_id ON public.shops USING btree (area_id);
 
 
 --
--- Name: idx_shops_shopkeeper_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_shops_shopkeeper_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_shops_shopkeeper_id ON public.shops USING btree (shopkeeper_id);
 
 
 --
--- Name: idx_transactions_created_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_transactions_created_at; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_transactions_created_at ON public.transactions USING btree (created_at);
 
 
 --
--- Name: idx_transactions_ration_card_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_transactions_ration_card_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_transactions_ration_card_id ON public.transactions USING btree (ration_card_id);
 
 
 --
--- Name: idx_transactions_shop_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_transactions_shop_id; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_transactions_shop_id ON public.transactions USING btree (shop_id);
 
 
 --
--- Name: idx_users_email; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_users_email; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_users_email ON public.users USING btree (email);
 
 
 --
--- Name: idx_users_mobile; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_users_mobile; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_users_mobile ON public.users USING btree (mobile);
 
 
 --
--- Name: idx_users_role; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_users_role; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX idx_users_role ON public.users USING btree (role);
 
 
 --
--- Name: iot_audit_action_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: iot_audit_action_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX iot_audit_action_index ON public.iot_audit USING btree (action);
 
 
 --
--- Name: iot_audit_at_time_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: iot_audit_at_time_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX iot_audit_at_time_index ON public.iot_audit USING btree (at_time);
 
 
 --
--- Name: iot_devices_shop_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: iot_devices_shop_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX iot_devices_shop_id_index ON public.iot_devices USING btree (shop_id);
 
 
 --
--- Name: iot_devices_status_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: iot_devices_status_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX iot_devices_status_index ON public.iot_devices USING btree (status);
 
 
 --
--- Name: sensor_reading_rejections_device_id_rejected_at_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: sensor_reading_rejections_device_id_rejected_at_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX sensor_reading_rejections_device_id_rejected_at_index ON public.sensor_reading_rejections USING btree (device_id, rejected_at);
 
 
 --
--- Name: sensor_readings_device_id_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: sensor_readings_device_id_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX sensor_readings_device_id_index ON public.sensor_readings USING btree (device_id);
 
 
 --
--- Name: sensor_readings_taken_at_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: sensor_readings_taken_at_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE INDEX sensor_readings_taken_at_index ON public.sensor_readings USING btree (taken_at);
 
 
 --
--- Name: transactions_rice_monthly_claim_unique_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: transactions_rice_monthly_claim_unique_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE UNIQUE INDEX transactions_rice_monthly_claim_unique_index ON public.transactions USING btree (ration_card_id, date_trunc('month'::text, created_at)) WHERE (rice_qty_kg > (0)::numeric);
 
 
 --
--- Name: transactions_wheat_monthly_claim_unique_index; Type: INDEX; Schema: public; Owner: postgres
+-- Name: transactions_wheat_monthly_claim_unique_index; Type: INDEX; Schema: public; Owner: himanshumire
 --
 
 CREATE UNIQUE INDEX transactions_wheat_monthly_claim_unique_index ON public.transactions USING btree (ration_card_id, date_trunc('month'::text, created_at)) WHERE (wheat_qty_kg > (0)::numeric);
 
 
 --
--- Name: users trg_prevent_admin_user_delete; Type: TRIGGER; Schema: public; Owner: postgres
+-- Name: users trg_prevent_admin_user_delete; Type: TRIGGER; Schema: public; Owner: himanshumire
 --
 
 CREATE TRIGGER trg_prevent_admin_user_delete BEFORE DELETE ON public.users FOR EACH ROW EXECUTE FUNCTION public.prevent_admin_user_delete();
 
 
 --
--- Name: anomaly_events anomaly_events_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_events anomaly_events_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_events
@@ -5351,7 +7519,7 @@ ALTER TABLE ONLY public.anomaly_events
 
 
 --
--- Name: anomaly_flags anomaly_flags_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_flags anomaly_flags_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_flags
@@ -5359,7 +7527,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- Name: anomaly_flags anomaly_flags_dispense_record_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_flags anomaly_flags_dispense_record_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_flags
@@ -5367,7 +7535,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- Name: anomaly_flags anomaly_flags_rule_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_flags anomaly_flags_rule_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_flags
@@ -5375,7 +7543,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- Name: anomaly_flags anomaly_flags_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: anomaly_flags anomaly_flags_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.anomaly_flags
@@ -5383,7 +7551,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- Name: blockchain_logs blockchain_logs_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: blockchain_logs blockchain_logs_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.blockchain_logs
@@ -5391,7 +7559,7 @@ ALTER TABLE ONLY public.blockchain_logs
 
 
 --
--- Name: dispense_records dispense_records_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_records dispense_records_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_records
@@ -5399,7 +7567,7 @@ ALTER TABLE ONLY public.dispense_records
 
 
 --
--- Name: dispense_records dispense_records_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_records dispense_records_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_records
@@ -5407,7 +7575,7 @@ ALTER TABLE ONLY public.dispense_records
 
 
 --
--- Name: dispense_records dispense_records_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_records dispense_records_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_records
@@ -5415,7 +7583,7 @@ ALTER TABLE ONLY public.dispense_records
 
 
 --
--- Name: dispense_records dispense_records_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_records dispense_records_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_records
@@ -5423,7 +7591,7 @@ ALTER TABLE ONLY public.dispense_records
 
 
 --
--- Name: dispense_sessions dispense_sessions_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_sessions dispense_sessions_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_sessions
@@ -5431,7 +7599,7 @@ ALTER TABLE ONLY public.dispense_sessions
 
 
 --
--- Name: dispense_sessions dispense_sessions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_sessions dispense_sessions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_sessions
@@ -5439,7 +7607,7 @@ ALTER TABLE ONLY public.dispense_sessions
 
 
 --
--- Name: dispense_sessions dispense_sessions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_sessions dispense_sessions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.dispense_sessions
@@ -5447,7 +7615,15 @@ ALTER TABLE ONLY public.dispense_sessions
 
 
 --
--- Name: family_members family_members_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dispense_weighings dispense_weighings_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
+--
+
+ALTER TABLE ONLY public.dispense_weighings
+    ADD CONSTRAINT dispense_weighings_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.qr_sessions(session_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_members family_members_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.family_members
@@ -5455,7 +7631,7 @@ ALTER TABLE ONLY public.family_members
 
 
 --
--- Name: family_members family_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: family_members family_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.family_members
@@ -5463,7 +7639,7 @@ ALTER TABLE ONLY public.family_members
 
 
 --
--- Name: iot_devices iot_devices_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: iot_devices iot_devices_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.iot_devices
@@ -5471,7 +7647,7 @@ ALTER TABLE ONLY public.iot_devices
 
 
 --
--- Name: qr_sessions qr_sessions_issued_to_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: qr_sessions qr_sessions_issued_to_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.qr_sessions
@@ -5479,7 +7655,7 @@ ALTER TABLE ONLY public.qr_sessions
 
 
 --
--- Name: qr_sessions qr_sessions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: qr_sessions qr_sessions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.qr_sessions
@@ -5487,7 +7663,7 @@ ALTER TABLE ONLY public.qr_sessions
 
 
 --
--- Name: qr_sessions qr_sessions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: qr_sessions qr_sessions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.qr_sessions
@@ -5495,7 +7671,7 @@ ALTER TABLE ONLY public.qr_sessions
 
 
 --
--- Name: ration_cards ration_cards_area_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ration_cards ration_cards_area_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.ration_cards
@@ -5503,7 +7679,7 @@ ALTER TABLE ONLY public.ration_cards
 
 
 --
--- Name: ration_cards ration_cards_head_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ration_cards ration_cards_head_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.ration_cards
@@ -5511,7 +7687,7 @@ ALTER TABLE ONLY public.ration_cards
 
 
 --
--- Name: ration_cards ration_cards_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ration_cards ration_cards_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.ration_cards
@@ -5519,7 +7695,7 @@ ALTER TABLE ONLY public.ration_cards
 
 
 --
--- Name: sensor_reading_rejections sensor_reading_rejections_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sensor_reading_rejections sensor_reading_rejections_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.sensor_reading_rejections
@@ -5527,7 +7703,7 @@ ALTER TABLE ONLY public.sensor_reading_rejections
 
 
 --
--- Name: sensor_readings sensor_readings_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sensor_readings sensor_readings_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.sensor_readings
@@ -5535,7 +7711,7 @@ ALTER TABLE ONLY public.sensor_readings
 
 
 --
--- Name: shops shops_area_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shops shops_area_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.shops
@@ -5543,7 +7719,7 @@ ALTER TABLE ONLY public.shops
 
 
 --
--- Name: shops shops_shopkeeper_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shops shops_shopkeeper_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.shops
@@ -5551,7 +7727,7 @@ ALTER TABLE ONLY public.shops
 
 
 --
--- Name: transactions transactions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: transactions transactions_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.transactions
@@ -5559,7 +7735,7 @@ ALTER TABLE ONLY public.transactions
 
 
 --
--- Name: transactions transactions_served_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: transactions transactions_served_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.transactions
@@ -5567,7 +7743,7 @@ ALTER TABLE ONLY public.transactions
 
 
 --
--- Name: transactions transactions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: transactions transactions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.transactions
@@ -5575,7 +7751,7 @@ ALTER TABLE ONLY public.transactions
 
 
 --
--- Name: used_jtis used_jtis_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: used_jtis used_jtis_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.used_jtis
@@ -5583,7 +7759,7 @@ ALTER TABLE ONLY public.used_jtis
 
 
 --
--- Name: wallets wallets_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: wallets wallets_ration_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: himanshumire
 --
 
 ALTER TABLE ONLY public.wallets
@@ -5594,5 +7770,5 @@ ALTER TABLE ONLY public.wallets
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 8ZzZx0K9lbIO2CpXuFONsl50X5IvfGCPMCHEdmbvCYD39wehQ6Gvy2atwgMAS4b
+\unrestrict NTBkFQNeG0fwu1XzaESSPu1O9Am2AuLr5AWiiBdoydDfxCv9OYsIhcLYQqlM9PN
 

@@ -58,6 +58,10 @@ const MAX_ABSURD_GRAMS = 1_000_000;
 const LABELLED_WEIGHT = /^[a-z_ ]*weight[a-z_ ]*[:=]?\s*(-?\d+(?:\.\d+)?)\s*(?:g|gram|grams)?$/i;
 const BARE_NUMBER = /^(-?\d+(?:\.\d+)?)\s*(?:g|gram|grams)?$/i;
 
+// Teammate IoT sketch output: "Raw: -27536    Weight: 0.0 g    0.000 kg"
+const TEAMMATE_RAW_AND_WEIGHT = /^\s*raw:\s*-?\d+(?:\.\d+)?\s+weight:\s*(-?\d+(?:\.\d+)?)\s*g/i;
+
+
 // RAW ADC COUNTS — recognised specifically in order to be REFUSED.
 //
 // The stock HX711 calibration sketches print lines like `Raw value: -26052.00`
@@ -209,7 +213,13 @@ const parseSerialLine = (line) => {
         return unparsed(line, "raw ADC counts, not grams — this board is running an uncalibrated raw-value sketch");
     }
 
+    const teammateMatch = trimmed.match(TEAMMATE_RAW_AND_WEIGHT);
+    if (teammateMatch) {
+        return toReading(teammateMatch[1], line, null);
+    }
+
     const labelled = trimmed.match(LABELLED_WEIGHT);
+
     if (labelled) {
         return toReading(labelled[1], line, null);
     }

@@ -48,6 +48,11 @@
 #define PDS_HX711_DT_PIN 5
 #define PDS_HX711_SCK_PIN 18
 
+// Default calibration configuration matching teammate HX711 setup
+#define PDS_DEFAULT_ZERO_RAW -27536.5f
+#define PDS_DEFAULT_CALIBRATION_FACTOR -397.7152f // (-397715.2 / 1000.0)
+
+
 // ---- LOAD-CELL SAFETY -----------------------------------------------------
 // Rated capacity of the cell this device is built around. A standard 5 kg
 // strain-gauge cell tolerates roughly 120% (6000 g) without permanent damage

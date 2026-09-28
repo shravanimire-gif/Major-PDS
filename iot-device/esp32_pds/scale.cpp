@@ -1,4 +1,5 @@
 #include "scale.h"
+#include "pds_config.h"
 #include <Preferences.h>
 
 namespace
@@ -19,12 +20,16 @@ void Scale::loadCalibrationFactor()
 {
     Preferences prefs;
     prefs.begin(NVS_NAMESPACE, /* readOnly = */ true);
-    // Defaults to 1.0 (i.e. uncalibrated) until setCalibrationFactor() has
-    // been called at least once — see the README's calibration procedure.
-    _calibrationFactor = prefs.getFloat(NVS_KEY_CAL_FACTOR, 1.0f);
+    // Default to PDS_DEFAULT_CALIBRATION_FACTOR if not set in NVS
+    _calibrationFactor = prefs.getFloat(NVS_KEY_CAL_FACTOR, PDS_DEFAULT_CALIBRATION_FACTOR);
     if (prefs.isKey(NVS_KEY_TARE_OFFSET))
     {
-        _hx711.set_offset(prefs.getLong(NVS_KEY_TARE_OFFSET, 0));
+        _hx711.set_offset(prefs.getLong(NVS_KEY_TARE_OFFSET, (long)PDS_DEFAULT_ZERO_RAW));
+        _hasTareOffset = true;
+    }
+    else
+    {
+        _hx711.set_offset((long)PDS_DEFAULT_ZERO_RAW);
         _hasTareOffset = true;
     }
     prefs.end();
@@ -71,11 +76,24 @@ long Scale::readTareAdjustedAverage(uint8_t samples)
 
 int Scale::readGrams()
 {
-    // Keep the signed raw-count-to-gram conversion explicit. The calibration
-    // factor can be negative when the load-cell signal polarity is reversed;
-    // raw counts and factor then have the same sign and the result is still a
-    // positive physical weight.
     const long tareAdjusted = _hx711.get_value(5);
-    const float grams = (float)tareAdjusted / _calibrationFactor;
+    float grams = (float)tareAdjusted / _calibrationFactor;
+
+    // Fluctuation cleanup per teammate configuration:
+    // Remove tiny negative/zero fluctuations (-20 g to 0 g)
+    if (grams < 0 && grams > -20.0f)
+    {
+        grams = 0.0f;
+    }
+    if (grams < 0)
+    {
+        grams = 0.0f;
+    }
+    if (grams > PDS_LOAD_CELL_RATED_GRAMS)
+    {
+        grams = (float)PDS_LOAD_CELL_RATED_GRAMS;
+    }
+
     return (int)round(grams);
 }
+

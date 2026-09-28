@@ -23,7 +23,7 @@ beforeAll(async () => {
     // Policies
     await pool.query(`
     INSERT INTO policies (category, rice_per_card_grams, wheat_per_card_grams) VALUES
-      ('APL', 2000, 1500),
+      ('APL', 1000, 700),
       ('BPL', 3000, 2000),
       ('AAY', 4000, 3000)
     
@@ -133,7 +133,7 @@ describe('Entitlement Engine', () => {
         expect(Number(walletRes.rows[0].wheat_balance_kg)).toBe(2);
     });
 
-    test('3. APL card gets 2kg rice — family size no longer multiplies it', async () => {
+    test('3. APL card gets 1kg rice, 0.7kg wheat — family size no longer multiplies it', async () => {
         await seedCard('APL-001', 'APL', 4);
 
         await request(app)
@@ -141,11 +141,12 @@ describe('Entitlement Engine', () => {
             .set('Authorization', `Bearer ${adminToken}`);
 
         const walletRes = await pool.query(
-            `SELECT w.rice_balance_kg FROM wallets w
+            `SELECT w.rice_balance_kg, w.wheat_balance_kg FROM wallets w
        JOIN ration_cards rc ON rc.id = w.ration_card_id
        WHERE rc.card_number = 'APL-001'`,
         );
-        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(2);
+        expect(Number(walletRes.rows[0].rice_balance_kg)).toBe(1);
+        expect(Number(walletRes.rows[0].wheat_balance_kg)).toBe(0.7);
     });
 
     test('4. preview does NOT change wallet', async () => {
